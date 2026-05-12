@@ -1,13 +1,16 @@
 import { useProjectStore } from "./store/projectStore";
 import { useAnimationEngine } from "./playback/useAnimationEngine";
 import { useKeyboardShortcuts } from "./playback/useKeyboardShortcuts";
+import { useAutosave } from "./persistence/useAutosave";
 import { Toolbar } from "./components/layout/Toolbar";
 import { PreviewCanvas } from "./components/preview/PreviewCanvas";
+import { Timeline } from "./components/timeline/Timeline";
 
 export function App() {
   const project = useProjectStore((s) => s.project);
   const { registerElement } = useAnimationEngine();
   useKeyboardShortcuts();
+  useAutosave();
 
   return (
     <div className="grid h-screen grid-rows-[auto_minmax(0,1fr)_auto] bg-neutral-950 text-neutral-100">
@@ -56,14 +59,8 @@ export function App() {
         </section>
       </main>
 
-      <footer className="border-t border-neutral-800 bg-neutral-950 p-4">
-        <h2 className="mb-2 text-xs uppercase tracking-wider text-neutral-500">
-          Timeline
-        </h2>
-        <div className="rounded border border-dashed border-neutral-800 p-4 text-xs text-neutral-500">
-          Phase 7 — timeline rows + draggable effect blocks. (Use the toolbar
-          scrubber and Play to see the animation now.)
-        </div>
+      <footer className="border-t border-neutral-800 bg-neutral-950">
+        <Timeline />
       </footer>
     </div>
   );

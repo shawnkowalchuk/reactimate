@@ -14,6 +14,11 @@ import { EFFECT_DEFAULTS } from "../constants/effects";
 import { CANVAS_PRESETS } from "../constants/presets";
 import { newId } from "../utils/id";
 import { makeSampleProject } from "../sample/sampleProject";
+import { loadFromStorage } from "../persistence/localStorage";
+
+function initialProject(): Project {
+  return loadFromStorage() ?? makeSampleProject();
+}
 
 export interface ProjectState {
   project: Project;
@@ -87,7 +92,7 @@ const replaceComponent = (
 
 export const useProjectStore = create<ProjectState>()(
   temporal((set, get) => ({
-    project: makeSampleProject(),
+    project: initialProject(),
 
     setProject: (p) => set({ project: p }),
 
