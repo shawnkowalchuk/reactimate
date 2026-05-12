@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-05-12 · commit [`214b743`](https://github.com/shawnkowalchuk/reactimate/commit/214b743)
+**Last updated:** 2026-05-12 · commit [`74947fa`](https://github.com/shawnkowalchuk/reactimate/commit/74947fa) + editor fixes & split/merge (this commit)
 
 ---
 
@@ -15,15 +15,22 @@
 - Optional `UserMenu` (avatar + email + sign-out) when Supabase auth is enabled
 
 ### Text editor + componentize flow (Phase 3 + Phase 4)
-- `components/editor/TextEditor.tsx` — single-line `contenteditable` div bound to `layer.text`
-  - React only writes to the DOM when the text changes from an EXTERNAL source (undo, file load, reset) so the cursor isn't disturbed during typing
-  - `beforeinput` blocks line breaks (Enter, paste of multi-line text is collapsed to spaces)
-  - `onInput` runs `diffStrings(old, new)` → calls `projectStore.updateLayerText(newText, editStart, editEnd, newLength)` which pipes through `engine/ranges.adjustRanges` to keep component ranges consistent
+- `components/editor/TextEditor.tsx` — `contenteditable` div bound to `layer.text`
+  - Does NOT render `layer.text` as JSX children (that fights React reconciliation against the browser's input and collapses the caret to position 0 on every keystroke). The DOM text is mutated only by a `useLayoutEffect` that writes when `layer.text` diverged from `el.textContent` (undo, file load, reset)
+  - Maintains a single text node so `Selection.startOffset` is directly the character offset in `layer.text`. If the browser inserts foreign nodes (e.g. `<br>` on paste), `onInput` re-flattens via `el.textContent = el.textContent` and restores the caret
+  - **Multi-line:** `beforeinput insertParagraph` / `insertLineBreak` and `paste` are intercepted and the text is inserted via a manual Range-based helper (`execCommand('insertText','\n')` is unreliable across browsers). Newlines flow through `diffStrings → adjustRanges → store` like any other character
+  - `onInput` runs `diffStrings(old, new)` → `updateLayerText(newText, editStart, editEnd, newLength)` which pipes through `engine/ranges.adjustRanges` to keep component ranges consistent
 - `utils/textDiff.ts` — minimal-edit detector via longest common prefix + non-overlapping common suffix; tested for inserts, deletes, replaces, select-all, paste-at-start, append, clear, and round-trip reconstruction
 - `components/editor/ComponentOverlay.tsx` — colored highlight boxes drawn on a separate absolutely-positioned layer using `Range.getClientRects()` (so word-wrap is handled correctly); recomputes on resize, component/text change, and `document.fonts.ready`
-- `components/editor/SelectionPopover.tsx` — floating **+ Componentize** button appears when there's a non-empty selection inside the editor that doesn't overlap an existing component; hidden during the dialog
+- `components/editor/SelectionPopover.tsx` — three modes depending on what the selection covers:
+  - No overlap with any component → **+ Componentize** (opens dialog)
+  - Fully inside one component → **✂ Split off** (extracts the selected sub-range as a new component, original keeps its style + effects)
+  - Fully covers 2+ contiguous components → **⤢ Merge N** (collapses into one; takes the first component's style + color; concatenates effects)
+  - Partial overlaps are hidden (would mangle component edges)
 - `components/editor/CreateComponentDialog.tsx` — modal with font (curated Google Fonts), weight, size, color picker (hex + native `input[type=color]`); live style preview; calls `addComponent(start, end, partialStyle)`
+- Editor footer lists components as clickable chips — clicking selects the component (alternative path to the timeline gutter chip), so font/weight/size/color/Remove are reachable from either the editor or the timeline
 - 10 curated Google Fonts loaded statically from `index.html` (`display=swap`)
+- Exported `Hero.jsx` uses `whiteSpace: "pre-wrap"` on the inner `<div>` so `\n` characters in the layer text render as visible line breaks in the consumer's page
 
 ### Animation engine (pure logic + tested)
 | Module | Purpose |
@@ -93,7 +100,7 @@
 ### Tooling & quality
 - Vite 6 + React 19 + TypeScript (strict) + Tailwind v3
 - ESLint flat config + Prettier
-- **88 tests passing** across 9 files: ranges (15), compose (9), interpolate (11), palette (3), format (10), effectToMotion (7), generateComponent (9), localStorage (11), textDiff (13)
+- **96 tests passing** across 10 files: ranges (15), compose (9), interpolate (11), palette (3), format (10), effectToMotion (7), generateComponent (9), localStorage (11), textDiff (13), projectStore split/merge (8)
 - GitHub Actions CI: `lint` → `typecheck` → `test` → `build`
 - Conventional commits; commit log is the design record
 
@@ -104,6 +111,10 @@
 ### Phase 2 — layout polish
 **Status:** not started. **Effort:** ~1h.
 Mostly visual refinement of the three-pane shell — better empty/error states, breakpoint behavior, a polish pass on spacing/typography. Probably "read-only on mobile" rather than building a real touch editor.
+
+### Known editor quirk: cursor past a trailing `\n`
+**Effort:** small, low priority.
+If the user presses Enter at the very end of the text and then types, the new text lands BEFORE the trailing `\n` (browser-level quirk — `execCommand('insertText')` and native typing both visually treat "after \n at end of node" the same as "at end of previous line"). The text and exported JSX are both fine; only the caret position is unintuitive in that one edge case. Workarounds: don't allow trailing newlines (auto-trim), or replace `\n` with `<br>` elements (bigger refactor, breaks the single-text-node selection model).
 
 
 ### Cloud project storage

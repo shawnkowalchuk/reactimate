@@ -46,6 +46,28 @@ export interface ProjectState {
     componentId: string,
     patch: Partial<ComponentStyle>,
   ) => void;
+  /**
+   * Split a sub-range `[selStart, selEnd)` out of an existing component.
+   * The host component is sliced into up to three pieces:
+   *   [start, selStart)         — head, keeps the original style + effects
+   *   [selStart, selEnd)        — extracted middle, NEW component (no effects)
+   *   [selEnd, end)              — tail, keeps the original style (no effects)
+   * Empty pieces are dropped. Returns the new middle component's id, or
+   * null if the input was rejected (no such component, selection out of
+   * bounds, or selStart >= selEnd).
+   */
+  splitOffRange: (
+    componentId: string,
+    selStart: number,
+    selEnd: number,
+  ) => string | null;
+  /**
+   * Merge two or more components into one. Takes the first component's
+   * (lowest startIndex) style + color; spans `[firstStart, lastEnd)`;
+   * concatenates effects from every merged component. Returns the new
+   * component id, or null if fewer than 2 valid components were named.
+   */
+  mergeComponents: (componentIds: string[]) => string | null;
 
   // Effects
   addEffect: (
@@ -195,6 +217,98 @@ export const useProjectStore = create<ProjectState>()(
           style: { ...c.style, ...patch },
         })),
       })),
+
+    splitOffRange: (componentId, selStart, selEnd) => {
+      if (selStart >= selEnd) return null;
+      let middleId: string | null = null;
+      set((state) => {
+        const layer = state.project.layer;
+        const idx = layer.components.findIndex((x) => x.id === componentId);
+        if (idx < 0) return state;
+        const c = layer.components[idx];
+        if (selStart < c.startIndex || selEnd > c.endIndex) return state;
+
+        const usedColors = layer.components.map((x) => x.color);
+        const middleColor = nextColor(usedColors);
+        const tailColor = nextColor([...usedColors, middleColor]);
+
+        const newComponents: Component[] = [];
+        for (let i = 0; i < layer.components.length; i++) {
+          if (i !== idx) {
+            newComponents.push(layer.components[i]);
+            continue;
+          }
+          // Head — keeps style and effects
+          if (selStart > c.startIndex) {
+            newComponents.push({ ...c, endIndex: selStart });
+          }
+          // Middle — extracted, new component
+          const mId = newId("comp");
+          middleId = mId;
+          newComponents.push({
+            id: mId,
+            startIndex: selStart,
+            endIndex: selEnd,
+            color: middleColor,
+            style: { ...c.style },
+            effects: [],
+          });
+          // Tail — same style, no effects, new id + palette color
+          if (selEnd < c.endIndex) {
+            newComponents.push({
+              id: newId("comp"),
+              startIndex: selEnd,
+              endIndex: c.endIndex,
+              color: tailColor,
+              style: { ...c.style },
+              effects: [],
+            });
+          }
+        }
+
+        return {
+          project: {
+            ...state.project,
+            layer: { ...layer, components: newComponents },
+          },
+        };
+      });
+      return middleId;
+    },
+
+    mergeComponents: (componentIds) => {
+      if (componentIds.length < 2) return null;
+      let mergedId: string | null = null;
+      set((state) => {
+        const layer = state.project.layer;
+        const ids = new Set(componentIds);
+        const targets = layer.components.filter((x) => ids.has(x.id));
+        if (targets.length < 2) return state;
+        targets.sort((a, b) => a.startIndex - b.startIndex);
+        const first = targets[0];
+        const last = targets[targets.length - 1];
+
+        const merged: Component = {
+          id: newId("comp"),
+          startIndex: first.startIndex,
+          endIndex: last.endIndex,
+          color: first.color,
+          style: { ...first.style },
+          effects: targets.flatMap((c) => c.effects),
+        };
+        mergedId = merged.id;
+
+        const remaining = layer.components.filter((x) => !ids.has(x.id));
+        const next = [...remaining, merged].sort(
+          (a, b) => a.startIndex - b.startIndex,
+        );
+
+        return {
+          project: { ...state.project, layer: { ...layer, components: next } },
+        };
+      });
+      return mergedId;
+    },
 
     addEffect: (componentId, type, startTime) => {
       const id = newId("fx");

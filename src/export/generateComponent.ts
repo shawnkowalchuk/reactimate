@@ -89,6 +89,7 @@ export function generateReactComponent(project: Project): string {
   const innerStyle = {
     textAlign: project.layer.alignment,
     lineHeight: project.layer.lineHeight,
+    whiteSpace: "pre-wrap",
   };
 
   return `import { motion } from "motion/react";
