@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-05-12 · commit [`91ab8bb`](https://github.com/shawnkowalchuk/reactimate/commit/91ab8bb) + Add-effect UI & component style inspector (this commit)
+**Last updated:** 2026-05-12 · commit [`214b743`](https://github.com/shawnkowalchuk/reactimate/commit/214b743)
 
 ---
 
