@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-05-12 · commit [`3b0cfce`](https://github.com/shawnkowalchuk/reactimate/commit/3b0cfce) + loop/theme/project-inspector (this commit)
+**Last updated:** 2026-05-12 · commit [`fa1e678`](https://github.com/shawnkowalchuk/reactimate/commit/fa1e678)
 
 ---
 
