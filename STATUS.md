@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-05-12 · commit [`c63ca8b`](https://github.com/shawnkowalchuk/reactimate/commit/c63ca8b) + Phase 3+4 (this commit)
+**Last updated:** 2026-05-12 · commit [`2476299`](https://github.com/shawnkowalchuk/reactimate/commit/2476299)
 
 ---
 
