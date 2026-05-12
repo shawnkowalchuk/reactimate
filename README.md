@@ -151,6 +151,8 @@ In v1, the **projects still live in `localStorage`** per browser even when signe
 | ----- | ---- | ------ |
 | 0 — scaffold | Vite + TS + Tailwind + lint + CI | ✓ |
 | 1 — foundation | types, stores, engine logic + tests | ✓ |
+| 3 — text editor | contenteditable + colored range overlay | ✓ |
+| 4 — create component | selection popover + style dialog | ✓ |
 | 5 — preview | live `RenderedText` + canvas frame | ✓ |
 | 6 — engine | RAF + DOM writes, scrub/play | ✓ |
 | 7 — timeline | draggable effect blocks, inspector | ✓ |
@@ -158,8 +160,8 @@ In v1, the **projects still live in `localStorage`** per browser even when signe
 | 9 — persistence | localStorage autosave, save/load, undo/redo | ✓ |
 | Auth (opt) | Supabase email + Google + Apple, sign-in gate | ✓ |
 | 2 — layout polish | (visual polish) | — |
-| 3 — text editor | contenteditable + colored range overlay | — |
-| 4 — create component | selection popover + style dialog | — |
+| Component style inspector | edit a component's style after creation | — |
+| Add-effect UI | `+ Add effect` per timeline row | — |
 | Cloud project storage | per-user project rows in Supabase, sync | — |
 | Templates / starter projects | — | — |
 

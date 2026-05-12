@@ -12,6 +12,11 @@ export default {
           "sans-serif",
         ],
       },
+      colors: {
+        neutral: {
+          925: "#141414",
+        },
+      },
     },
   },
   plugins: [],

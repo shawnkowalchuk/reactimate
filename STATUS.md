@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-05-12 · commit [`5682dd8`](https://github.com/shawnkowalchuk/reactimate/commit/5682dd8)
+**Last updated:** 2026-05-12 · commit [`c63ca8b`](https://github.com/shawnkowalchuk/reactimate/commit/c63ca8b) + Phase 3+4 (this commit)
 
 ---
 
@@ -13,6 +13,17 @@
 - Tabbed preview pane: live animation **or** live generated JSX
 - Toolbar: project name, time display, scrubber, undo/redo, transport (skip-back / play-pause), save / load / reset, export
 - Optional `UserMenu` (avatar + email + sign-out) when Supabase auth is enabled
+
+### Text editor + componentize flow (Phase 3 + Phase 4)
+- `components/editor/TextEditor.tsx` — single-line `contenteditable` div bound to `layer.text`
+  - React only writes to the DOM when the text changes from an EXTERNAL source (undo, file load, reset) so the cursor isn't disturbed during typing
+  - `beforeinput` blocks line breaks (Enter, paste of multi-line text is collapsed to spaces)
+  - `onInput` runs `diffStrings(old, new)` → calls `projectStore.updateLayerText(newText, editStart, editEnd, newLength)` which pipes through `engine/ranges.adjustRanges` to keep component ranges consistent
+- `utils/textDiff.ts` — minimal-edit detector via longest common prefix + non-overlapping common suffix; tested for inserts, deletes, replaces, select-all, paste-at-start, append, clear, and round-trip reconstruction
+- `components/editor/ComponentOverlay.tsx` — colored highlight boxes drawn on a separate absolutely-positioned layer using `Range.getClientRects()` (so word-wrap is handled correctly); recomputes on resize, component/text change, and `document.fonts.ready`
+- `components/editor/SelectionPopover.tsx` — floating **+ Componentize** button appears when there's a non-empty selection inside the editor that doesn't overlap an existing component; hidden during the dialog
+- `components/editor/CreateComponentDialog.tsx` — modal with font (curated Google Fonts), weight, size, color picker (hex + native `input[type=color]`); live style preview; calls `addComponent(start, end, partialStyle)`
+- 10 curated Google Fonts loaded statically from `index.html` (`display=swap`)
 
 ### Animation engine (pure logic + tested)
 | Module | Purpose |
@@ -76,7 +87,7 @@
 ### Tooling & quality
 - Vite 6 + React 19 + TypeScript (strict) + Tailwind v3
 - ESLint flat config + Prettier
-- **75 tests passing** across 8 files: ranges (15), compose (9), interpolate (11), palette (3), format (10), effectToMotion (7), generateComponent (9), localStorage (11)
+- **88 tests passing** across 9 files: ranges (15), compose (9), interpolate (11), palette (3), format (10), effectToMotion (7), generateComponent (9), localStorage (11), textDiff (13)
 - GitHub Actions CI: `lint` → `typecheck` → `test` → `build`
 - Conventional commits; commit log is the design record
 
@@ -88,21 +99,9 @@
 **Status:** not started. **Effort:** ~1h.
 Mostly visual refinement of the three-pane shell — better empty/error states, breakpoint behavior, a polish pass on spacing/typography. Probably "read-only on mobile" rather than building a real touch editor.
 
-### Phase 3 — text editor with overlay
-**Status:** not started. **Effort:** the blueprint says 4–5h and warns "hardest UI piece — budget extra time."
-Requires:
-- `TextEditor.tsx` — `contenteditable` div bound to `layer.text`
-- Detect input edits via `beforeinput`/`input`, compute character offsets, call `updateLayerText(newText, editStart, editEnd, newLength)`
-- `ComponentOverlay.tsx` — absolute-positioned outlines on top of componentized ranges using `Range.getBoundingClientRect`, redrawn on every text/layout change
-- Selection-to-character-offset helper using `Selection.modify` semantics (`selectionchange` event)
-
-Until this lands the layer text and component ranges are pinned to the bundled sample project.
-
-### Phase 4 — selection → create component
-**Status:** not started. **Effort:** ~2h once Phase 3 is in.
-- `SelectionPopover.tsx` floats next to a non-empty selection that doesn't overlap an existing component
-- `CreateComponentDialog.tsx` collects font / size / weight / color
-- On confirm, call `projectStore.addComponent(start, end, style)` (already implemented in the store, including overlap rejection and palette color)
+### Component style inspector
+**Status:** not started. **Effort:** ~1h.
+The Create Component dialog only sets a component's style at create time. There's no UI to edit a component's `font` / `size` / `weight` / `color` later (or to rename/recolor the gutter chip). Easiest: a sister inspector strip below the timeline that shows when a component is selected (instead of an effect).
 
 ### Cloud project storage
 **Status:** not started, **depends on:** Supabase auth being on. **Effort:** ~2–3h.
@@ -114,6 +113,7 @@ Currently even when signed in, projects stay in `localStorage` per browser. To m
 - Initial load: fetch the user's most-recent project, or seed with the sample on first sign-in
 
 ### Phase 9 backlog (polish)
+- **Add effect** UI: currently an effect can only be created by editing the sample project's seed; no in-app way to add `Fade` / `Slide` / `Scale` / `Rotate` / `Color-shift` to a new component. Likely a `+ Add effect` button per timeline row → dropdown of `EFFECT_LABELS` → uses `addEffect(componentId, type, startTime)` (already on the store)
 - More effects: `blur`, letter-spacing animation, masked text reveal
 - Per-letter splitting within a component (currently each component is one rendered span)
 - Templates / starter projects (a curated `Project[]` users can clone)
