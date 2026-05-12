@@ -2,15 +2,19 @@ import {
   Download,
   FilePlus,
   FolderOpen,
+  Moon,
   Pause,
   Play,
   Redo2,
+  Repeat,
   Save,
   SkipBack,
+  Sun,
   Undo2,
 } from "lucide-react";
 import { useProjectStore, useProjectTemporal } from "../../store/projectStore";
 import { usePlaybackStore } from "../../store/playbackStore";
+import { useThemeStore } from "../../store/themeStore";
 import { generateReactComponent } from "../../export/generateComponent";
 import { downloadFile } from "../../export/download";
 import {
@@ -26,9 +30,13 @@ export function Toolbar() {
   const resetToSample = useProjectStore((s) => s.resetToSample);
   const isPlaying = usePlaybackStore((s) => s.isPlaying);
   const currentTime = usePlaybackStore((s) => s.currentTime);
+  const loop = usePlaybackStore((s) => s.loop);
   const togglePlaying = usePlaybackStore((s) => s.togglePlaying);
+  const toggleLoop = usePlaybackStore((s) => s.toggleLoop);
   const setCurrentTime = usePlaybackStore((s) => s.setCurrentTime);
   const setPlaying = usePlaybackStore((s) => s.setPlaying);
+  const theme = useThemeStore((s) => s.theme);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
 
   const onPlay = () => {
     if (!isPlaying && currentTime >= project.duration) {
@@ -82,8 +90,13 @@ export function Toolbar() {
   const onUndo = () => useProjectTemporal.getState().undo();
   const onRedo = () => useProjectTemporal.getState().redo();
 
+  const iconBtn =
+    "rounded p-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white";
+  const iconBtnActive =
+    "rounded p-1.5 text-sky-600 bg-sky-100 hover:bg-sky-200 dark:text-sky-300 dark:bg-sky-900/40 dark:hover:bg-sky-900/60";
+
   return (
-    <header className="flex items-center gap-4 border-b border-neutral-800 bg-neutral-950 px-4 py-2">
+    <header className="flex items-center gap-4 border-b border-neutral-200 bg-white px-4 py-2 dark:border-neutral-800 dark:bg-neutral-950">
       <div className="flex items-baseline gap-3">
         <h1 className="text-sm font-semibold tracking-tight">reactimate</h1>
         <span className="text-xs text-neutral-500">Hero Animator</span>
@@ -93,7 +106,7 @@ export function Toolbar() {
         <button
           type="button"
           onClick={onUndo}
-          className="rounded p-1.5 text-neutral-300 hover:bg-neutral-800 hover:text-white"
+          className={iconBtn}
           title="Undo (Ctrl+Z)"
           aria-label="Undo"
         >
@@ -102,7 +115,7 @@ export function Toolbar() {
         <button
           type="button"
           onClick={onRedo}
-          className="rounded p-1.5 text-neutral-300 hover:bg-neutral-800 hover:text-white"
+          className={iconBtn}
           title="Redo (Ctrl+Shift+Z)"
           aria-label="Redo"
         >
@@ -110,13 +123,13 @@ export function Toolbar() {
         </button>
       </div>
 
-      <div className="h-5 w-px bg-neutral-800" />
+      <div className="h-5 w-px bg-neutral-200 dark:bg-neutral-800" />
 
       <div className="flex items-center gap-1">
         <button
           type="button"
           onClick={onReset}
-          className="rounded p-1.5 text-neutral-300 hover:bg-neutral-800 hover:text-white"
+          className={iconBtn}
           title="Back to start (Home)"
           aria-label="Back to start"
         >
@@ -125,16 +138,26 @@ export function Toolbar() {
         <button
           type="button"
           onClick={onPlay}
-          className="flex items-center gap-1.5 rounded bg-neutral-800 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-neutral-700"
+          className="flex items-center gap-1.5 rounded bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-700"
           title="Play / pause (Space)"
         >
           {isPlaying ? <Pause size={14} /> : <Play size={14} />}
           {isPlaying ? "Pause" : "Play"}
         </button>
+        <button
+          type="button"
+          onClick={toggleLoop}
+          className={loop ? iconBtnActive : iconBtn}
+          title={loop ? "Loop: on" : "Loop: off"}
+          aria-label="Toggle loop"
+          aria-pressed={loop}
+        >
+          <Repeat size={14} />
+        </button>
       </div>
 
       <div className="flex flex-1 items-center gap-3">
-        <span className="tabular-nums text-xs text-neutral-400">
+        <span className="tabular-nums text-xs text-neutral-500">
           {currentTime.toFixed(2)}s
         </span>
         <input
@@ -144,7 +167,7 @@ export function Toolbar() {
           step={0.01}
           value={Math.min(currentTime, project.duration)}
           onChange={onScrub}
-          className="flex-1 accent-neutral-400"
+          className="flex-1 accent-neutral-400 dark:accent-neutral-400"
           aria-label="Scrub time"
         />
         <span className="tabular-nums text-xs text-neutral-500">
@@ -155,8 +178,18 @@ export function Toolbar() {
       <div className="flex items-center gap-1">
         <button
           type="button"
+          onClick={toggleTheme}
+          className={iconBtn}
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          aria-label="Toggle theme"
+        >
+          {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+        </button>
+        <div className="h-5 w-px bg-neutral-200 dark:bg-neutral-800" />
+        <button
+          type="button"
           onClick={onResetToSample}
-          className="rounded p-1.5 text-neutral-300 hover:bg-neutral-800 hover:text-white"
+          className={iconBtn}
           title="Reset to sample project"
           aria-label="Reset to sample"
         >
@@ -165,7 +198,7 @@ export function Toolbar() {
         <button
           type="button"
           onClick={onLoadProject}
-          className="rounded p-1.5 text-neutral-300 hover:bg-neutral-800 hover:text-white"
+          className={iconBtn}
           title="Open a saved project (.json)"
           aria-label="Open project"
         >
@@ -174,7 +207,7 @@ export function Toolbar() {
         <button
           type="button"
           onClick={onSaveProject}
-          className="rounded p-1.5 text-neutral-300 hover:bg-neutral-800 hover:text-white"
+          className={iconBtn}
           title="Save project as .json"
           aria-label="Save project"
         >
@@ -185,7 +218,7 @@ export function Toolbar() {
       <button
         type="button"
         onClick={onExport}
-        className="flex items-center gap-1.5 rounded border border-neutral-700 px-2.5 py-1.5 text-xs font-medium text-neutral-200 hover:border-neutral-500 hover:text-white"
+        className="flex items-center gap-1.5 rounded border border-neutral-300 px-2.5 py-1.5 text-xs font-medium text-neutral-800 hover:border-neutral-500 hover:text-neutral-950 dark:border-neutral-700 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:text-white"
         title="Export Hero.jsx (Motion)"
       >
         <Download size={14} />

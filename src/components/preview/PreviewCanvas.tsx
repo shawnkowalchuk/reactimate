@@ -37,7 +37,7 @@ export function PreviewCanvas({ project, registerElement }: PreviewCanvasProps) 
   return (
     <div
       ref={wrapRef}
-      className="relative flex h-full w-full items-center justify-center overflow-hidden rounded bg-neutral-900"
+      className="relative flex h-full w-full items-center justify-center overflow-hidden rounded bg-neutral-100 dark:bg-neutral-900"
     >
       <div
         style={{

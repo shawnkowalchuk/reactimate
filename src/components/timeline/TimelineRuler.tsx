@@ -26,7 +26,7 @@ export function TimelineRuler({ duration, pxPerSecond, onSeek }: TimelineRulerPr
 
   return (
     <div
-      className="relative h-6 cursor-pointer select-none border-b border-neutral-800 bg-neutral-900"
+      className="relative h-6 cursor-pointer select-none border-b border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900"
       onClick={onClick}
       role="presentation"
     >
@@ -36,7 +36,7 @@ export function TimelineRuler({ duration, pxPerSecond, onSeek }: TimelineRulerPr
           className="absolute top-0 h-full"
           style={{ left: t * pxPerSecond }}
         >
-          <div className="absolute left-0 top-0 h-2 w-px bg-neutral-700" />
+          <div className="absolute left-0 top-0 h-2 w-px bg-neutral-300 dark:bg-neutral-700" />
           <span className="absolute left-1 top-1 text-[10px] tabular-nums text-neutral-500">
             {t.toFixed(t % 1 === 0 ? 0 : 2)}s
           </span>

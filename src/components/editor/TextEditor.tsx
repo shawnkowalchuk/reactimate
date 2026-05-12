@@ -111,17 +111,22 @@ export function TextEditor() {
     updateLayerText(newText, edit.editStart, edit.editEnd, edit.newLength);
   };
 
+  const canvasBg = useProjectStore((s) => s.project.canvas.background);
+
   return (
     <div className="flex h-full flex-col gap-2">
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-neutral-500">
         <span>Editor</span>
-        <span className="text-neutral-700">·</span>
-        <span className="text-neutral-600 normal-case tracking-normal">
-          Type freely. Select text to <em className="not-italic text-neutral-400">componentize</em>, <em className="not-italic text-neutral-400">split</em>, or <em className="not-italic text-neutral-400">merge</em>.
+        <span className="text-neutral-400 dark:text-neutral-700">·</span>
+        <span className="text-neutral-500 normal-case tracking-normal">
+          Type freely. Select text to <em className="not-italic text-neutral-700 dark:text-neutral-400">componentize</em>, <em className="not-italic text-neutral-700 dark:text-neutral-400">split</em>, or <em className="not-italic text-neutral-700 dark:text-neutral-400">merge</em>.
         </span>
       </div>
 
-      <div className="relative flex-1 overflow-auto rounded border border-neutral-800 bg-neutral-925 p-4">
+      <div
+        className="relative flex-1 overflow-auto rounded border border-neutral-200 p-4 dark:border-neutral-800"
+        style={{ background: canvasBg }}
+      >
         <div
           ref={editorRef}
           contentEditable
@@ -136,14 +141,14 @@ export function TextEditor() {
             fontSize: 28,
             lineHeight: 1.4,
             fontWeight: defaultTextStyle.fontWeight,
-            color: "#fafafa",
+            color: defaultTextStyle.color,
           }}
         />
         <ComponentOverlay editorRef={editorRef} components={components} text={text} />
         <SelectionPopover editorRef={editorRef} />
       </div>
 
-      <div className="text-[11px] text-neutral-600">
+      <div className="text-[11px] text-neutral-500">
         Components: {components.length === 0 ? "none yet — select some text and click Componentize" : null}
         {components.map((c, i) => (
           <span key={c.id} className="ml-1.5 inline-flex items-center gap-1">
@@ -151,17 +156,17 @@ export function TextEditor() {
               type="button"
               onClick={() => selectComponent(c.id)}
               title="Edit this component's style"
-              className="inline-flex items-center gap-1 rounded px-1 hover:bg-neutral-800"
+              className="inline-flex items-center gap-1 rounded px-1 hover:bg-neutral-100 dark:hover:bg-neutral-800"
             >
               <span
                 className="inline-block h-2 w-2 rounded-full"
                 style={{ background: c.color }}
               />
-              <span className="text-neutral-300">
+              <span className="text-neutral-700 dark:text-neutral-300">
                 "{text.slice(c.startIndex, c.endIndex)}"
               </span>
             </button>
-            {i < components.length - 1 ? <span className="text-neutral-700">·</span> : null}
+            {i < components.length - 1 ? <span className="text-neutral-300 dark:text-neutral-700">·</span> : null}
           </span>
         ))}
       </div>

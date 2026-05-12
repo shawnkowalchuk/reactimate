@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-05-12 · commit [`6b1c730`](https://github.com/shawnkowalchuk/reactimate/commit/6b1c730)
+**Last updated:** 2026-05-12 · commit [`3b0cfce`](https://github.com/shawnkowalchuk/reactimate/commit/3b0cfce) + loop/theme/project-inspector (this commit)
 
 ---
 
@@ -11,7 +11,9 @@
 ### Editor shell
 - Three-pane layout: editor (top-left) · preview/code (top-right) · timeline (full-width footer)
 - Tabbed preview pane: live animation **or** live generated JSX
-- Toolbar: project name, time display, scrubber, undo/redo, transport (skip-back / play-pause), save / load / reset, export
+- Toolbar: project name, time display, scrubber, undo/redo, transport (skip-back / play-pause / **loop**), **theme toggle (sun/moon)**, save / load / reset, export
+- Editor pane background follows `project.canvas.background` and text color follows `project.defaultTextStyle.color` so what's in the editor matches the live preview — the user can dial in black-text-on-white (their target site) without leaving the editor
+- **Light/dark theme toggle** for the app chrome — Tailwind `darkMode: 'class'` with `themeStore` persistence (`reactimate.theme`); `applyThemeClass` runs at module load so the first paint matches the saved preference (no flash of opposite theme)
 - Optional `UserMenu` (avatar + email + sign-out) when Supabase auth is enabled
 
 ### Text editor + componentize flow (Phase 3 + Phase 4)
@@ -48,6 +50,7 @@
 - Scrub via toolbar slider **or** dragging the playhead on the timeline
 - **Home** jumps to `t=0`
 - Auto-rewinds when Play is pressed at the end
+- **Loop / continuous play** toggle in the toolbar — when on, the RAF loop wraps `t` back to ~0 (carrying any overflow so short durations don't drop a frame) instead of stopping at the end. Persisted in `localStorage` (`reactimate.loop`)
 
 ### Timeline UI (Phase 7)
 - Time ruler with auto-spaced tick marks; click to seek
@@ -63,7 +66,7 @@
 - Inspector strip is context-sensitive:
   - **Effect selected** → `Start` / `Dur` / `Easing` / animated-prop list / Delete
   - **Component selected** → `Font` / `Wt` / `Size` / `Color` (hex picker + text) / Remove component (via `updateComponentStyle` + `removeComponent`)
-  - **Nothing selected** → hint
+  - **Nothing selected** → Project Inspector: `Name` / `Dur` / `Canvas` preset / `Bg` (color picker + hex/HSL text) / `Text` (default text color, picker + text) / Quick **Dark site** + **Light site** presets that set bg + text and rewrite any component whose color matched the prior default
 - Draggable playhead synced to `currentTime`
 
 ### Export to Motion JSX (Phase 8)

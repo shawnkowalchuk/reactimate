@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light dark;
 }
 
 html,
@@ -14,8 +14,13 @@ body,
 
 body {
   margin: 0;
-  background: #0a0a0a;
-  color: #fafafa;
+  background: #fafafa;
+  color: #0a0a0a;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-feature-settings: "cv02", "cv03", "cv04";
+}
+
+html.dark body {
+  background: #0a0a0a;
+  color: #fafafa;
 }

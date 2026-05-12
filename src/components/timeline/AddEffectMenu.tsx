@@ -55,18 +55,18 @@ export function AddEffectMenu({ component, projectDuration }: AddEffectMenuProps
         }}
         title="Add effect"
         aria-label="Add effect"
-        className="rounded p-1 text-neutral-500 hover:bg-neutral-800 hover:text-white"
+        className="rounded p-1 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-white"
       >
         <Plus size={12} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-36 overflow-hidden rounded border border-neutral-700 bg-neutral-900 shadow-xl">
+        <div className="absolute right-0 top-full z-30 mt-1 w-36 overflow-hidden rounded border border-neutral-200 bg-white shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
           {TYPES.map((t) => (
             <button
               key={t}
               type="button"
               onClick={() => onPick(t)}
-              className="block w-full px-3 py-1.5 text-left text-xs text-neutral-200 hover:bg-neutral-800"
+              className="block w-full px-3 py-1.5 text-left text-xs text-neutral-800 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
             >
               {EFFECT_LABELS[t]}
             </button>

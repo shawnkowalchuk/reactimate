@@ -69,15 +69,15 @@ export function CreateComponentDialog({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-md rounded-lg border border-neutral-800 bg-neutral-950 shadow-2xl">
-        <header className="flex items-center justify-between border-b border-neutral-800 px-4 py-2.5">
-          <h2 className="text-sm font-semibold text-neutral-100">
+      <div className="w-full max-w-md rounded-lg border border-neutral-200 bg-white shadow-2xl dark:border-neutral-800 dark:bg-neutral-950">
+        <header className="flex items-center justify-between border-b border-neutral-200 px-4 py-2.5 dark:border-neutral-800">
+          <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
             Create component
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-neutral-400 hover:bg-neutral-800 hover:text-white"
+            className="rounded p-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
             aria-label="Close"
           >
             <X size={14} />
@@ -86,14 +86,14 @@ export function CreateComponentDialog({
 
         <div className="px-4 py-3">
           <p className="mb-3 text-xs text-neutral-500">
-            Componentize {validRange ? <code className="rounded bg-neutral-800 px-1 py-0.5 text-neutral-200">"{text}"</code> : "the current selection"} so you can give it its own style and effects.
+            Componentize {validRange ? <code className="rounded bg-neutral-100 px-1 py-0.5 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200">"{text}"</code> : "the current selection"} so you can give it its own style and effects.
           </p>
 
           <Row label="Font">
             <select
               value={fontFamily}
               onChange={(e) => setFontFamily(e.target.value)}
-              className="w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100 focus:border-neutral-500 focus:outline-none"
+              className="w-full rounded border border-neutral-300 bg-white px-2 py-1.5 text-sm text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
             >
               {FONTS.map((f) => (
                 <option key={f.family} value={f.family} style={{ fontFamily: f.family }}>
@@ -107,7 +107,7 @@ export function CreateComponentDialog({
             <select
               value={safeWeight}
               onChange={(e) => setFontWeight(parseInt(e.target.value, 10))}
-              className="w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100 focus:border-neutral-500 focus:outline-none"
+              className="w-full rounded border border-neutral-300 bg-white px-2 py-1.5 text-sm text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
             >
               {weights.map((w) => (
                 <option key={w} value={w}>
@@ -127,7 +127,7 @@ export function CreateComponentDialog({
                 onChange={(e) =>
                   setFontSize(Math.max(8, Math.min(400, parseInt(e.target.value, 10) || 0)))
                 }
-                className="w-20 rounded border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100 tabular-nums focus:border-neutral-500 focus:outline-none"
+                className="w-20 rounded border border-neutral-300 bg-white px-2 py-1.5 text-sm text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
               />
               <span className="text-xs text-neutral-500">px</span>
             </div>
@@ -139,19 +139,19 @@ export function CreateComponentDialog({
                 type="color"
                 value={toHexColor(color)}
                 onChange={(e) => setColor(e.target.value)}
-                className="h-7 w-8 cursor-pointer rounded border border-neutral-700 bg-neutral-900"
+                className="h-7 w-8 cursor-pointer rounded border border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-900"
               />
               <input
                 type="text"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
-                className="flex-1 rounded border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm font-mono text-neutral-100 focus:border-neutral-500 focus:outline-none"
+                className="flex-1 rounded border border-neutral-300 bg-white px-2 py-1.5 text-sm font-mono text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                 placeholder="#fafafa"
               />
             </div>
           </Row>
 
-          <div className="mt-3 rounded border border-neutral-800 bg-neutral-925 p-4">
+          <div className="mt-3 rounded border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-925">
             <span
               style={{
                 fontFamily,
@@ -165,11 +165,11 @@ export function CreateComponentDialog({
           </div>
         </div>
 
-        <footer className="flex items-center justify-end gap-2 border-t border-neutral-800 px-4 py-2.5">
+        <footer className="flex items-center justify-end gap-2 border-t border-neutral-200 px-4 py-2.5 dark:border-neutral-800">
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-neutral-700 px-3 py-1.5 text-xs text-neutral-200 hover:border-neutral-500 hover:text-white"
+            className="rounded border border-neutral-300 px-3 py-1.5 text-xs text-neutral-800 hover:border-neutral-500 hover:text-neutral-950 dark:border-neutral-700 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:text-white"
           >
             Cancel
           </button>

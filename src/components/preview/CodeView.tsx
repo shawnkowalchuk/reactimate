@@ -30,15 +30,15 @@ export function CodeView({ project }: CodeViewProps) {
   };
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden rounded bg-neutral-900">
-      <div className="flex items-center justify-between border-b border-neutral-800 px-3 py-1.5">
+    <div className="relative flex h-full w-full flex-col overflow-hidden rounded bg-neutral-50 dark:bg-neutral-900">
+      <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-1.5 dark:border-neutral-800">
         <span className="text-[11px] tabular-nums text-neutral-500">
           Hero.jsx · {code.split("\n").length} lines · {(code.length / 1024).toFixed(2)} KB
         </span>
         <button
           type="button"
           onClick={onCopy}
-          className="flex items-center gap-1.5 rounded border border-neutral-700 px-2 py-0.5 text-[11px] text-neutral-200 hover:border-neutral-500 hover:text-white"
+          className="flex items-center gap-1.5 rounded border border-neutral-300 px-2 py-0.5 text-[11px] text-neutral-700 hover:border-neutral-500 hover:text-neutral-950 dark:border-neutral-700 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:text-white"
           title="Copy to clipboard"
         >
           {copied ? <Check size={12} /> : <Copy size={12} />}
@@ -47,7 +47,7 @@ export function CodeView({ project }: CodeViewProps) {
       </div>
       <pre
         id="code-view-pre"
-        className="m-0 flex-1 overflow-auto px-3 py-3 text-[12px] leading-relaxed text-neutral-200"
+        className="m-0 flex-1 overflow-auto px-3 py-3 text-[12px] leading-relaxed text-neutral-800 dark:text-neutral-200"
       >
         <code className="font-mono">{code}</code>
       </pre>

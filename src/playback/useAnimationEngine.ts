@@ -39,12 +39,24 @@ export function useAnimationEngine() {
   useEffect(() => {
     if (!isPlaying) return;
 
-    const startMs =
+    let startMs =
       performance.now() - usePlaybackStore.getState().currentTime * 1000;
 
     const tick = (now: number) => {
       const t = (now - startMs) / 1000;
       if (t >= project.duration) {
+        const looping = usePlaybackStore.getState().loop;
+        if (looping) {
+          // Wrap. Reset the anchor so the next frame's `t` is back near 0,
+          // but carry any overflow so we don't lose a frame at very-short
+          // durations.
+          const overflow = t - project.duration;
+          startMs = now - overflow * 1000;
+          apply(overflow);
+          setCurrentTime(overflow);
+          rafRef.current = requestAnimationFrame(tick);
+          return;
+        }
         apply(project.duration);
         setCurrentTime(project.duration);
         setPlaying(false);

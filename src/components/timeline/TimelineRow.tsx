@@ -11,7 +11,7 @@ interface TimelineRowProps {
 export function TimelineRow({ component, pxPerSecond, duration }: TimelineRowProps) {
   return (
     <div
-      className="relative border-b border-neutral-800"
+      className="relative border-b border-neutral-200 dark:border-neutral-800"
       style={{ height: ROW_HEIGHT }}
     >
       {component.effects.map((eff) => (

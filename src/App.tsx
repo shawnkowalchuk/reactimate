@@ -21,15 +21,15 @@ export function App() {
   const [previewTab, setPreviewTab] = useState<PreviewTab>("preview");
 
   return (
-    <div className="grid h-screen grid-rows-[auto_minmax(0,1fr)_auto] bg-neutral-950 text-neutral-100">
+    <div className="grid h-screen grid-rows-[auto_minmax(0,1fr)_auto] bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       <Toolbar />
 
-      <main className="grid min-h-0 grid-cols-2 gap-px bg-neutral-800">
-        <section className="flex min-h-0 flex-col bg-neutral-950 p-4">
+      <main className="grid min-h-0 grid-cols-2 gap-px bg-neutral-200 dark:bg-neutral-800">
+        <section className="flex min-h-0 flex-col bg-white p-4 dark:bg-neutral-950">
           <TextEditor />
         </section>
 
-        <section className="flex min-h-0 flex-col bg-neutral-950 p-4">
+        <section className="flex min-h-0 flex-col bg-white p-4 dark:bg-neutral-950">
           <div className="mb-2 flex items-center gap-1">
             <TabButton
               active={previewTab === "preview"}
@@ -58,7 +58,7 @@ export function App() {
         </section>
       </main>
 
-      <footer className="border-t border-neutral-800 bg-neutral-950">
+      <footer className="border-t border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
         <Timeline />
       </footer>
     </div>
@@ -80,8 +80,8 @@ function TabButton({
       onClick={onClick}
       className={`rounded px-2.5 py-1 text-xs font-medium tracking-wider uppercase ${
         active
-          ? "bg-neutral-800 text-neutral-100"
-          : "text-neutral-500 hover:bg-neutral-900 hover:text-neutral-300"
+          ? "bg-neutral-200 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
+          : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-900 dark:hover:text-neutral-300"
       }`}
     >
       {children}
