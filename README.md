@@ -4,6 +4,8 @@
 
 Type some hero text. Select words and turn them into colored "components." Add effects on a timeline (fade, slide, scale, rotate, color-shift). Scrub or play to preview. Click **Export** — out comes a self-contained `Hero.jsx` using `motion/react` that needs nothing from this app to run.
 
+For the **current implementation status and outstanding work** see [STATUS.md](./STATUS.md).
+
 ---
 
 ## Quick start
