@@ -18,6 +18,7 @@ import {
   saveProjectFile,
 } from "../../persistence/importExport";
 import { clearStorage } from "../../persistence/localStorage";
+import { UserMenu } from "./UserMenu";
 
 export function Toolbar() {
   const project = useProjectStore((s) => s.project);
@@ -192,6 +193,7 @@ export function Toolbar() {
       </button>
 
       <div className="text-xs text-neutral-500">{project.name}</div>
+      <UserMenu />
     </header>
   );
 }

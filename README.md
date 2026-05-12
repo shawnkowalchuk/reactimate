@@ -1,34 +1,132 @@
 # reactimate
 
-**Hero Animator** — a browser-based visual tool for building animated hero sections that exports clean React + Motion code.
+**Hero Animator** — a browser-based visual tool for building animated hero sections that exports clean, idiomatic React + Motion code you can drop into any React project.
 
-Type text, select words/phrases and turn them into colored "components", give each component effects on a timeline, scrub/play to preview, then export a `Hero.jsx` Motion component that drops into any React project.
+Type some hero text. Select words and turn them into colored "components." Add effects on a timeline (fade, slide, scale, rotate, color-shift). Scrub or play to preview. Click **Export** — out comes a self-contained `Hero.jsx` using `motion/react` that needs nothing from this app to run.
 
-## Status: Phase 1 — foundation
+---
 
-| Phase | Done | What it adds |
-| ----- | ---- | ------------ |
-| 0 — scaffold (Vite + React + TS + Tailwind) | ✓ | Build/test/lint pipeline + CI |
-| 1 — types, stores, engine logic | ✓ | `Project` model, Zustand stores, `adjustRanges` / `computeComponentStyle` / `lerp` with tests |
-| 2 — layout shell | — | Three-pane Grid layout |
-| 3 — text editor + overlay | — | contenteditable + colored range outlines |
-| 4 — selection → create component | — | Popover + create dialog |
-| 5 — preview rendering | — | Real componentized rendering |
-| 6 — animation engine (RAF + DOM writes) | — | Playback/scrub of the preview |
-| 7 — timeline | — | Effect blocks, drag/resize, playhead |
-| 8 — export | — | Project → Motion JSX file |
-| 9 — polish | — | Autosave, undo/redo, shortcuts |
+## Quick start
+
+```sh
+git clone https://github.com/shawnkowalchuk/reactimate.git
+cd reactimate
+npm install
+npm run dev
+```
+
+Open http://localhost:5173. The app autosaves to `localStorage` so your work survives reloads.
+
+---
+
+## Using the tool
+
+1. **Edit components** on the timeline — drag the colored blocks to change when an effect starts; drag the edges to resize its duration. Hold **Shift** to disable the 50ms snap grid.
+2. **Click an effect block** to bring up the inspector strip — change easing, fine-tune start/duration with number inputs, or delete.
+3. **Play / Pause** with the toolbar button or **Spacebar**. **Scrub** by dragging the playhead or using the time slider.
+4. **Undo / Redo** with **Ctrl+Z / Ctrl+Shift+Z** (or the arrow buttons in the toolbar).
+5. **Save** the project as a `.json` file, **Load** a saved one, or **Reset** back to the bundled sample.
+6. **Export** downloads a ready-to-use `Hero.jsx`.
+7. **Preview / Code tabs** — switch the right pane to see the generated code live as you edit.
+
+Phases 2–4 of the build plan (a proper contenteditable text editor with an in-place "Create component" popover) are not yet shipped. For now, layer text and component ranges are defined by the bundled sample project; edit those via the timeline + inspector and re-export.
+
+---
+
+## Using an exported `Hero.jsx` in your own project
+
+The exported component is self-contained. It uses Motion (formerly Framer Motion) and nothing else. To drop it into any React 18 / 19 project:
+
+```sh
+npm install motion
+```
+
+Move the downloaded `Hero.jsx` into your project (anywhere, e.g. `src/components/Hero.jsx`), then:
+
+```jsx
+import { Hero } from "./components/Hero";
+
+export default function Page() {
+  return <Hero />;
+}
+```
+
+That's it. No global config, no provider, no other dependencies. The component renders a fixed-size canvas (matching the preset you chose in the editor) with Motion-driven children — restyle the outer wrapper as you like.
+
+### What the output looks like
+
+The generator preserves a "what a human would write" shape. For a single multi-prop effect, it consolidates to one shared transition:
+
+```jsx
+<motion.span
+  style={{ fontFamily: "Inter", fontSize: 96, fontWeight: 800, color: "hsl(25, 90%, 60%)", display: "inline-block" }}
+  initial={{ opacity: 0, y: 20, scale: 0.9 }}
+  animate={{ opacity: 1, y: 0, scale: 1 }}
+  transition={{ delay: 0.7, duration: 0.6, ease: "easeOut" }}
+>{"reactimate"}</motion.span>
+```
+
+When properties have separate timings or multiple effects, they get per-property keyframe arrays with `times` and a per-segment `ease` array.
+
+Notes:
+- `spring` and `bounce` map to `easeOut` and `backOut` respectively (Motion's spring is a transition *type*, not a curve, and can't go into a multi-keyframe ease array). Edit by hand if you want `type: "spring"` instead.
+- All text content is rendered as `{"…"}` JSX expressions so quotes / braces in your source text can't break parsing.
+
+---
+
+## Authentication (optional)
+
+The app runs **without authentication by default** — projects live in `localStorage` per-browser and the editor works exactly as described above.
+
+If you want user accounts (email + Google + Apple), wire up [Supabase](https://supabase.com). Auth activates the moment you set the env vars; it gates the editor behind a sign-in screen.
+
+### 1. Create a Supabase project
+
+1. Sign up at https://supabase.com (free tier is fine).
+2. Create a new project.
+3. Once it's provisioned, in the dashboard go to **Project Settings → API** and copy:
+   - **Project URL** (looks like `https://xxxx.supabase.co`)
+   - **anon public** key
+
+### 2. Configure providers in the Supabase dashboard
+
+Under **Authentication → Providers**:
+
+- **Email** — enabled by default. To force email verification before sign-in, turn on **"Confirm email"** under Email settings.
+- **Google** — toggle on, then paste a **Client ID** and **Client Secret** from a Google Cloud OAuth client (Google Cloud Console → APIs & Services → Credentials → Create OAuth client ID → Web application). Add Supabase's callback URL (`https://<project>.supabase.co/auth/v1/callback`) to the OAuth client's Authorized redirect URIs.
+- **Apple** — toggle on. Requires an Apple Developer Program membership ($99/year). You'll need:
+  - A **Services ID** (created in Apple Developer → Identifiers → Services IDs) with Sign in with Apple enabled
+  - A **Private Key** (Keys → +, with Sign in with Apple checked)
+  - Add Supabase's callback URL to the Services ID's "Return URLs"
+  - Paste the Services ID, Team ID, Key ID, and the contents of the `.p8` private key into Supabase
+
+### 3. Add the env vars to this app
+
+Copy `.env.example` to `.env.local` and fill in:
+
+```
+VITE_SUPABASE_URL=https://xxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOi…
+```
+
+Restart `npm run dev`. The app now shows a sign-in screen before the editor.
+
+### Heads-up
+
+In v1, the **projects still live in `localStorage`** per browser even when signed in. Auth currently does access control only — it doesn't sync your projects across devices. Per-user cloud project storage is a separate planned feature.
+
+---
 
 ## Stack
 
-- React 19 + TypeScript (strict) + Vite + Tailwind v3
-- **Zustand** + **zundo** — state + undo/redo
-- **Motion** (formerly Framer Motion) — only for the exported output, not for editor playback
-- **@dnd-kit/core** — timeline drag interactions
-- **nanoid**, **lucide-react**
+- **React 19** + **TypeScript** (strict) + **Vite** + **Tailwind v3**
+- **Zustand** + **zundo** — state with undo/redo
+- **Motion** (formerly Framer Motion) — for *exported* output only; editor playback uses raw `requestAnimationFrame` + direct DOM style writes for performance
+- **@dnd-kit/core**, **nanoid**, **lucide-react**
+- **@supabase/supabase-js** — optional auth (only loaded when env vars are set)
 - **Vitest** + Testing Library for the pure-logic modules
 
-Editor playback uses raw `requestAnimationFrame` + direct DOM style writes. Motion is what the *generated* code uses.
+---
 
 ## Scripts
 
@@ -43,56 +141,27 @@ Editor playback uses raw `requestAnimationFrame` + direct DOM style writes. Moti
 | `npm run lint` | Run ESLint |
 | `npm run format` | Format with Prettier |
 
-## Getting started
+---
 
-```sh
-npm install
-npm run dev
-```
+## Roadmap
 
-Open <http://localhost:5173>.
+| Phase | What | Status |
+| ----- | ---- | ------ |
+| 0 — scaffold | Vite + TS + Tailwind + lint + CI | ✓ |
+| 1 — foundation | types, stores, engine logic + tests | ✓ |
+| 5 — preview | live `RenderedText` + canvas frame | ✓ |
+| 6 — engine | RAF + DOM writes, scrub/play | ✓ |
+| 7 — timeline | draggable effect blocks, inspector | ✓ |
+| 8 — export | `Hero.jsx` generator + Copy/Download | ✓ |
+| 9 — persistence | localStorage autosave, save/load, undo/redo | ✓ |
+| Auth (opt) | Supabase email + Google + Apple, sign-in gate | ✓ |
+| 2 — layout polish | (visual polish) | — |
+| 3 — text editor | contenteditable + colored range overlay | — |
+| 4 — create component | selection popover + style dialog | — |
+| Cloud project storage | per-user project rows in Supabase, sync | — |
+| Templates / starter projects | — | — |
 
-## Layout
-
-```
-src/
-├── App.tsx                            # three-pane shell
-├── main.tsx
-├── index.css                          # Tailwind directives + globals
-├── vite-env.d.ts
-│
-├── types/
-│   └── project.ts                     # Project / Layer / Component / Effect / ComputedStyle
-│
-├── engine/                            # PURE LOGIC — covered by tests
-│   ├── easing.ts                      # easing curves
-│   ├── interpolate.ts                 # lerp + color lerp
-│   ├── ranges.ts                      # adjustRanges (text-edit → range fixup)
-│   ├── palette.ts                     # nextColor (assigns the next UI box color)
-│   ├── compose.ts                     # computeComponentStyle(c, time)
-│   └── __tests__/
-│
-├── store/
-│   ├── projectStore.ts                # Zustand + zundo (undo/redo)
-│   ├── selectionStore.ts              # what's selected
-│   └── playbackStore.ts               # isPlaying, currentTime
-│
-├── utils/
-│   ├── id.ts                          # nanoid wrapper
-│   └── colors.ts                      # hex/rgb/hsl parsing
-│
-├── constants/
-│   ├── fonts.ts                       # curated Google Fonts list
-│   ├── presets.ts                     # canvas presets (16:9, 1:1, 9:16)
-│   └── effects.ts                     # per-effect-type defaults
-│
-└── sample/
-    └── sampleProject.ts               # hardcoded project so the UI has data
-```
-
-## Critical engine rule
-
-Every animatable property has a value at `t=0` (from `component.style`). Effects animate **from** the previous value of that property **to** their `targets` entry. When multiple effects touch the same property, they're applied in time order — "last completed value wins." See `engine/compose.ts` and its tests.
+---
 
 ## License
 
