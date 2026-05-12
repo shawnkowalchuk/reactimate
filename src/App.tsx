@@ -1,44 +1,45 @@
 import { useProjectStore } from "./store/projectStore";
-import { usePlaybackStore } from "./store/playbackStore";
+import { useAnimationEngine } from "./playback/useAnimationEngine";
+import { useKeyboardShortcuts } from "./playback/useKeyboardShortcuts";
+import { Toolbar } from "./components/layout/Toolbar";
+import { PreviewCanvas } from "./components/preview/PreviewCanvas";
 
 export function App() {
   const project = useProjectStore((s) => s.project);
-  const currentTime = usePlaybackStore((s) => s.currentTime);
+  const { registerElement } = useAnimationEngine();
+  useKeyboardShortcuts();
 
   return (
     <div className="grid h-screen grid-rows-[auto_minmax(0,1fr)_auto] bg-neutral-950 text-neutral-100">
-      <header className="flex items-center justify-between border-b border-neutral-800 px-4 py-2">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-sm font-semibold tracking-tight">reactimate</h1>
-          <span className="text-xs text-neutral-500">Hero Animator · Phase 1</span>
-        </div>
-        <div className="text-xs text-neutral-500">
-          {project.name} · {project.duration.toFixed(2)}s · t={currentTime.toFixed(2)}
-        </div>
-      </header>
+      <Toolbar />
 
       <main className="grid min-h-0 grid-cols-2 gap-px bg-neutral-800">
         <section className="flex min-h-0 flex-col bg-neutral-950 p-4">
           <h2 className="mb-2 text-xs uppercase tracking-wider text-neutral-500">
             Editor
           </h2>
-          <div className="flex-1 rounded border border-dashed border-neutral-800 p-4">
+          <div className="flex-1 overflow-auto rounded border border-dashed border-neutral-800 p-4">
             <p className="text-xs text-neutral-500">
-              Phase 3 — text editor with overlay. For now, the layer text is:
+              Phase 3 will replace this with a contenteditable + overlay. For
+              now:
             </p>
-            <p className="mt-2 text-lg">"{project.layer.text}"</p>
-            <ul className="mt-3 text-xs text-neutral-400">
+            <p className="mt-2 break-words font-mono text-lg">
+              "{project.layer.text}"
+            </p>
+            <ul className="mt-3 space-y-1 text-xs text-neutral-400">
               {project.layer.components.map((c) => (
-                <li key={c.id}>
+                <li key={c.id} className="flex items-center gap-2">
                   <span
-                    className="inline-block h-2 w-2 rounded-full align-middle"
+                    className="inline-block h-2 w-2 rounded-full"
                     style={{ background: c.color }}
-                  />{" "}
+                  />
                   <code className="text-neutral-300">
                     [{c.startIndex}, {c.endIndex})
-                  </code>{" "}
-                  "{project.layer.text.slice(c.startIndex, c.endIndex)}" —{" "}
-                  {c.effects.length} effect{c.effects.length === 1 ? "" : "s"}
+                  </code>
+                  <span>"{project.layer.text.slice(c.startIndex, c.endIndex)}"</span>
+                  <span className="text-neutral-500">
+                    · {c.effects.length} effect{c.effects.length === 1 ? "" : "s"}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -49,11 +50,8 @@ export function App() {
           <h2 className="mb-2 text-xs uppercase tracking-wider text-neutral-500">
             Preview
           </h2>
-          <div className="flex-1 rounded border border-dashed border-neutral-800 p-4">
-            <p className="text-xs text-neutral-500">
-              Phase 5 — canvas preview. Canvas:{" "}
-              {project.canvas.width}×{project.canvas.height} ({project.canvas.preset})
-            </p>
+          <div className="flex-1 min-h-0">
+            <PreviewCanvas project={project} registerElement={registerElement} />
           </div>
         </section>
       </main>
@@ -63,7 +61,8 @@ export function App() {
           Timeline
         </h2>
         <div className="rounded border border-dashed border-neutral-800 p-4 text-xs text-neutral-500">
-          Phase 7 — timeline rows + draggable effect blocks.
+          Phase 7 — timeline rows + draggable effect blocks. (Use the toolbar
+          scrubber and Play to see the animation now.)
         </div>
       </footer>
     </div>
