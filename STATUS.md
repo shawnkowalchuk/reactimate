@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-05-12 · commit [`74947fa`](https://github.com/shawnkowalchuk/reactimate/commit/74947fa) + editor fixes & split/merge (this commit)
+**Last updated:** 2026-05-12 · commit [`6b1c730`](https://github.com/shawnkowalchuk/reactimate/commit/6b1c730)
 
 ---
 
