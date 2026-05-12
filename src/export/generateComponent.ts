@@ -1,0 +1,108 @@
+import type { Component, Project } from "../types/project";
+import { buildComponentMotion } from "./effectToMotion";
+import { fmt, jsxTextExpression } from "./format";
+
+interface Segment {
+  kind: "plain" | "component";
+  text: string;
+  component?: Component;
+}
+
+function splitTextIntoSegments(project: Project): Segment[] {
+  const { text, components } = project.layer;
+  const sorted = [...components].sort((a, b) => a.startIndex - b.startIndex);
+  const out: Segment[] = [];
+  let cursor = 0;
+  for (const c of sorted) {
+    const s = Math.max(cursor, c.startIndex);
+    const e = Math.min(text.length, c.endIndex);
+    if (s > cursor) out.push({ kind: "plain", text: text.slice(cursor, s) });
+    if (e > s) out.push({ kind: "component", text: text.slice(s, e), component: c });
+    cursor = e;
+  }
+  if (cursor < text.length) {
+    out.push({ kind: "plain", text: text.slice(cursor) });
+  }
+  return out;
+}
+
+function renderComponentSpan(c: Component, content: string, totalDuration: number): string {
+  const motion = buildComponentMotion(c, totalDuration);
+  const Tag = motion.isStatic ? "span" : "motion.span";
+
+  const baseStyle: Record<string, unknown> = {
+    fontFamily: c.style.fontFamily,
+    fontSize: c.style.fontSize,
+    fontWeight: c.style.fontWeight,
+    letterSpacing: c.style.letterSpacing,
+    display: "inline-block",
+  };
+  // If color isn't animated, bake it into style. If it IS animated,
+  // it'll appear in initial/animate and Motion drives it.
+  if (motion.animate.color === undefined) {
+    baseStyle.color = c.style.color;
+  }
+
+  const lines: string[] = [`<${Tag}`];
+  lines.push(`  style={${fmt(baseStyle, 1)}}`);
+
+  if (!motion.isStatic) {
+    lines.push(`  initial={${fmt(motion.initial, 1)}}`);
+    lines.push(`  animate={${fmt(motion.animate, 1)}}`);
+    lines.push(`  transition={${fmt(motion.transition, 1)}}`);
+  }
+
+  lines.push(`>${jsxTextExpression(content)}</${Tag}>`);
+  return lines.join("\n");
+}
+
+function indent(s: string, prefix: string): string {
+  return s
+    .split("\n")
+    .map((line) => prefix + line)
+    .join("\n");
+}
+
+export function generateReactComponent(project: Project): string {
+  const segments = splitTextIntoSegments(project);
+
+  const inner = segments
+    .map((seg) => {
+      if (seg.kind === "plain") return jsxTextExpression(seg.text);
+      return renderComponentSpan(seg.component!, seg.text, project.duration);
+    })
+    .join("\n");
+
+  const wrapperStyle = {
+    width: project.canvas.width,
+    height: project.canvas.height,
+    background: project.canvas.background,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontFamily: project.defaultTextStyle.fontFamily,
+    color: project.defaultTextStyle.color,
+    fontSize: project.defaultTextStyle.fontSize,
+    fontWeight: project.defaultTextStyle.fontWeight,
+  };
+
+  const innerStyle = {
+    textAlign: project.layer.alignment,
+    lineHeight: project.layer.lineHeight,
+  };
+
+  return `import { motion } from "motion/react";
+
+export function Hero() {
+  return (
+    <div style={${fmt(wrapperStyle, 3)}}>
+      <div style={${fmt(innerStyle, 4)}}>
+${indent(inner, "        ")}
+      </div>
+    </div>
+  );
+}
+`;
+}
+
+export const __testing = { splitTextIntoSegments, renderComponentSpan };

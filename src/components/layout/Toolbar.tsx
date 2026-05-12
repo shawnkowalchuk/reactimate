@@ -1,6 +1,8 @@
-import { Pause, Play, SkipBack } from "lucide-react";
+import { Download, Pause, Play, SkipBack } from "lucide-react";
 import { useProjectStore } from "../../store/projectStore";
 import { usePlaybackStore } from "../../store/playbackStore";
+import { generateReactComponent } from "../../export/generateComponent";
+import { downloadFile } from "../../export/download";
 
 export function Toolbar() {
   const project = useProjectStore((s) => s.project);
@@ -25,6 +27,15 @@ export function Toolbar() {
   const onScrub = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPlaying(false);
     setCurrentTime(parseFloat(e.target.value));
+  };
+
+  const onExport = () => {
+    const jsx = generateReactComponent(project);
+    const safeName = project.name
+      .trim()
+      .replace(/[^A-Za-z0-9_-]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "Hero";
+    downloadFile(`${safeName}.jsx`, jsx, "text/jsx");
   };
 
   return (
@@ -73,6 +84,16 @@ export function Toolbar() {
           {project.duration.toFixed(2)}s
         </span>
       </div>
+
+      <button
+        type="button"
+        onClick={onExport}
+        className="flex items-center gap-1.5 rounded border border-neutral-700 px-2.5 py-1.5 text-xs font-medium text-neutral-200 hover:border-neutral-500 hover:text-white"
+        title="Export Hero.jsx (Motion)"
+      >
+        <Download size={14} />
+        Export
+      </button>
 
       <div className="text-xs text-neutral-500">{project.name}</div>
     </header>
