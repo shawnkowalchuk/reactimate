@@ -159,9 +159,9 @@ In v1, the **projects still live in `localStorage`** per browser even when signe
 | 8 — export | `Hero.jsx` generator + Copy/Download | ✓ |
 | 9 — persistence | localStorage autosave, save/load, undo/redo | ✓ |
 | Auth (opt) | Supabase email + Google + Apple, sign-in gate | ✓ |
+| Component style inspector | edit a component's style after creation | ✓ |
+| Add-effect UI | `+ Add effect` per timeline row | ✓ |
 | 2 — layout polish | (visual polish) | — |
-| Component style inspector | edit a component's style after creation | — |
-| Add-effect UI | `+ Add effect` per timeline row | — |
 | Cloud project storage | per-user project rows in Supabase, sync | — |
 | Templates / starter projects | — | — |
 

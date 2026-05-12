@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-05-12 · commit [`2476299`](https://github.com/shawnkowalchuk/reactimate/commit/2476299)
+**Last updated:** 2026-05-12 · commit [`91ab8bb`](https://github.com/shawnkowalchuk/reactimate/commit/91ab8bb) + Add-effect UI & component style inspector (this commit)
 
 ---
 
@@ -51,6 +51,12 @@
   - drag right edge → change `duration` only
   - 50ms snap grid by default; hold **Shift** to disable
 - Click block to select; inspector strip below shows editable `Start` / `Dur` / `Easing` / animated props / **Delete**
+- **Add-effect menu** (`+` button on each row's gutter chip): dropdown of `Fade` / `Slide` / `Scale` / `Rotate` / `Color shift` — adds at the current playhead time (clamped so the effect fits inside the project duration), then auto-selects the new effect so it opens straight in the inspector
+- Click gutter chip → selects the component (`selectComponent`); the chip's color dot gets a sky-300 ring so the selection is unambiguous
+- Inspector strip is context-sensitive:
+  - **Effect selected** → `Start` / `Dur` / `Easing` / animated-prop list / Delete
+  - **Component selected** → `Font` / `Wt` / `Size` / `Color` (hex picker + text) / Remove component (via `updateComponentStyle` + `removeComponent`)
+  - **Nothing selected** → hint
 - Draggable playhead synced to `currentTime`
 
 ### Export to Motion JSX (Phase 8)
@@ -99,9 +105,6 @@
 **Status:** not started. **Effort:** ~1h.
 Mostly visual refinement of the three-pane shell — better empty/error states, breakpoint behavior, a polish pass on spacing/typography. Probably "read-only on mobile" rather than building a real touch editor.
 
-### Component style inspector
-**Status:** not started. **Effort:** ~1h.
-The Create Component dialog only sets a component's style at create time. There's no UI to edit a component's `font` / `size` / `weight` / `color` later (or to rename/recolor the gutter chip). Easiest: a sister inspector strip below the timeline that shows when a component is selected (instead of an effect).
 
 ### Cloud project storage
 **Status:** not started, **depends on:** Supabase auth being on. **Effort:** ~2–3h.
@@ -113,7 +116,6 @@ Currently even when signed in, projects stay in `localStorage` per browser. To m
 - Initial load: fetch the user's most-recent project, or seed with the sample on first sign-in
 
 ### Phase 9 backlog (polish)
-- **Add effect** UI: currently an effect can only be created by editing the sample project's seed; no in-app way to add `Fade` / `Slide` / `Scale` / `Rotate` / `Color-shift` to a new component. Likely a `+ Add effect` button per timeline row → dropdown of `EFFECT_LABELS` → uses `addEffect(componentId, type, startTime)` (already on the store)
 - More effects: `blur`, letter-spacing animation, masked text reveal
 - Per-letter splitting within a component (currently each component is one rendered span)
 - Templates / starter projects (a curated `Project[]` users can clone)
