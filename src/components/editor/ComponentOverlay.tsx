@@ -1,4 +1,5 @@
-import { useLayoutEffect, useState, type RefObject } from "react";
+import { useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useSelectionStore } from "../../store/selectionStore";
 import type { Component } from "../../types/project";
 
 interface OverlayProps {
@@ -23,10 +24,16 @@ interface RectGroup {
  */
 export function ComponentOverlay({ editorRef, components, text }: OverlayProps) {
   const [groups, setGroups] = useState<RectGroup[]>([]);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const selectComponent = useSelectionStore((s) => s.selectComponent);
+  const selectedComponentId = useSelectionStore((s) =>
+    s.target.kind === "component" ? s.target.componentId : null,
+  );
 
   useLayoutEffect(() => {
     const editor = editorRef.current;
-    if (!editor) return;
+    const overlay = overlayRef.current;
+    if (!editor || !overlay) return;
 
     const compute = () => {
       const textNode = findTextNode(editor);
@@ -34,9 +41,10 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
         setGroups([]);
         return;
       }
-      const editorRect = editor.getBoundingClientRect();
-      const scrollLeft = editor.scrollLeft;
-      const scrollTop = editor.scrollTop;
+      // Position rects relative to the overlay's own origin — the overlay
+      // is `absolute inset-0` of the padded outer container, so its top-left
+      // sits inside the border but OUTSIDE the editor's padding offset.
+      const overlayRect = overlay.getBoundingClientRect();
       const textLen = textNode.textContent?.length ?? 0;
 
       const next: RectGroup[] = components.map((c) => {
@@ -57,8 +65,8 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
           id: c.id,
           color: c.color,
           rects: clientRects.map((r) => ({
-            top: r.top - editorRect.top + scrollTop,
-            left: r.left - editorRect.left + scrollLeft,
+            top: r.top - overlayRect.top,
+            left: r.left - overlayRect.left,
             width: r.width,
             height: r.height,
           })),
@@ -84,27 +92,135 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
 
   return (
     <div
+      ref={overlayRef}
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 z-0"
     >
-      {groups.flatMap((g) =>
-        g.rects.map((r, i) => (
-          <div
-            key={`${g.id}_${i}`}
-            className="absolute rounded-sm"
-            style={{
-              top: r.top,
-              left: r.left,
-              width: r.width,
-              height: r.height,
-              background: withAlpha(g.color, 0.18),
-              boxShadow: `inset 0 0 0 1.5px ${g.color}`,
-            }}
-          />
-        )),
+      {groups.flatMap((g, gi) =>
+        g.rects.map((r, i) => {
+          // Stagger overlapping component boxes so the user can see both.
+          // The order in `groups` matches `components`, so newer components
+          // (later in the array) get nudged further down/right.
+          const offset = stackOffsetFor(g, gi, groups);
+          return (
+            <div
+              key={`${g.id}_${i}`}
+              className="absolute rounded-sm"
+              style={{
+                top: r.top + offset,
+                left: r.left + offset,
+                width: r.width,
+                height: r.height,
+                background: "transparent",
+                boxShadow: `inset 0 0 0 3px ${g.color}`,
+              }}
+            />
+          );
+        }),
       )}
+      {/* Selection circle on the top-right corner of the LARGEST rect of
+          each component. The largest rect skips tiny leading-whitespace
+          rects that can sit on a previous wrap-line. pointer-events-auto
+          opts back into clickability so the overlay stays transparent
+          everywhere else. */}
+      {groups.map((g, gi) => {
+        if (g.rects.length === 0) return null;
+        const r = largestRect(g.rects);
+        const offset = stackOffsetFor(g, gi, groups);
+        const cx = r.left + r.width + offset;
+        const cy = r.top + offset;
+        const isSelected = g.id === selectedComponentId;
+        const dot = 14;
+        const hit = 32; // larger transparent hit-target around the visible dot
+        return (
+          <button
+            key={`${g.id}_dot`}
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => selectComponent(g.id)}
+            title="Select component"
+            aria-label="Select component"
+            className="pointer-events-auto absolute flex items-center justify-center"
+            style={{
+              top: cy - hit / 2,
+              left: cx - hit / 2,
+              width: hit,
+              height: hit,
+              background: "transparent",
+              border: 0,
+              padding: 0,
+              cursor: "pointer",
+            }}
+          >
+            <span
+              className="block rounded-full ring-2 ring-white/80 transition-transform hover:scale-125 dark:ring-neutral-950/80"
+              style={{
+                width: dot,
+                height: dot,
+                background: g.color,
+                boxShadow: isSelected
+                  ? `0 0 0 2px ${g.color}, 0 0 0 4px rgba(255,255,255,0.5)`
+                  : undefined,
+              }}
+            />
+          </button>
+        );
+      })}
     </div>
   );
+}
+
+/** Pick the rect with the largest area — skips tiny leading/trailing whitespace rects. */
+function largestRect(
+  rects: Array<{ top: number; left: number; width: number; height: number }>,
+): { top: number; left: number; width: number; height: number } {
+  let best = rects[0];
+  for (const r of rects) {
+    if (r.width * r.height > best.width * best.height) best = r;
+  }
+  return best;
+}
+
+/**
+ * If 2+ components share text rect area, offset later ones diagonally so
+ * they're visually distinguishable. Returns the pixel offset for `g` based
+ * on how many earlier groups in `groups` overlap with it.
+ */
+function stackOffsetFor(
+  g: RectGroup,
+  index: number,
+  all: RectGroup[],
+): number {
+  if (g.rects.length === 0) return 0;
+  const aBox = boundingBox(g.rects);
+  let stackedAbove = 0;
+  for (let i = 0; i < index; i++) {
+    const other = all[i];
+    if (other.rects.length === 0) continue;
+    const bBox = boundingBox(other.rects);
+    if (
+      aBox.left < bBox.left + bBox.width &&
+      aBox.left + aBox.width > bBox.left &&
+      aBox.top < bBox.top + bBox.height &&
+      aBox.top + aBox.height > bBox.top
+    ) {
+      stackedAbove++;
+    }
+  }
+  return stackedAbove * 4;
+}
+
+function boundingBox(
+  rects: Array<{ top: number; left: number; width: number; height: number }>,
+): { top: number; left: number; width: number; height: number } {
+  let minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity;
+  for (const r of rects) {
+    if (r.left < minL) minL = r.left;
+    if (r.top < minT) minT = r.top;
+    if (r.left + r.width > maxR) maxR = r.left + r.width;
+    if (r.top + r.height > maxB) maxB = r.top + r.height;
+  }
+  return { left: minL, top: minT, width: maxR - minL, height: maxB - minT };
 }
 
 function findTextNode(host: HTMLElement): Text | null {
@@ -118,15 +234,3 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
-/**
- * Add an alpha component to a CSS color. Works for `hsl(h, s%, l%)`
- * (our palette format) and `#rrggbb` / `rgb(...)`. For unknown formats
- * we fall back to the original color (overlay box just looks solid).
- */
-function withAlpha(color: string, alpha: number): string {
-  const hsl = color.match(/^hsl\(([^)]+)\)$/i);
-  if (hsl) return `hsla(${hsl[1]}, ${alpha})`;
-  const rgb = color.match(/^rgb\(([^)]+)\)$/i);
-  if (rgb) return `rgba(${rgb[1]}, ${alpha})`;
-  return color;
-}

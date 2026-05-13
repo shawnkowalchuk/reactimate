@@ -13,6 +13,7 @@ const baseComponent = (overrides: Partial<Component> = {}): Component => ({
     fontWeight: 600,
     color: "#ff0000",
     letterSpacing: 0,
+    alignment: "left" as const,
     x: 0,
     y: 0,
     opacity: 0,
@@ -45,10 +46,13 @@ describe("computeComponentStyle", () => {
     expect(computeComponentStyle(c, 0.5).opacity).toBe(0);
   });
 
-  it("returns the target value at and after the effect end", () => {
+  it("returns the target value AT the effect end, then gap-hides", () => {
+    // Updated: after an effect ends, the component is forced to opacity=0
+    // (gap-hide rule). At the boundary (time === endTime) the effect is
+    // still considered active, so opacity = target.
     const c = baseComponent({ effects: [fade(1, 1)] });
     expect(computeComponentStyle(c, 2).opacity).toBe(1);
-    expect(computeComponentStyle(c, 5).opacity).toBe(1);
+    expect(computeComponentStyle(c, 5).opacity).toBe(0);
   });
 
   it("linearly interpolates during the effect", () => {
@@ -59,7 +63,7 @@ describe("computeComponentStyle", () => {
     expect(computeComponentStyle(c, 2.5).opacity).toBeCloseTo(0.75);
   });
 
-  it("treats multiple effects on the same property as 'last completed wins'", () => {
+  it("treats multiple effects on the same property as 'last completed wins' inside ranges; gap-hides between", () => {
     const c = baseComponent({
       style: { ...baseComponent().style, opacity: 0 },
       effects: [
@@ -69,8 +73,8 @@ describe("computeComponentStyle", () => {
         { ...fade(2, 1), id: "e2", targets: { opacity: 0.3 } },
       ],
     });
-    expect(computeComponentStyle(c, 1).opacity).toBe(1);
-    expect(computeComponentStyle(c, 1.5).opacity).toBe(1);
+    expect(computeComponentStyle(c, 1).opacity).toBe(1); // boundary of effect 1
+    expect(computeComponentStyle(c, 1.5).opacity).toBe(0); // gap → hidden
     expect(computeComponentStyle(c, 2.5).opacity).toBeCloseTo(0.65);
     expect(computeComponentStyle(c, 3).opacity).toBeCloseTo(0.3);
   });

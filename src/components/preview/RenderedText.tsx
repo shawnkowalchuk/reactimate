@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import type { Component, Project } from "../../types/project";
 import type { RegisterElement } from "../../playback/useAnimationEngine";
 
@@ -9,6 +8,12 @@ interface Segment {
   key: string;
 }
 
+/**
+ * Split layer text into segments, sorted by startIndex. Overlapping
+ * components are silently skipped from rendering (their text would be
+ * rendered as part of the first component's slice). The duplicate's
+ * effects exist in state but don't drive any DOM element.
+ */
 function splitTextIntoSegments(project: Project): Segment[] {
   const { text, components } = project.layer;
   const sorted = [...components].sort(
@@ -35,7 +40,7 @@ function splitTextIntoSegments(project: Project): Segment[] {
         key: `comp_${c.id}`,
       });
     }
-    cursor = end;
+    cursor = Math.max(cursor, end);
   }
   if (cursor < text.length) {
     out.push({
@@ -53,11 +58,9 @@ interface RenderedTextProps {
 }
 
 /**
- * Renders the layer's text. Componentized ranges are wrapped in
- * `<span>`s whose refs are registered with the animation engine,
- * which drives them via direct DOM writes during playback.
- *
- * Un-componentized text uses the layer's default text style.
+ * Renders the layer's text. Each segment is a block-level element so
+ * components can have their own alignment. Plain segments inherit the
+ * layer's alignment.
  */
 export function RenderedText({ project, registerElement }: RenderedTextProps) {
   const segments = splitTextIntoSegments(project);
@@ -66,7 +69,6 @@ export function RenderedText({ project, registerElement }: RenderedTextProps) {
   return (
     <div
       style={{
-        textAlign: layer.alignment,
         lineHeight: layer.lineHeight,
         fontFamily: defaultTextStyle.fontFamily,
         fontSize: defaultTextStyle.fontSize,
@@ -74,27 +76,38 @@ export function RenderedText({ project, registerElement }: RenderedTextProps) {
         color: defaultTextStyle.color,
         whiteSpace: "pre-wrap",
         wordBreak: "break-word",
+        width: "100%",
       }}
     >
       {segments.map((seg) => {
+        // Plain (non-componentized) text is hidden in the preview — only
+        // explicit components participate in the animation. To make the
+        // gap text visible, the user must componentize it and add an effect.
         if (seg.kind === "plain") {
-          return <Fragment key={seg.key}>{seg.text}</Fragment>;
+          return null;
         }
         const c = seg.component!;
+        // Fall back to layer alignment for components saved before the
+        // per-component alignment field existed (loaded from localStorage).
+        const align = c.style.alignment ?? layer.alignment;
         return (
-          <span
+          <div
             key={seg.key}
-            ref={(el) => registerElement(c.id, el)}
-            style={{
-              display: "inline-block",
-              fontFamily: c.style.fontFamily,
-              fontWeight: c.style.fontWeight,
-              letterSpacing: `${c.style.letterSpacing}px`,
-              willChange: "transform, opacity",
-            }}
+            style={{ textAlign: align }}
           >
-            {seg.text}
-          </span>
+            <span
+              ref={(el) => registerElement(c.id, el)}
+              style={{
+                display: "inline-block",
+                fontFamily: c.style.fontFamily,
+                fontWeight: c.style.fontWeight,
+                letterSpacing: `${c.style.letterSpacing}px`,
+                willChange: "transform, opacity",
+              }}
+            >
+              {seg.text}
+            </span>
+          </div>
         );
       })}
     </div>

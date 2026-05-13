@@ -1,8 +1,10 @@
 import { useRef } from "react";
+import { Pencil, X } from "lucide-react";
 import type { Component, Effect } from "../../types/project";
 import { useDragGesture } from "../../utils/dragGesture";
 import { useProjectStore } from "../../store/projectStore";
 import { useSelectionStore } from "../../store/selectionStore";
+import { useUIStore } from "../../store/uiStore";
 import { EFFECT_LABELS } from "../../constants/effects";
 import { clamp, MIN_EFFECT_DURATION, snap, SNAP_SECONDS } from "./timelineMath";
 
@@ -27,8 +29,11 @@ export function EffectBlock({
   duration,
 }: EffectBlockProps) {
   const updateEffect = useProjectStore((s) => s.updateEffect);
+  const removeEffect = useProjectStore((s) => s.removeEffect);
   const selectionTarget = useSelectionStore((s) => s.target);
   const selectEffect = useSelectionStore((s) => s.selectEffect);
+  const selectNone = useSelectionStore((s) => s.selectNone);
+  const openEffectModal = useUIStore((s) => s.openEffectModal);
 
   const isSelected =
     selectionTarget.kind === "effect" && selectionTarget.effectId === effect.id;
@@ -123,6 +128,39 @@ export function EffectBlock({
       <span className="pointer-events-none flex-1 truncate px-2">
         {EFFECT_LABELS[effect.type]}
       </span>
+      <button
+        type="button"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          selectEffect(component.id, effect.id);
+          openEffectModal(component.id, effect.id);
+        }}
+        title="Edit effect"
+        aria-label="Edit effect"
+        className="relative z-10 rounded p-0.5 text-black/70 hover:bg-black/15 hover:text-black"
+      >
+        <Pencil size={11} />
+      </button>
+      <button
+        type="button"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          removeEffect(component.id, effect.id);
+          if (
+            selectionTarget.kind === "effect" &&
+            selectionTarget.effectId === effect.id
+          ) {
+            selectNone();
+          }
+        }}
+        title="Delete effect"
+        aria-label="Delete effect"
+        className="relative z-10 mr-2 ml-0.5 rounded p-0.5 text-black/70 hover:bg-red-500/30 hover:text-red-900"
+      >
+        <X size={11} />
+      </button>
       <div
         onPointerDown={leftDrag}
         className="absolute inset-y-0 left-0 w-2 cursor-ew-resize bg-black/20 hover:bg-black/40"

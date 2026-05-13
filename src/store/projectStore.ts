@@ -42,6 +42,13 @@ export interface ProjectState {
     style?: Partial<ComponentStyle>,
   ) => string | null;
   removeComponent: (componentId: string) => void;
+  /**
+   * Append a copy of the component's text to the end of the layer text
+   * (separated by a space) and create a new component over that range
+   * with the same style and a fresh copy of the effects (new ids).
+   * Returns the new component id, or null if the source wasn't found.
+   */
+  duplicateComponent: (componentId: string) => string | null;
   updateComponentStyle: (
     componentId: string,
     patch: Partial<ComponentStyle>,
@@ -89,6 +96,7 @@ export interface ProjectState {
 
   // Canvas / project metadata
   setCanvasPreset: (preset: CanvasPreset) => void;
+  setCanvasSize: (width: number, height: number) => void;
   setBackground: (color: string) => void;
   setDuration: (seconds: number) => void;
   setName: (name: string) => void;
@@ -153,10 +161,9 @@ export const useProjectStore = create<ProjectState>()(
       const state = get();
       const layer = state.project.layer;
 
-      // Reject overlap.
-      for (const c of layer.components) {
-        if (startIndex < c.endIndex && endIndex > c.startIndex) return null;
-      }
+      // Overlapping ranges are now allowed (duplicates can stack on the
+      // same word). The Componentize action in the editor still gates
+      // against overlap via classify() in useTextSelectionMode.
 
       const usedColors = layer.components.map((c) => c.color);
       const color = nextColor(usedColors);
@@ -168,6 +175,7 @@ export const useProjectStore = create<ProjectState>()(
         fontWeight: state.project.defaultTextStyle.fontWeight,
         color: state.project.defaultTextStyle.color,
         letterSpacing: 0,
+        alignment: state.project.layer.alignment,
         x: 0,
         y: 0,
         opacity: 1,
@@ -209,6 +217,46 @@ export const useProjectStore = create<ProjectState>()(
           },
         },
       })),
+
+    duplicateComponent: (componentId) => {
+      let newCompId: string | null = null;
+      set((state) => {
+        const layer = state.project.layer;
+        const src = layer.components.find((c) => c.id === componentId);
+        if (!src) return state;
+
+        // Overlapping duplicate: same text range, new color, deep-copied
+        // effects with fresh ids. Layer text is NOT mutated.
+        const usedColors = layer.components.map((c) => c.color);
+        const newColor = nextColor(usedColors);
+
+        const id = newId("comp");
+        newCompId = id;
+        const dup: Component = {
+          id,
+          startIndex: src.startIndex,
+          endIndex: src.endIndex,
+          color: newColor,
+          style: { ...src.style },
+          effects: src.effects.map((e) => ({
+            ...e,
+            id: newId("fx"),
+            targets: { ...e.targets },
+          })),
+        };
+
+        return {
+          project: {
+            ...state.project,
+            layer: {
+              ...layer,
+              components: [...layer.components, dup],
+            },
+          },
+        };
+      });
+      return newCompId;
+    },
 
     updateComponentStyle: (componentId, patch) =>
       set((state) => ({
@@ -327,6 +375,7 @@ export const useProjectStore = create<ProjectState>()(
                 startTime,
                 duration: defaults.duration,
                 easing: defaults.easing,
+                from: { ...defaults.from },
                 targets: { ...defaults.targets },
               },
             ],
@@ -371,18 +420,33 @@ export const useProjectStore = create<ProjectState>()(
       set((state) => {
         const spec = CANVAS_PRESETS.find((p) => p.preset === preset);
         if (!spec) return state;
+        // "custom" keeps whatever width/height the user already had so the
+        // switch from a fixed preset to custom doesn't reset their canvas.
+        const isCustom = spec.preset === "custom";
         return {
           project: {
             ...state.project,
             canvas: {
               ...state.project.canvas,
               preset: spec.preset,
-              width: spec.width,
-              height: spec.height,
+              width: isCustom ? state.project.canvas.width : spec.width,
+              height: isCustom ? state.project.canvas.height : spec.height,
             },
           },
         };
       }),
+
+    setCanvasSize: (width, height) =>
+      set((state) => ({
+        project: {
+          ...state.project,
+          canvas: {
+            ...state.project.canvas,
+            width: Math.max(1, Math.round(width)),
+            height: Math.max(1, Math.round(height)),
+          },
+        },
+      })),
 
     setBackground: (color) =>
       set((state) => ({

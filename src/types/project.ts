@@ -1,4 +1,4 @@
-export type CanvasPreset = "16:9" | "1:1" | "9:16";
+export type CanvasPreset = "16:9" | "1:1" | "9:16" | "custom";
 export type Alignment = "left" | "center" | "right";
 
 export type EffectType =
@@ -33,6 +33,8 @@ export interface ComponentStyle {
   fontWeight: number;
   color: string;
   letterSpacing: number;
+  /** Per-component text alignment for the preview; renders each component as a block. */
+  alignment: Alignment;
   x: number;
   y: number;
   opacity: number;
@@ -46,7 +48,14 @@ export interface Effect {
   startTime: number;
   duration: number;
   easing: EasingType;
+  /** End-of-effect values (the "to" side of each animated property). */
   targets: AnimatableTargets;
+  /**
+   * Optional explicit start values. When undefined for a given prop,
+   * the engine falls back to the previous effect's target (or the
+   * component's base style for the first effect).
+   */
+  from?: AnimatableTargets;
 }
 
 export interface Component {

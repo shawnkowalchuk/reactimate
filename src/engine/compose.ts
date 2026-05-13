@@ -40,7 +40,10 @@ export function computeComponentStyle(
       const target = effect.targets[key];
       if (target === undefined) continue;
 
-      const from = lastValue[key];
+      // Per-effect explicit start value (effect.from[key]) takes priority;
+      // otherwise fall back to whatever the previous effect left.
+      const explicitFrom = effect.from?.[key];
+      const from = explicitFrom !== undefined ? explicitFrom : lastValue[key];
 
       if (time < effect.startTime) {
         (current as unknown as Record<string, unknown>)[key] =from;
@@ -61,6 +64,19 @@ export function computeComponentStyle(
         );
       }
     }
+  }
+
+  // Visibility window: a component is only "alive" while at least one
+  // of its effects is active. Outside any effect's [start, end] range
+  // the component is forced to opacity=0. Empty-effects components are
+  // also hidden (nothing to play).
+  const isActive =
+    sorted.length > 0 &&
+    sorted.some(
+      (e) => time >= e.startTime && time <= e.startTime + e.duration,
+    );
+  if (!isActive) {
+    current.opacity = 0;
   }
 
   return current;

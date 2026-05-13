@@ -5,6 +5,7 @@ import { useAnimationEngine } from "./playback/useAnimationEngine";
 import { useKeyboardShortcuts } from "./playback/useKeyboardShortcuts";
 import { useAutosave } from "./persistence/useAutosave";
 import { Toolbar } from "./components/layout/Toolbar";
+import { InspectorBar } from "./components/layout/InspectorBar";
 import { TextEditor } from "./components/editor/TextEditor";
 import { PreviewCanvas } from "./components/preview/PreviewCanvas";
 import { CodeView } from "./components/preview/CodeView";
@@ -21,8 +22,9 @@ export function App() {
   const [previewTab, setPreviewTab] = useState<PreviewTab>("preview");
 
   return (
-    <div className="grid h-screen grid-rows-[auto_minmax(0,1fr)_auto] bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+    <div className="grid h-screen grid-rows-[auto_auto_40vh_minmax(0,1fr)] bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       <Toolbar />
+      <InspectorBar />
 
       <main className="grid min-h-0 grid-cols-2 gap-px bg-neutral-200 dark:bg-neutral-800">
         <section className="flex min-h-0 flex-col bg-white p-4 dark:bg-neutral-950">

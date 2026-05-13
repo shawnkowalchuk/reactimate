@@ -16,6 +16,7 @@ const c = (overrides: Partial<Component> = {}): Component => ({
     fontWeight: 600,
     color: "#000000",
     letterSpacing: 0,
+    alignment: "left" as const,
     x: 0,
     y: 0,
     opacity: 0,

@@ -7,38 +7,47 @@ import type {
 export interface EffectDefaults {
   duration: number;
   easing: EasingType;
+  /** End values per animated prop. */
   targets: AnimatableTargets;
+  /** Default start values per animated prop (lets the user see Start → End). */
+  from: AnimatableTargets;
 }
 
 export const EFFECT_DEFAULTS: Record<EffectType, EffectDefaults> = {
   fade: {
     duration: 0.6,
     easing: "ease-out",
+    from: { opacity: 0 },
     targets: { opacity: 1 },
   },
   slide: {
     duration: 0.6,
     easing: "ease-out",
+    from: { x: -100, y: 0 },
     targets: { x: 0, y: 0 },
   },
   scale: {
     duration: 0.5,
     easing: "spring",
+    from: { scale: 0.6 },
     targets: { scale: 1.2 },
   },
   rotate: {
     duration: 0.6,
     easing: "ease-in-out",
+    from: { rotation: 0 },
     targets: { rotation: 360 },
   },
   "color-shift": {
     duration: 0.8,
     easing: "ease-in-out",
+    from: { color: "#000000" },
     targets: { color: "#ffffff" },
   },
   custom: {
     duration: 0.5,
     easing: "ease-in-out",
+    from: {},
     targets: {},
   },
 };
@@ -49,5 +58,8 @@ export const EFFECT_LABELS: Record<EffectType, string> = {
   scale: "Scale",
   rotate: "Rotate",
   "color-shift": "Color shift",
-  custom: "Custom",
+  // "custom" is the placeholder for a blank effect — no animated props.
+  // Used as the default when the user adds an effect via "+" before
+  // picking a type in the modal.
+  custom: "(no effect)",
 };

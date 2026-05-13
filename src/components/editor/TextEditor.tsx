@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useProjectStore } from "../../store/projectStore";
 import { useSelectionStore } from "../../store/selectionStore";
 import { diffStrings } from "../../utils/textDiff";
 import { ComponentOverlay } from "./ComponentOverlay";
-import { SelectionPopover } from "./SelectionPopover";
+import { EditorActions } from "./EditorActions";
 
 /**
  * Contenteditable text editor for the layer's hero text.
@@ -112,6 +112,27 @@ export function TextEditor() {
   };
 
   const canvasBg = useProjectStore((s) => s.project.canvas.background);
+  const canvasW = useProjectStore((s) => s.project.canvas.width);
+  const canvasH = useProjectStore((s) => s.project.canvas.height);
+
+  // Scale-to-fit the canvas frame inside the available pane (mirrors
+  // PreviewCanvas). Recomputes on pane or canvas resize.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const compute = () => {
+      const padding = 24;
+      const sx = (wrap.clientWidth - padding * 2) / canvasW;
+      const sy = (wrap.clientHeight - padding * 2) / canvasH;
+      setScale(Math.max(0.05, Math.min(sx, sy)));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(wrap);
+    return () => ro.disconnect();
+  }, [canvasW, canvasH]);
 
   return (
     <div className="flex h-full flex-col gap-2">
@@ -119,33 +140,63 @@ export function TextEditor() {
         <span>Editor</span>
         <span className="text-neutral-400 dark:text-neutral-700">·</span>
         <span className="text-neutral-500 normal-case tracking-normal">
-          Type freely. Select text to <em className="not-italic text-neutral-700 dark:text-neutral-400">componentize</em>, <em className="not-italic text-neutral-700 dark:text-neutral-400">split</em>, or <em className="not-italic text-neutral-700 dark:text-neutral-400">merge</em>.
+          Type freely. Select text to{" "}
+          <em className="not-italic text-neutral-700 dark:text-neutral-400">componentize</em>,{" "}
+          <em className="not-italic text-neutral-700 dark:text-neutral-400">split</em>, or{" "}
+          <em className="not-italic text-neutral-700 dark:text-neutral-400">merge</em>.
         </span>
+        <div className="ml-auto">
+          <EditorActions editorRef={editorRef} />
+        </div>
       </div>
 
       <div
-        className="relative flex-1 overflow-auto rounded border border-neutral-200 p-4 dark:border-neutral-800"
-        style={{ background: canvasBg }}
+        ref={wrapRef}
+        className="relative flex flex-1 items-center justify-center overflow-hidden rounded bg-neutral-100 dark:bg-neutral-900"
       >
+        {/* Scaled canvas frame: same design dimensions as PreviewCanvas,
+            transformed to fit. The inner contenteditable lives at the
+            canvas's design size and is centered within it. */}
         <div
-          ref={editorRef}
-          contentEditable
-          suppressContentEditableWarning
-          spellCheck={false}
-          autoCorrect="off"
-          autoCapitalize="off"
-          onInput={onInput}
-          className="relative z-10 whitespace-pre-wrap break-words outline-none caret-sky-400"
+          className="relative"
           style={{
-            fontFamily: defaultTextStyle.fontFamily,
-            fontSize: 28,
-            lineHeight: 1.4,
-            fontWeight: defaultTextStyle.fontWeight,
-            color: defaultTextStyle.color,
+            width: canvasW,
+            height: canvasH,
+            background: canvasBg,
+            transform: `scale(${scale})`,
+            transformOrigin: "center center",
+            boxShadow:
+              "0 0 0 1px rgba(255,255,255,0.06), 0 30px 80px rgba(0,0,0,0.5)",
           }}
-        />
+        >
+          <div
+            className="absolute inset-0 flex items-center justify-center"
+            style={{ padding: 64 }}
+          >
+            <div
+              ref={editorRef}
+              contentEditable
+              suppressContentEditableWarning
+              spellCheck={false}
+              autoCorrect="off"
+              autoCapitalize="off"
+              onInput={onInput}
+              className="relative z-10 max-w-full whitespace-pre-wrap break-words text-center outline-none caret-sky-400"
+              style={{
+                fontFamily: defaultTextStyle.fontFamily,
+                fontSize: defaultTextStyle.fontSize,
+                lineHeight: 1.1,
+                fontWeight: defaultTextStyle.fontWeight,
+                color: defaultTextStyle.color,
+              }}
+            />
+          </div>
+        </div>
+        {/* Overlay sits OUTSIDE the scaled frame so its rect math runs in
+            viewport pixels (otherwise the boxes + dots get visually shrunk
+            by the canvas scale). It still measures the editor's text rects
+            in viewport coords, which works through the transform. */}
         <ComponentOverlay editorRef={editorRef} components={components} text={text} />
-        <SelectionPopover editorRef={editorRef} />
       </div>
 
       <div className="text-[11px] text-neutral-500">

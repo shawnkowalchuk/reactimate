@@ -57,8 +57,7 @@ export function PreviewCanvas({ project, registerElement }: PreviewCanvasProps) 
         <RenderedText project={project} registerElement={registerElement} />
       </div>
       <div className="pointer-events-none absolute bottom-2 right-3 text-[11px] text-neutral-500">
-        {project.canvas.width}×{project.canvas.height} · {project.canvas.preset}{" "}
-        · {Math.round(scale * 100)}%
+        {project.canvas.width}×{project.canvas.height} · {project.canvas.preset}
       </div>
     </div>
   );
