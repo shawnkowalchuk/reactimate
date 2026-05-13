@@ -2,11 +2,28 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-05-13 · commit [`2f6b31f`](https://github.com/shawnkowalchuk/reactimate/commit/2f6b31f)
+**Last updated:** 2026-05-13 · commit [`0eeb993`](https://github.com/shawnkowalchuk/reactimate/commit/0eeb993) + public marketing site (this commit)
 
 ---
 
 ## What works today
+
+### Routing
+- `react-router-dom` v7. `/` → `HomePage` (public marketing site), `/app` → `EditorPage` (the animator). Catch-all routes back to `/`
+- `AuthGate` now wraps only `/app` — when Supabase auth is configured and the user isn't signed in, the editor route redirects to `SignInScreen`; the public home stays accessible without auth
+- App entry: `main.tsx` mounts `<BrowserRouter>` with the route table; `themeStore` is imported for its side effect (applies `dark` class before first paint)
+
+### Public home page (`/`)
+- `pages/HomePage.tsx` composes: `Navbar` · `Hero` · `HowItWorks` · `Examples` · `Features` · `CallToAction` · `Footer`
+- **Navbar** (sticky, blurred): logo · in-page anchors · GitHub link · theme toggle · `Sign in` (only when `isAuthEnabled` and user is null, opens `SignInScreen` in a backdrop modal) · primary CTA (`Continue editing` when signed in, otherwise `Open editor`) → `/app`
+- **Hero**: title with three live `motion/react` words animating in on mount (per-word fade, slide, scale); body copy; primary CTA + GitHub link
+- **How it works**: 4-step explainer (Type → Componentize → Animate → Export) with lucide icons and numbered chips
+- **Examples**: 4 live animated heroes rendered as real `motion/react` JSX (Welcome stagger fade, Slide + color shift, Typewriter, Pop + scale bounce). Each card has its own background color (dark/light/navy/cream) so the visual matches the target site style; tabs flip between **Preview** (live animation) and **Code** (the JSX you'd export, with a **Copy** button). All examples loop on a shared 5s timer; a per-card **Replay** button forces a fresh mount
+  - `components/home/MotionExample.tsx` is the reusable card; example contents are hand-written snippets in `components/home/Examples.tsx` matching the exact shape `export/generateComponent.ts` produces
+- **Features**: 8 bullets (visual + code side-by-side, advanced effects, per-component style, clean exported JSX, autosave, undo/redo + loop, Supabase auth, self-contained output)
+- **CallToAction**: large "Open the editor" CTA
+- **Footer**: GitHub / Status / MIT links
+- Theme: same `themeStore` + `dark:` Tailwind variants — the home page respects the persisted theme
 
 ### Editor shell
 - Four-row layout: **Toolbar** · **InspectorBar** (top, always shown) · **Editor / Preview** main grid · **Timeline** footer (`grid-rows-[auto_auto_40vh_minmax(0,1fr)]`)

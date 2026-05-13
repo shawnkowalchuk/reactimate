@@ -144,7 +144,7 @@ export function RenderedText({
             other.endIndex > c.startIndex
           ) {
             for (const e of other.effects) {
-              if (isActiveTint(e, time, project)) tintEffects.push(e);
+              if (isActiveTint(e, time)) tintEffects.push(e);
               if (e.type === "sparkle" && e.sparkle) {
                 const end = e.startTime + e.duration;
                 const active =
@@ -206,11 +206,7 @@ export function RenderedText({
 }
 
 /** Returns true iff `effect` is a maskText spotlight active at `time`. */
-function isActiveTint(
-  effect: Effect,
-  time: number,
-  _project: Project,
-): boolean {
+function isActiveTint(effect: Effect, time: number): boolean {
   if (effect.type !== "spotlight") return false;
   if (!effect.spotlight?.maskText) return false;
   const end = effect.startTime + effect.duration;

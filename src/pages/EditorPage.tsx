@@ -1,19 +1,19 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { useProjectStore } from "./store/projectStore";
-import { useAnimationEngine } from "./playback/useAnimationEngine";
-import { useKeyboardShortcuts } from "./playback/useKeyboardShortcuts";
-import { useAutosave } from "./persistence/useAutosave";
-import { Toolbar } from "./components/layout/Toolbar";
-import { InspectorBar } from "./components/layout/InspectorBar";
-import { TextEditor } from "./components/editor/TextEditor";
-import { PreviewCanvas } from "./components/preview/PreviewCanvas";
-import { CodeView } from "./components/preview/CodeView";
-import { Timeline } from "./components/timeline/Timeline";
+import { useProjectStore } from "../store/projectStore";
+import { useAnimationEngine } from "../playback/useAnimationEngine";
+import { useKeyboardShortcuts } from "../playback/useKeyboardShortcuts";
+import { useAutosave } from "../persistence/useAutosave";
+import { Toolbar } from "../components/layout/Toolbar";
+import { InspectorBar } from "../components/layout/InspectorBar";
+import { TextEditor } from "../components/editor/TextEditor";
+import { PreviewCanvas } from "../components/preview/PreviewCanvas";
+import { CodeView } from "../components/preview/CodeView";
+import { Timeline } from "../components/timeline/Timeline";
 
 type PreviewTab = "preview" | "code";
 
-export function App() {
+export function EditorPage() {
   const project = useProjectStore((s) => s.project);
   const { registerElement } = useAnimationEngine();
   useKeyboardShortcuts();
