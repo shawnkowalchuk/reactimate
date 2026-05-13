@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-05-13 · commit [`e04a2ee`](https://github.com/shawnkowalchuk/reactimate/commit/e04a2ee)
+**Last updated:** 2026-05-13 · commit [`93572e6`](https://github.com/shawnkowalchuk/reactimate/commit/93572e6) + /settings page (this commit)
 
 ---
 
@@ -12,6 +12,7 @@
 - `react-router-dom` v7. Routes:
   - `/` → `HomePage` (public marketing site)
   - `/feedback` → `FeedbackPage` (public; signed-in users submit + read their threads; falls back to a GitHub-issues prompt when Supabase isn't configured)
+  - `/settings` → `SettingsPage` (public route but renders a "sign in" card when not authenticated)
   - `/app` → `EditorPage` wrapped in `AuthGate`
   - `/admin`, `/admin/users`, `/admin/feedback`, `/admin/feedback/:id` → admin subpages wrapped in `AdminGate`
   - `*` → `HomePage`
@@ -60,6 +61,19 @@
   - profiles/feedback/replies: users see their own; admins see everything; only admins post replies or change feedback status; users can only insert feedback for themselves
   - presets: users can SELECT/INSERT/UPDATE/DELETE only their own rows
 - Idempotent — safe to re-run after schema changes
+
+### Account settings (`/settings`)
+- `pages/SettingsPage.tsx` — four cards stacked vertically: **Profile** (email / joined date / account id), **Sign-in methods**, **Change password**, **Account**
+- **Profile** is read-only and pulls everything from the Supabase user object
+- **Sign-in methods** lists Email & password, Google, Apple. Each row reads the user's identities via `supabase.auth.getUserIdentities()`, shows a green "linked" pill + the provider's email if present, and offers:
+  - **Link** for unlinked providers → calls `linkProvider(provider)` which is a thin wrapper over `supabase.auth.linkIdentity()`. Browser is redirected through the OAuth flow and back to `/settings`
+  - **Unlink** for linked providers → calls `unlinkIdentityById(identity)`. The button is disabled (with a tooltip) when the user only has one identity, so they can't lock themselves out
+  - The Email row is labeled "primary" and not actionable from this card — passwords are handled in the Change password card instead
+- **Change password** card — new password + confirm, eye/eye-off toggles, ≥8 chars, live mismatch warning. Calls `supabase.auth.updateUser({ password })`. Works as both "change" and "set a new password" (for users who signed up via OAuth and never had one)
+- **Account** card — Sign out button and a collapsible "Delete my account" disclosure that points the user to the Feedback page for now (no self-serve delete in v1; admin handles via Supabase)
+- `api/identityApi.ts` — `getMyIdentities`, `linkProvider`, `unlinkIdentityById`, `updatePassword` wrappers; all return typed values and throw `Error` with readable messages
+- **Heads-up:** linking requires *Authentication → Sign In/Up → Manual Linking* enabled in the Supabase dashboard. Documented in README step 6.
+- Settings link in the home Navbar (when signed in) and in the editor's UserMenu (gear icon)
 
 ### Public home page (`/`)
 - `pages/HomePage.tsx` composes: `Navbar` · `Hero` · `HowItWorks` · `Examples` · `Features` · `CallToAction` · `Footer`

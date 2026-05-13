@@ -6,6 +6,7 @@ import "./store/themeStore"; // side-effect: apply persisted theme before first 
 import { HomePage } from "./pages/HomePage";
 import { EditorPage } from "./pages/EditorPage";
 import { FeedbackPage } from "./pages/FeedbackPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { AdminUsers } from "./pages/admin/AdminUsers";
 import { AdminFeedback } from "./pages/admin/AdminFeedback";
@@ -21,6 +22,7 @@ createRoot(document.getElementById("root")!).render(
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/feedback" element={<FeedbackPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route
           path="/app"
           element={

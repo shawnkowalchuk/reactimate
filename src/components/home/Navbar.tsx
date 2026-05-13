@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Github, MessageSquare, Moon, Shield, Sun } from "lucide-react";
+import { ArrowRight, Github, MessageSquare, Moon, Settings, Shield, Sun } from "lucide-react";
 import { useThemeStore } from "../../store/themeStore";
 import { useAuth } from "../../auth/useAuth";
 import { useIsAdmin } from "../../auth/useAdmin";
@@ -43,6 +43,16 @@ export function Navbar() {
               <MessageSquare size={14} />
               Feedback
             </Link>
+            {user && (
+              <Link
+                to="/settings"
+                className="inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
+                title="Account settings"
+              >
+                <Settings size={14} />
+                Settings
+              </Link>
+            )}
             {isAdmin && (
               <Link
                 to="/admin"

@@ -136,6 +136,14 @@ update public.profiles set is_admin = true where email = 'you@example.com';
 
 The `/admin` nav link will appear in the navbar; you'll have access to the Dashboard, Users, and Feedback admin pages.
 
+### 6. Enable manual identity linking (optional, for `/settings`)
+
+If you want users to link multiple sign-in providers to one account (e.g. Email + Google + Apple on the same `auth.users` row), enable:
+
+**Authentication → Sign In / Up → Manual Linking** (toggle on).
+
+With this off, the link buttons on `/settings` will fail with "Manual linking is not enabled". Unlinking still works in both cases.
+
 ### Heads-up
 
 In v1, the **projects still live in `localStorage`** per browser even when signed in. Auth currently does access control only — it doesn't sync your projects across devices. Per-user cloud project storage is a separate planned feature.
