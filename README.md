@@ -152,16 +152,23 @@ In v1, the **projects still live in `localStorage`** per browser even when signe
 | 0 — scaffold | Vite + TS + Tailwind + lint + CI | ✓ |
 | 1 — foundation | types, stores, engine logic + tests | ✓ |
 | 3 — text editor | contenteditable + colored range overlay | ✓ |
-| 4 — create component | selection popover + style dialog | ✓ |
+| 4 — componentize | Componentize / Split / Merge toolbar buttons | ✓ |
 | 5 — preview | live `RenderedText` + canvas frame | ✓ |
-| 6 — engine | RAF + DOM writes, scrub/play | ✓ |
-| 7 — timeline | draggable effect blocks, inspector | ✓ |
-| 8 — export | `Hero.jsx` generator + Copy/Download | ✓ |
-| 9 — persistence | localStorage autosave, save/load, undo/redo | ✓ |
+| 6 — engine | RAF + DOM writes, scrub/play, visibility window | ✓ |
+| 7 — timeline | draggable effect blocks, modal-based editor, duplicate, wheel-dampened scroll | ✓ |
+| 8 — export | `Hero.jsx` generator (core effects) + Copy/Download | ✓ |
+| 9 — persistence | localStorage autosave, save/load, undo/redo, effect presets | ✓ |
 | Auth (opt) | Supabase email + Google + Apple, sign-in gate | ✓ |
-| Component style inspector | edit a component's style after creation | ✓ |
-| Add-effect UI | `+ Add effect` per timeline row | ✓ |
-| 2 — layout polish | (visual polish) | — |
+| Inspector | Always-on Project + Component InspectorBar at top, EffectModal w/ easing graphs + per-prop start/end | ✓ |
+| Spotlight effect | mouse / sweep motion, mask + feather + backdrop | ✓ |
+| Sparkle effect | 4 spawn modes × 4 particle physics presets | ✓ |
+| Typewriter effect | per-letter reveal (snap / fade), forward / reverse | ✓ |
+| Stagger letters | per-letter rendering for any effect | ✓ |
+| Canvas-shaped editor | scaled mini-canvas matching preview frame | ✓ |
+| Effect presets | save / load / import / export (`presetStore`) | ✓ |
+| Custom canvas size | W × H inputs when preset = Custom | ✓ |
+| 2 — layout polish | (visual polish) | partial |
+| Export spotlight / sparkle / typewriter | emit real Motion JSX for the new effect types | — |
 | Cloud project storage | per-user project rows in Supabase, sync | — |
 | Templates / starter projects | — | — |
 
