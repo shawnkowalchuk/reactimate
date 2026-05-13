@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-05-13 · commit [`aacd902`](https://github.com/shawnkowalchuk/reactimate/commit/aacd902)
+**Last updated:** 2026-05-13 · commit [`481db3d`](https://github.com/shawnkowalchuk/reactimate/commit/481db3d) + sign-in UX + cloud presets (this commit)
 
 ---
 
@@ -55,7 +55,10 @@
 - `public.feedback` — `subject`, `body`, `status` ∈ {open, replied, closed}, indexed by user_id and created_at
 - `public.feedback_replies` — admin-authored replies tied to feedback rows (cascade delete)
 - `public.feedback_with_counts` — view exposing `reply_count` and `last_reply_at` for the admin list / dashboard
-- **RLS policies**: users see their own profile/feedback/replies; admins see everything; only admins can post replies or update feedback status; users can only insert feedback for themselves
+- `public.presets` — `user_id`, `name`, `effect_type`, `config` (jsonb). Per-user effect presets used by `SupabaseBackend` in `presetStore`. Includes `supabase/migrations/2026_05_13_presets.sql` as a standalone migration so users who already ran the schema don't have to re-run the whole thing
+- **RLS policies**:
+  - profiles/feedback/replies: users see their own; admins see everything; only admins post replies or change feedback status; users can only insert feedback for themselves
+  - presets: users can SELECT/INSERT/UPDATE/DELETE only their own rows
 - Idempotent — safe to re-run after schema changes
 
 ### Public home page (`/`)
@@ -143,7 +146,11 @@
   - Sparkle: density, size, color/preset, particle type (Standard / Fireworks / Volcano / Dropping via **SparkleTypePicker**), mode (component / around / follow / hover), rangePx, spawnRadiusPx, lifespanSec, sizeJitter, rotationSpeed, continueAfter
   - Typewriter: mode (snap / fade)
 - **Preset save/load bar** at the top:
-  - `store/presetStore.ts` — `LocalStorageBackend` keeps presets in `reactimate.presets.v1`; the `PresetStorage` interface is set up so a future Postgres/REST backend can drop in
+  - `store/presetStore.ts` — `PresetStorage` interface with two implementations:
+    - `LocalStorageBackend` (key: `reactimate.presets.v1`) — used when Supabase isn't configured OR the user is signed out (so presets still work offline)
+    - `SupabaseBackend` — `public.presets` table with RLS, used when Supabase is configured AND the user is signed in. Presets follow the user across devices
+    - `activeBackend()` picks based on `signedIn` flag. The store subscribes to `onAuthStateChange` and refreshes on every sign-in / sign-out
+    - **One-time migration** on first sign-in: if the user's cloud bucket is empty AND they have local presets, the store uploads them. Guarded by a per-session flag so it only fires once per fresh sign-in
   - Save current effect as preset (name)
   - Apply a saved preset (replaces type + config + targets/from on the open effect)
   - Import / Export individual preset as JSON

@@ -115,13 +115,16 @@ Restart `npm run dev`. The app now shows a sign-in screen before the editor.
 
 ### 4. Run the SQL schema
 
-To enable the **Feedback page** (`/feedback`) and the **Admin backend** (`/admin`), paste [`supabase/schema.sql`](./supabase/schema.sql) into the Supabase project's **SQL Editor** and run it. It creates:
+To enable the **Feedback page** (`/feedback`), the **Admin backend** (`/admin`), and **cloud-stored effect presets**, paste [`supabase/schema.sql`](./supabase/schema.sql) into the Supabase project's **SQL Editor** and run it. It creates:
 
 - `public.profiles` — one row per auth user, populated by a trigger on `auth.users` insert. Carries `is_admin: boolean`.
 - `public.feedback` — user-submitted messages.
 - `public.feedback_replies` — admin replies to a thread.
 - `public.feedback_with_counts` — view exposing `reply_count` and `last_reply_at`.
+- `public.presets` — per-user saved effect presets, with RLS so each user sees only their own.
 - RLS policies so users can only read their own data and admins can read everything.
+
+Already ran the schema before presets shipped? Just run [`supabase/migrations/2026_05_13_presets.sql`](./supabase/migrations/2026_05_13_presets.sql) instead — it's the same `presets` block in isolation.
 
 ### 5. Promote yourself to admin
 

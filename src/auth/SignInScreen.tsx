@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mail, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Mail } from "lucide-react";
 import { supabase } from "./supabase";
 
 type Mode = "sign-in" | "sign-up" | "magic-link";
@@ -7,14 +7,22 @@ type Mode = "sign-in" | "sign-up" | "magic-link";
 interface FormState {
   email: string;
   password: string;
+  confirmPassword: string;
+  showPassword: boolean;
+  showConfirmPassword: boolean;
   mode: Mode;
   pending: boolean;
   message: { kind: "error" | "info"; text: string } | null;
 }
 
+const MIN_PASSWORD_LEN = 8;
+
 const initial: FormState = {
   email: "",
   password: "",
+  confirmPassword: "",
+  showPassword: false,
+  showConfirmPassword: false,
   mode: "sign-in",
   pending: false,
   message: null,
@@ -24,7 +32,13 @@ export function SignInScreen() {
   const [s, setS] = useState<FormState>(initial);
 
   const setMode = (mode: Mode) =>
-    setS((cur) => ({ ...cur, mode, message: null }));
+    setS((cur) => ({
+      ...cur,
+      mode,
+      message: null,
+      // Clear the confirm field when leaving sign-up so it doesn't linger.
+      confirmPassword: mode === "sign-up" ? cur.confirmPassword : "",
+    }));
 
   const setPending = (pending: boolean) =>
     setS((cur) => ({ ...cur, pending }));
@@ -33,9 +47,29 @@ export function SignInScreen() {
     message: FormState["message"],
   ): void => setS((cur) => ({ ...cur, pending: false, message }));
 
+  const passwordsMatch =
+    s.mode !== "sign-up" || s.password === s.confirmPassword;
+  const passwordTooShort =
+    s.mode !== "magic-link" && s.password.length > 0 && s.password.length < MIN_PASSWORD_LEN;
+
   const onEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase || s.pending) return;
+
+    if (s.mode === "sign-up") {
+      if (!passwordsMatch) {
+        setMessage({ kind: "error", text: "Passwords don't match." });
+        return;
+      }
+      if (s.password.length < MIN_PASSWORD_LEN) {
+        setMessage({
+          kind: "error",
+          text: `Password must be at least ${MIN_PASSWORD_LEN} characters.`,
+        });
+        return;
+      }
+    }
+
     setPending(true);
 
     try {
@@ -90,6 +124,10 @@ export function SignInScreen() {
     // On success Supabase redirects the page — nothing to do here.
   };
 
+  const submitDisabled =
+    s.pending ||
+    (s.mode === "sign-up" && (!passwordsMatch || s.password.length < MIN_PASSWORD_LEN));
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-950 px-4 text-neutral-100">
       <div className="w-full max-w-sm">
@@ -125,24 +163,63 @@ export function SignInScreen() {
             placeholder="you@example.com"
             value={s.email}
             onChange={(e) => setS((c) => ({ ...c, email: e.target.value }))}
+            enterKeyHint="next"
             className="w-full rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm placeholder-neutral-600 focus:border-neutral-500 focus:outline-none"
           />
+
           {s.mode !== "magic-link" && (
-            <input
-              type="password"
-              autoComplete={s.mode === "sign-up" ? "new-password" : "current-password"}
-              required
-              minLength={6}
-              placeholder="Password"
+            <PasswordInput
               value={s.password}
-              onChange={(e) => setS((c) => ({ ...c, password: e.target.value }))}
-              className="w-full rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm placeholder-neutral-600 focus:border-neutral-500 focus:outline-none"
+              onChange={(v) => setS((c) => ({ ...c, password: v }))}
+              show={s.showPassword}
+              toggleShow={() =>
+                setS((c) => ({ ...c, showPassword: !c.showPassword }))
+              }
+              placeholder="Password"
+              autoComplete={s.mode === "sign-up" ? "new-password" : "current-password"}
+              minLength={s.mode === "sign-up" ? MIN_PASSWORD_LEN : undefined}
+              enterKeyHint={s.mode === "sign-up" ? "next" : "go"}
             />
+          )}
+
+          {s.mode === "sign-up" && (
+            <>
+              <PasswordInput
+                value={s.confirmPassword}
+                onChange={(v) =>
+                  setS((c) => ({ ...c, confirmPassword: v }))
+                }
+                show={s.showConfirmPassword}
+                toggleShow={() =>
+                  setS((c) => ({
+                    ...c,
+                    showConfirmPassword: !c.showConfirmPassword,
+                  }))
+                }
+                placeholder="Confirm password"
+                autoComplete="new-password"
+                minLength={MIN_PASSWORD_LEN}
+                enterKeyHint="go"
+                ariaInvalid={
+                  s.confirmPassword.length > 0 && !passwordsMatch
+                }
+              />
+              {s.password.length > 0 && passwordTooShort && (
+                <p className="text-[11px] text-amber-300">
+                  At least {MIN_PASSWORD_LEN} characters.
+                </p>
+              )}
+              {s.confirmPassword.length > 0 && !passwordsMatch && (
+                <p className="text-[11px] text-red-300">
+                  Passwords don't match.
+                </p>
+              )}
+            </>
           )}
 
           <button
             type="submit"
-            disabled={s.pending}
+            disabled={submitDisabled}
             className="flex w-full items-center justify-center gap-2 rounded bg-neutral-100 py-2 text-sm font-medium text-neutral-900 hover:bg-white disabled:opacity-60"
           >
             {s.pending ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
@@ -181,6 +258,54 @@ export function SignInScreen() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+interface PasswordInputProps {
+  value: string;
+  onChange: (v: string) => void;
+  show: boolean;
+  toggleShow: () => void;
+  placeholder: string;
+  autoComplete: string;
+  minLength?: number;
+  enterKeyHint?: "next" | "go" | "done";
+  ariaInvalid?: boolean;
+}
+
+function PasswordInput(props: PasswordInputProps) {
+  return (
+    <div className="relative">
+      <input
+        type={props.show ? "text" : "password"}
+        autoComplete={props.autoComplete}
+        required
+        minLength={props.minLength}
+        placeholder={props.placeholder}
+        value={props.value}
+        onChange={(e) => props.onChange(e.target.value)}
+        enterKeyHint={props.enterKeyHint}
+        aria-invalid={props.ariaInvalid || undefined}
+        className={`w-full rounded border bg-neutral-900 py-2 pl-3 pr-10 text-sm placeholder-neutral-600 focus:outline-none ${
+          props.ariaInvalid
+            ? "border-red-500/60 focus:border-red-400"
+            : "border-neutral-800 focus:border-neutral-500"
+        }`}
+      />
+      <button
+        type="button"
+        // Don't take focus from the input — keeps tab order clean and
+        // lets the user toggle visibility without losing their place.
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={props.toggleShow}
+        tabIndex={-1}
+        aria-label={props.show ? "Hide password" : "Show password"}
+        title={props.show ? "Hide password" : "Show password"}
+        className="absolute right-1.5 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded text-neutral-500 hover:bg-neutral-800 hover:text-neutral-200"
+      >
+        {props.show ? <EyeOff size={14} /> : <Eye size={14} />}
+      </button>
     </div>
   );
 }
