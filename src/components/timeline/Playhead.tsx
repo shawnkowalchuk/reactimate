@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useDragGesture } from "../../utils/dragGesture";
 import { usePlaybackStore } from "../../store/playbackStore";
 import { clamp } from "./timelineMath";
@@ -12,14 +13,32 @@ export function Playhead({ currentTime, duration, pxPerSecond }: PlayheadProps) 
   const setCurrentTime = usePlaybackStore((s) => s.setCurrentTime);
   const setPlaying = usePlaybackStore((s) => s.setPlaying);
 
+  // Absolute scrub: the playhead snaps to wherever the mouse is.
+  // Captured at drag-start: the timeline track's left edge in viewport
+  // coords, so we can convert clientX -> time directly during onMove.
+  const trackLeftRef = useRef<number>(0);
+
   const onPointerDown = useDragGesture({
-    onStart: () => {
+    onStart: (e) => {
       setPlaying(false);
-    },
-    onMove: (dx) => {
-      const startTime = usePlaybackStore.getState().currentTime;
+      // The playhead handle is wrapped in an `absolute` div whose parent
+      // is the timeline-tracks container (`position: relative`). Walk
+      // up two levels to read that container's viewport-x origin.
+      const handle = e.currentTarget as HTMLElement;
+      const track = handle.parentElement?.parentElement;
+      trackLeftRef.current = track?.getBoundingClientRect().left ?? 0;
+      // Snap the playhead to the initial click position so the very
+      // first frame of the drag also tracks the cursor.
       const t = clamp(
-        startTime + dx / Math.max(0.0001, pxPerSecond),
+        (e.clientX - trackLeftRef.current) / Math.max(0.0001, pxPerSecond),
+        0,
+        duration,
+      );
+      setCurrentTime(t);
+    },
+    onMove: (_dx, _dy, ev) => {
+      const t = clamp(
+        (ev.clientX - trackLeftRef.current) / Math.max(0.0001, pxPerSecond),
         0,
         duration,
       );

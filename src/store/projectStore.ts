@@ -377,6 +377,45 @@ export const useProjectStore = create<ProjectState>()(
                 easing: defaults.easing,
                 from: { ...defaults.from },
                 targets: { ...defaults.targets },
+                ...(type === "spotlight"
+                  ? {
+                      spotlight: {
+                        shape: "circle" as const,
+                        size: 220,
+                        color: "#fbbf24",
+                        opacity: 0.55,
+                        motion: "mouse" as const,
+                        maskText: false,
+                        maskMode: "tint" as const,
+                        featherPx: 0,
+                        showBackdrop: true,
+                      },
+                    }
+                  : {}),
+                ...(type === "sparkle"
+                  ? {
+                      sparkle: {
+                        density: 8,
+                        size: 14,
+                        color: "#fbbf24",
+                        preset: "gold" as const,
+                        type: "standard" as const,
+                        mode: "component" as const,
+                        rangePx: 20,
+                        spawnRadiusPx: 30,
+                        lifespanSec: 0.6,
+                        sizeJitter: 0.4,
+                        rotationSpeed: 0,
+                        continueAfter: false,
+                      },
+                    }
+                  : {}),
+                ...(type === "typewriter"
+                  ? {
+                      staggerLetters: true,
+                      typewriter: { mode: "fade" as const },
+                    }
+                  : {}),
               },
             ],
           };

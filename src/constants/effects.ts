@@ -44,6 +44,24 @@ export const EFFECT_DEFAULTS: Record<EffectType, EffectDefaults> = {
     from: { color: "#000000" },
     targets: { color: "#ffffff" },
   },
+  spotlight: {
+    duration: 1.0,
+    easing: "ease-out",
+    from: {},
+    targets: {},
+  },
+  sparkle: {
+    duration: 1.0,
+    easing: "linear",
+    from: {},
+    targets: {},
+  },
+  typewriter: {
+    duration: 1.0,
+    easing: "linear",
+    from: { opacity: 0 },
+    targets: { opacity: 1 },
+  },
   custom: {
     duration: 0.5,
     easing: "ease-in-out",
@@ -58,6 +76,9 @@ export const EFFECT_LABELS: Record<EffectType, string> = {
   scale: "Scale",
   rotate: "Rotate",
   "color-shift": "Color shift",
+  spotlight: "Spotlight",
+  sparkle: "Sparkle",
+  typewriter: "Typewriter",
   // "custom" is the placeholder for a blank effect — no animated props.
   // Used as the default when the user adds an effect via "+" before
   // picking a type in the modal.

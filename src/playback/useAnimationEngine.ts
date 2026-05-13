@@ -22,10 +22,16 @@ export function useAnimationEngine() {
 
   const apply = useCallback(
     (time: number) => {
-      for (const c of project.layer.components) {
-        const el = elementsRef.current.get(c.id);
-        if (!el) continue;
-        const s = computeComponentStyle(c, time);
+      // Element keys are either `componentId` (whole-component) or
+      // `componentId|letterIndex` (per-letter, when an effect on the
+      // component opts into staggerLetters).
+      for (const [key, el] of elementsRef.current) {
+        const sep = key.indexOf("|");
+        const componentId = sep === -1 ? key : key.slice(0, sep);
+        const letterIndex = sep === -1 ? 0 : parseInt(key.slice(sep + 1), 10);
+        const c = project.layer.components.find((x) => x.id === componentId);
+        if (!c) continue;
+        const s = computeComponentStyle(c, time, letterIndex);
         el.style.transform = `translate(${s.x}px, ${s.y}px) scale(${s.scale}) rotate(${s.rotation}deg)`;
         el.style.opacity = String(s.opacity);
         el.style.color = s.color;
@@ -84,9 +90,14 @@ export function useAnimationEngine() {
         elementsRef.current.set(id, el);
         // Apply current state so a freshly mounted span doesn't flash.
         const time = usePlaybackStore.getState().currentTime;
-        const component = project.layer.components.find((c) => c.id === id);
+        const sep = id.indexOf("|");
+        const componentId = sep === -1 ? id : id.slice(0, sep);
+        const letterIndex = sep === -1 ? 0 : parseInt(id.slice(sep + 1), 10);
+        const component = project.layer.components.find(
+          (c) => c.id === componentId,
+        );
         if (component) {
-          const s = computeComponentStyle(component, time);
+          const s = computeComponentStyle(component, time, letterIndex);
           el.style.transform = `translate(${s.x}px, ${s.y}px) scale(${s.scale}) rotate(${s.rotation}deg)`;
           el.style.opacity = String(s.opacity);
           el.style.color = s.color;

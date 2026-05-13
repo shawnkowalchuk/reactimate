@@ -1,6 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useProjectStore } from "../../store/projectStore";
 import { useSelectionStore } from "../../store/selectionStore";
+import {
+  selectSharedScale,
+  useCanvasScaleStore,
+} from "../../store/canvasScaleStore";
 import { diffStrings } from "../../utils/textDiff";
 import { ComponentOverlay } from "./ComponentOverlay";
 import { EditorActions } from "./EditorActions";
@@ -115,10 +119,14 @@ export function TextEditor() {
   const canvasW = useProjectStore((s) => s.project.canvas.width);
   const canvasH = useProjectStore((s) => s.project.canvas.height);
 
-  // Scale-to-fit the canvas frame inside the available pane (mirrors
-  // PreviewCanvas). Recomputes on pane or canvas resize.
+  // Scale-to-fit the canvas frame inside the available pane. Publishes
+  // the local fit to the shared scale store; both editor and preview
+  // render at the MIN so they always look the same size on screen.
   const wrapRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
+  const [, setLocalFit] = useState(1);
+  const registerFit = useCanvasScaleStore((s) => s.registerFit);
+  const unregisterFit = useCanvasScaleStore((s) => s.unregisterFit);
+  const scale = useCanvasScaleStore((s) => selectSharedScale(s, 1));
   useLayoutEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
@@ -126,13 +134,16 @@ export function TextEditor() {
       const padding = 24;
       const sx = (wrap.clientWidth - padding * 2) / canvasW;
       const sy = (wrap.clientHeight - padding * 2) / canvasH;
-      setScale(Math.max(0.05, Math.min(sx, sy)));
+      const fit = Math.max(0.05, Math.min(sx, sy));
+      setLocalFit(fit);
+      registerFit("editor", fit);
     };
     compute();
     const ro = new ResizeObserver(compute);
     ro.observe(wrap);
     return () => ro.disconnect();
-  }, [canvasW, canvasH]);
+  }, [canvasW, canvasH, registerFit]);
+  useEffect(() => () => unregisterFit("editor"), [unregisterFit]);
 
   return (
     <div className="flex h-full flex-col gap-2">
@@ -162,6 +173,10 @@ export function TextEditor() {
           style={{
             width: canvasW,
             height: canvasH,
+            // Lock layout to design size so the transform-scale below
+            // gives a predictable visual ratio (matches PreviewCanvas).
+            flexShrink: 0,
+            flexGrow: 0,
             background: canvasBg,
             transform: `scale(${scale})`,
             transformOrigin: "center center",
@@ -181,8 +196,11 @@ export function TextEditor() {
               autoCorrect="off"
               autoCapitalize="off"
               onInput={onInput}
-              className="relative z-10 max-w-full whitespace-pre-wrap break-words text-center outline-none caret-sky-400"
+              className="relative z-10 whitespace-pre-wrap break-words text-center outline-none caret-sky-400"
               style={{
+                // Match RenderedText's text-cap so editor and preview
+                // wrap the same way.
+                maxWidth: `${Math.round(canvasW * 0.55)}px`,
                 fontFamily: defaultTextStyle.fontFamily,
                 fontSize: defaultTextStyle.fontSize,
                 lineHeight: 1.1,

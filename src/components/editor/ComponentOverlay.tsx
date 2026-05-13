@@ -126,12 +126,19 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
       {groups.map((g, gi) => {
         if (g.rects.length === 0) return null;
         const r = largestRect(g.rects);
-        const offset = stackOffsetFor(g, gi, groups);
-        const cx = r.left + r.width + offset;
-        const cy = r.top + offset;
-        const isSelected = g.id === selectedComponentId;
+        // The selection circle anchors at the top-right of the box's
+        // RENDERED position (the original rect plus the box's diagonal
+        // offset for overlapping groups). For duplicates, each dot is
+        // additionally placed in a horizontal row beside the previous.
+        const stackIdx = stackIndexFor(g, gi, groups);
+        const boxOffset = stackIdx * 4;
         const dot = 14;
         const hit = 32; // larger transparent hit-target around the visible dot
+        const dotGap = 4;
+        const cx =
+          r.left + boxOffset + r.width + stackIdx * (dot + dotGap);
+        const cy = r.top + boxOffset;
+        const isSelected = g.id === selectedComponentId;
         return (
           <button
             key={`${g.id}_dot`}
@@ -186,6 +193,51 @@ function largestRect(
  * they're visually distinguishable. Returns the pixel offset for `g` based
  * on how many earlier groups in `groups` overlap with it.
  */
+/**
+ * How many earlier groups overlap this one's bounding box. Used as the
+ * x-offset multiplier for the SELECTION DOT row (so duplicates' dots
+ * sit beside the original at top-right, not stacked diagonally).
+ */
+/**
+ * Two rects "substantially overlap" only if their intersection area is
+ * at least half of the smaller rect's area. This excludes line-adjacent
+ * boxes that only share a 1-pixel y-edge — those are not duplicates.
+ */
+function substantialOverlap(
+  a: { left: number; top: number; width: number; height: number },
+  b: { left: number; top: number; width: number; height: number },
+): boolean {
+  const ix = Math.max(
+    0,
+    Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left),
+  );
+  const iy = Math.max(
+    0,
+    Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top),
+  );
+  const inter = ix * iy;
+  const aArea = a.width * a.height;
+  const bArea = b.width * b.height;
+  const smaller = Math.min(aArea, bArea);
+  return smaller > 0 && inter >= 0.5 * smaller;
+}
+
+function stackIndexFor(
+  g: RectGroup,
+  index: number,
+  all: RectGroup[],
+): number {
+  if (g.rects.length === 0) return 0;
+  const aBox = boundingBox(g.rects);
+  let count = 0;
+  for (let i = 0; i < index; i++) {
+    const other = all[i];
+    if (other.rects.length === 0) continue;
+    if (substantialOverlap(aBox, boundingBox(other.rects))) count++;
+  }
+  return count;
+}
+
 function stackOffsetFor(
   g: RectGroup,
   index: number,
@@ -197,15 +249,7 @@ function stackOffsetFor(
   for (let i = 0; i < index; i++) {
     const other = all[i];
     if (other.rects.length === 0) continue;
-    const bBox = boundingBox(other.rects);
-    if (
-      aBox.left < bBox.left + bBox.width &&
-      aBox.left + aBox.width > bBox.left &&
-      aBox.top < bBox.top + bBox.height &&
-      aBox.top + aBox.height > bBox.top
-    ) {
-      stackedAbove++;
-    }
+    if (substantialOverlap(aBox, boundingBox(other.rects))) stackedAbove++;
   }
   return stackedAbove * 4;
 }

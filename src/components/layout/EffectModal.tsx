@@ -1,6 +1,8 @@
-import { Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Copy, Download, Trash2, Upload } from "lucide-react";
 import { useProjectStore } from "../../store/projectStore";
 import { useUIStore } from "../../store/uiStore";
+import { usePresetStore, type PresetConfig } from "../../store/presetStore";
 import { EFFECT_DEFAULTS, EFFECT_LABELS } from "../../constants/effects";
 import type {
   AnimatableProp,
@@ -9,6 +11,7 @@ import type {
 } from "../../types/project";
 import { Modal } from "./Modal";
 import { EasingPicker } from "./EasingPicker";
+import { SparkleTypePicker, type SparkleType } from "./SparkleTypePicker";
 
 const numberInput =
   "w-20 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
@@ -24,6 +27,9 @@ const TYPE_OPTIONS: EffectType[] = [
   "scale",
   "rotate",
   "color-shift",
+  "spotlight",
+  "sparkle",
+  "typewriter",
 ];
 
 const PROP_LABELS: Record<AnimatableProp, string> = {
@@ -66,14 +72,85 @@ export function EffectModal() {
   const onDur = (v: number) =>
     updateEffect(component.id, effect.id, { duration: Math.max(0.05, v) });
 
-  // Switching type resets both `from` and `targets` to that type's defaults.
+  // Switching type resets `from`/`targets` AND nulls out any stale
+  // type-specific config blocks (spotlight/sparkle/typewriter) from the
+  // previous type. The new type's own config block is then seeded.
   const onType = (v: string) => {
     const nextType = v as EffectType;
     const defaults = EFFECT_DEFAULTS[nextType];
-    updateEffect(component.id, effect.id, {
+    const patch: Partial<typeof effect> = {
       type: nextType,
       from: { ...defaults.from },
       targets: { ...defaults.targets },
+      spotlight: undefined,
+      sparkle: undefined,
+      typewriter: undefined,
+      staggerLetters: false,
+    };
+    if (nextType === "spotlight") {
+      patch.spotlight = effect.spotlight ?? {
+        shape: "circle",
+        size: 220,
+        color: "#fbbf24",
+        opacity: 0.55,
+        motion: "mouse",
+        showBackdrop: true,
+      };
+    }
+    if (nextType === "sparkle") {
+      patch.sparkle = effect.sparkle ?? {
+        density: 8,
+        size: 14,
+        color: "#fbbf24",
+        preset: "gold",
+        type: "standard",
+        mode: "component",
+        continueAfter: false,
+      };
+    }
+    if (nextType === "typewriter") {
+      patch.typewriter = effect.typewriter ?? { mode: "fade" };
+      patch.staggerLetters = true;
+    }
+    updateEffect(component.id, effect.id, patch);
+  };
+
+  const patchSparkle = (
+    update: Partial<NonNullable<typeof effect.sparkle>>,
+  ) => {
+    const current = effect.sparkle ?? {
+      density: 8,
+      size: 14,
+      color: "#fbbf24",
+      preset: "gold" as const,
+    };
+    updateEffect(component.id, effect.id, {
+      sparkle: { ...current, ...update },
+    });
+  };
+
+  const patchTypewriter = (
+    update: Partial<NonNullable<typeof effect.typewriter>>,
+  ) => {
+    const current = effect.typewriter ?? { mode: "fade" as const };
+    updateEffect(component.id, effect.id, {
+      typewriter: { ...current, ...update },
+    });
+  };
+
+  const patchSpotlight = (
+    update: Partial<NonNullable<typeof effect.spotlight>>,
+  ) => {
+    const current = effect.spotlight ?? {
+      shape: "circle" as const,
+      size: 220,
+      color: "#fbbf24",
+      opacity: 0.55,
+      motion: "mouse" as const,
+      showBackdrop: true,
+    };
+    updateEffect(component.id, effect.id, {
+      spotlight: { ...current, ...update },
     });
   };
 
@@ -112,6 +189,13 @@ export function EffectModal() {
             "{text}"
           </span>
         </div>
+
+        <PresetBar
+          effect={effect}
+          onApply={(cfg) =>
+            updateEffect(component.id, effect.id, { ...cfg })
+          }
+        />
 
         <label className="flex flex-col gap-1">
           <span className="text-xs text-neutral-500">Type</span>
@@ -168,7 +252,113 @@ export function EffectModal() {
           />
         </div>
 
-        {animProps.length > 0 && (
+        {effect.type !== "sparkle" && (
+          <div className="flex flex-col gap-1.5 rounded border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+            <label className="flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={Boolean(effect.staggerLetters)}
+                onChange={(e) =>
+                  updateEffect(component.id, effect.id, {
+                    staggerLetters: e.target.checked,
+                  })
+                }
+                className="h-3.5 w-3.5 cursor-pointer"
+              />
+              <span className="font-medium text-neutral-900 dark:text-neutral-100">
+                Stagger letters
+              </span>
+              <span className="text-neutral-500">
+                animate each character with a delay
+              </span>
+            </label>
+            {effect.staggerLetters && (
+              <>
+                <label className="flex items-center gap-2 pl-6 text-xs">
+                  <span className="text-neutral-500">Delay between letters</span>
+                  <input
+                    type="number"
+                    step={0.01}
+                    min={0}
+                    value={+(effect.staggerDelay ?? 0.05).toFixed(2)}
+                    onChange={(e) =>
+                      updateEffect(component.id, effect.id, {
+                        staggerDelay: Math.max(0, parseFloat(e.target.value) || 0),
+                      })
+                    }
+                    className="w-20 rounded border border-neutral-300 bg-white px-2 py-0.5 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+                  />
+                  <span className="text-neutral-400">s</span>
+                </label>
+                <label className="flex items-center gap-2 pl-6 text-xs">
+                  <span className="text-neutral-500">Direction</span>
+                  <div className="flex gap-1">
+                    <ShapeBtn
+                      active={(effect.staggerDirection ?? "forward") === "forward"}
+                      onClick={() =>
+                        updateEffect(component.id, effect.id, {
+                          staggerDirection: "forward",
+                        })
+                      }
+                      label="Front → back"
+                    />
+                    <ShapeBtn
+                      active={effect.staggerDirection === "reverse"}
+                      onClick={() =>
+                        updateEffect(component.id, effect.id, {
+                          staggerDirection: "reverse",
+                        })
+                      }
+                      label="Back → front"
+                    />
+                  </div>
+                </label>
+              </>
+            )}
+          </div>
+        )}
+
+        {effect.type === "spotlight" && (
+          <SpotlightPanel
+            spotlight={
+              effect.spotlight ?? {
+                shape: "circle",
+                size: 220,
+                color: "#fbbf24",
+                opacity: 0.55,
+                motion: "mouse",
+                showBackdrop: true,
+              }
+            }
+            onChange={patchSpotlight}
+          />
+        )}
+
+        {effect.type === "sparkle" && (
+          <SparklePanel
+            sparkle={
+              effect.sparkle ?? {
+                density: 8,
+                size: 14,
+                color: "#fbbf24",
+                preset: "gold",
+              }
+            }
+            onChange={patchSparkle}
+          />
+        )}
+
+        {effect.type === "typewriter" && (
+          <TypewriterPanel
+            typewriter={effect.typewriter ?? { mode: "fade" }}
+            onChange={patchTypewriter}
+          />
+        )}
+
+        {effect.type !== "spotlight" &&
+          effect.type !== "sparkle" &&
+          effect.type !== "typewriter" &&
+          animProps.length > 0 && (
           <div className="flex flex-col gap-2 rounded border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
             <div className="text-xs uppercase tracking-wider text-neutral-500">
               Animates
@@ -210,6 +400,647 @@ export function EffectModal() {
         </div>
       </div>
     </Modal>
+  );
+}
+
+interface SpotlightConfig {
+  shape: "circle" | "square";
+  size: number;
+  color: string;
+  opacity: number;
+  motion: "mouse" | "sweep-left" | "sweep-right";
+  maskText?: boolean;
+  maskMode?: "tint" | "reveal";
+  featherPx?: number;
+  showBackdrop?: boolean;
+}
+
+interface SpotlightPanelProps {
+  spotlight: SpotlightConfig;
+  onChange: (update: Partial<SpotlightConfig>) => void;
+}
+
+function SpotlightPanel({ spotlight, onChange }: SpotlightPanelProps) {
+  return (
+    <div className="flex flex-col gap-3 rounded border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="text-xs uppercase tracking-wider text-neutral-500">
+        Spotlight
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Shape</span>
+          <div className="flex gap-1">
+            <ShapeBtn
+              active={spotlight.shape === "circle"}
+              onClick={() => onChange({ shape: "circle" })}
+              label="Circle"
+            />
+            <ShapeBtn
+              active={spotlight.shape === "square"}
+              onClick={() => onChange({ shape: "square" })}
+              label="Square"
+            />
+          </div>
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Motion</span>
+          <select
+            value={spotlight.motion}
+            onChange={(e) =>
+              onChange({ motion: e.target.value as SpotlightConfig["motion"] })
+            }
+            className="rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          >
+            <option value="mouse">Follow mouse</option>
+            <option value="sweep-left">Sweep → (left to right)</option>
+            <option value="sweep-right">Sweep ← (right to left)</option>
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Size (px)</span>
+          <input
+            type="number"
+            min={10}
+            step={10}
+            value={spotlight.size}
+            onChange={(e) => onChange({ size: Math.max(10, parseInt(e.target.value, 10) || 10) })}
+            className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Opacity</span>
+          <input
+            type="number"
+            min={0}
+            max={1}
+            step={0.05}
+            value={+spotlight.opacity.toFixed(2)}
+            onChange={(e) =>
+              onChange({
+                opacity: Math.max(0, Math.min(1, parseFloat(e.target.value) || 0)),
+              })
+            }
+            className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          />
+        </label>
+
+        <label className="col-span-2 flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Color</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={toHex(spotlight.color)}
+              onChange={(e) => onChange({ color: e.target.value })}
+              className="h-7 w-10 cursor-pointer rounded border border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-950"
+            />
+            <input
+              type="text"
+              value={spotlight.color}
+              onChange={(e) => onChange({ color: e.target.value })}
+              className="w-32 rounded border border-neutral-300 bg-white px-2 py-1 font-mono text-xs text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+            />
+          </div>
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Feather edge (px)</span>
+          <input
+            type="number"
+            min={0}
+            step={2}
+            value={spotlight.featherPx ?? 0}
+            onChange={(e) =>
+              onChange({ featherPx: Math.max(0, parseInt(e.target.value, 10) || 0) })
+            }
+            className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          />
+        </label>
+
+        <label className="col-span-2 flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={Boolean(spotlight.maskText)}
+            onChange={(e) => onChange({ maskText: e.target.checked })}
+            className="h-3.5 w-3.5 cursor-pointer"
+          />
+          <span className="font-medium text-neutral-900 dark:text-neutral-100">
+            Mask text
+          </span>
+          <span className="text-neutral-500">apply spotlight as a text mask</span>
+        </label>
+
+        {spotlight.maskText && (
+          <label className="col-span-2 flex flex-col gap-1">
+            <span className="text-xs text-neutral-500">Mask mode</span>
+            <div className="flex gap-1">
+              <ShapeBtn
+                active={(spotlight.maskMode ?? "tint") === "tint"}
+                onClick={() => onChange({ maskMode: "tint" })}
+                label="Tint inside (recolor)"
+              />
+              <ShapeBtn
+                active={spotlight.maskMode === "reveal"}
+                onClick={() => onChange({ maskMode: "reveal" })}
+                label="Reveal inside (hide outside)"
+              />
+            </div>
+          </label>
+        )}
+
+        <label className="col-span-2 flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={spotlight.showBackdrop !== false}
+            onChange={(e) => onChange({ showBackdrop: e.target.checked })}
+            className="h-3.5 w-3.5 cursor-pointer"
+          />
+          <span className="font-medium text-neutral-900 dark:text-neutral-100">
+            Show backdrop
+          </span>
+          <span className="text-neutral-500">render the colored shape behind text</span>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function ShapeBtn({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex-1 rounded border px-2 py-1 text-xs ${
+        active
+          ? "border-sky-400 bg-sky-50 text-sky-900 dark:border-sky-500/60 dark:bg-sky-900/30 dark:text-sky-100"
+          : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-300"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+interface SparkleConfig {
+  density: number;
+  size: number;
+  color: string;
+  preset: "gold" | "silver" | "rainbow" | "fire" | "custom";
+  type?: SparkleType;
+  mode?: "component" | "around" | "follow" | "hover";
+  rangePx?: number;
+  spawnRadiusPx?: number;
+  lifespanSec?: number;
+  sizeJitter?: number;
+  rotationSpeed?: number;
+  continueAfter?: boolean;
+}
+
+interface SparklePanelProps {
+  sparkle: SparkleConfig;
+  onChange: (update: Partial<SparkleConfig>) => void;
+}
+
+function SparklePanel({ sparkle, onChange }: SparklePanelProps) {
+  return (
+    <div className="flex flex-col gap-3 rounded border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="text-xs uppercase tracking-wider text-neutral-500">
+        Sparkle
+      </div>
+      <label className="flex flex-col gap-1.5">
+        <span className="text-xs text-neutral-500">Particle type</span>
+        <SparkleTypePicker
+          value={sparkle.type ?? "standard"}
+          onChange={(t) => onChange({ type: t })}
+        />
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Preset</span>
+          <select
+            value={sparkle.preset}
+            onChange={(e) =>
+              onChange({ preset: e.target.value as SparkleConfig["preset"] })
+            }
+            className="rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          >
+            <option value="gold">Gold</option>
+            <option value="silver">Silver</option>
+            <option value="rainbow">Rainbow</option>
+            <option value="fire">Fire</option>
+            <option value="custom">Custom (single color)</option>
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Where</span>
+          <select
+            value={sparkle.mode ?? "component"}
+            onChange={(e) =>
+              onChange({ mode: e.target.value as NonNullable<SparkleConfig["mode"]> })
+            }
+            className="rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          >
+            <option value="component">On the text</option>
+            <option value="around">Around the text</option>
+            <option value="follow">Follow the cursor</option>
+            <option value="hover">Hover the text</option>
+          </select>
+        </label>
+
+        {sparkle.mode === "around" && (
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-neutral-500">Range (px)</span>
+            <input
+              type="number"
+              min={0}
+              step={5}
+              value={sparkle.rangePx ?? 20}
+              onChange={(e) =>
+                onChange({ rangePx: Math.max(0, parseInt(e.target.value, 10) || 0) })
+              }
+              className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+            />
+          </label>
+        )}
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Density (per sec)</span>
+          <input
+            type="number"
+            min={1}
+            step={1}
+            value={sparkle.density}
+            onChange={(e) =>
+              onChange({
+                density: Math.max(1, parseInt(e.target.value, 10) || 1),
+              })
+            }
+            className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Size (px)</span>
+          <input
+            type="number"
+            min={4}
+            step={2}
+            value={sparkle.size}
+            onChange={(e) =>
+              onChange({ size: Math.max(4, parseInt(e.target.value, 10) || 4) })
+            }
+            className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          />
+        </label>
+
+        {sparkle.preset === "custom" && (
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-neutral-500">Color</span>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={toHex(sparkle.color)}
+                onChange={(e) => onChange({ color: e.target.value })}
+                className="h-7 w-10 cursor-pointer rounded border border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-950"
+              />
+              <input
+                type="text"
+                value={sparkle.color}
+                onChange={(e) => onChange({ color: e.target.value })}
+                className="w-32 rounded border border-neutral-300 bg-white px-2 py-1 font-mono text-xs text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+              />
+            </div>
+          </label>
+        )}
+
+        {(sparkle.mode === "follow" || sparkle.mode === "hover") && (
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-neutral-500">Cursor jitter (px)</span>
+            <input
+              type="number"
+              min={0}
+              step={2}
+              value={sparkle.spawnRadiusPx ?? 30}
+              onChange={(e) =>
+                onChange({
+                  spawnRadiusPx: Math.max(0, parseInt(e.target.value, 10) || 0),
+                })
+              }
+              className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+            />
+          </label>
+        )}
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Lifespan (s)</span>
+          <input
+            type="number"
+            min={0.1}
+            step={0.1}
+            value={+(sparkle.lifespanSec ?? 0.6).toFixed(2)}
+            onChange={(e) =>
+              onChange({
+                lifespanSec: Math.max(0.1, parseFloat(e.target.value) || 0.1),
+              })
+            }
+            className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Size jitter (±%)</span>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step={5}
+            value={Math.round((sparkle.sizeJitter ?? 0.4) * 100)}
+            onChange={(e) =>
+              onChange({
+                sizeJitter: Math.max(
+                  0,
+                  Math.min(1, (parseInt(e.target.value, 10) || 0) / 100),
+                ),
+              })
+            }
+            className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Rotation speed (°/s)</span>
+          <input
+            type="number"
+            step={15}
+            value={sparkle.rotationSpeed ?? 0}
+            onChange={(e) =>
+              onChange({ rotationSpeed: parseFloat(e.target.value) || 0 })
+            }
+            className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          />
+        </label>
+
+        <label className="col-span-2 flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={Boolean(sparkle.continueAfter)}
+            onChange={(e) => onChange({ continueAfter: e.target.checked })}
+            className="h-3.5 w-3.5 cursor-pointer"
+          />
+          <span className="font-medium text-neutral-900 dark:text-neutral-100">
+            Continue after end
+          </span>
+          <span className="text-neutral-500">
+            keep sparkling past the effect's end time
+          </span>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+interface TypewriterPanelProps {
+  typewriter: { mode: "snap" | "fade" };
+  onChange: (update: Partial<{ mode: "snap" | "fade" }>) => void;
+}
+
+function TypewriterPanel({ typewriter, onChange }: TypewriterPanelProps) {
+  return (
+    <div className="flex flex-col gap-3 rounded border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="text-xs uppercase tracking-wider text-neutral-500">
+        Typewriter
+      </div>
+      <label className="flex flex-col gap-1 text-xs">
+        <span className="text-neutral-500">Reveal style</span>
+        <div className="flex gap-1">
+          <ShapeBtn
+            active={typewriter.mode === "snap"}
+            onClick={() => onChange({ mode: "snap" })}
+            label="Snap"
+          />
+          <ShapeBtn
+            active={typewriter.mode === "fade"}
+            onClick={() => onChange({ mode: "fade" })}
+            label="Fade"
+          />
+        </div>
+        <span className="mt-1 text-neutral-500">
+          Each letter appears across the effect duration. Snap = instant
+          per letter, Fade = each letter eases in.
+        </span>
+      </label>
+    </div>
+  );
+}
+
+interface PresetBarProps {
+  effect: {
+    type: EffectType;
+    duration: number;
+    easing: import("../../types/project").EasingType;
+    from?: AnimatableTargets;
+    targets: AnimatableTargets;
+    spotlight?: import("../../types/project").Effect["spotlight"];
+    sparkle?: import("../../types/project").Effect["sparkle"];
+    typewriter?: import("../../types/project").Effect["typewriter"];
+    staggerLetters?: boolean;
+    staggerDelay?: number;
+  };
+  onApply: (cfg: PresetConfig) => void;
+}
+
+function PresetBar({ effect, onApply }: PresetBarProps) {
+  const presets = usePresetStore((s) => s.presets);
+  const loaded = usePresetStore((s) => s.loaded);
+  const refresh = usePresetStore((s) => s.refresh);
+  const savePreset = usePresetStore((s) => s.save);
+  const removePreset = usePresetStore((s) => s.remove);
+  const exportPreset = usePresetStore((s) => s.exportPreset);
+  const importPreset = usePresetStore((s) => s.importPreset);
+  const [namingOpen, setNamingOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [selectedId, setSelectedId] = useState<string>("");
+
+  useEffect(() => {
+    if (!loaded) refresh();
+  }, [loaded, refresh]);
+
+  const matching = presets.filter((p) => p.effectType === effect.type);
+
+  const onSave = async () => {
+    if (!name.trim()) return;
+    const cfg: PresetConfig = {
+      type: effect.type,
+      duration: effect.duration,
+      easing: effect.easing,
+      from: effect.from,
+      targets: effect.targets,
+      spotlight: effect.spotlight,
+      sparkle: effect.sparkle,
+      typewriter: effect.typewriter,
+      staggerLetters: effect.staggerLetters,
+      staggerDelay: effect.staggerDelay,
+    };
+    await savePreset(name.trim(), effect.type, cfg);
+    setName("");
+    setNamingOpen(false);
+  };
+
+  const onLoad = (id: string) => {
+    setSelectedId(id);
+    if (!id) return;
+    const p = presets.find((x) => x.id === id);
+    if (p) onApply(p.config);
+  };
+
+  const onExport = async () => {
+    if (!selectedId) return;
+    const json = exportPreset(selectedId);
+    if (!json) return;
+    try {
+      await navigator.clipboard.writeText(json);
+    } catch {
+      // Fallback: show in textarea via the import area
+      setImportText(json);
+      setImportOpen(true);
+    }
+  };
+
+  const onImport = async () => {
+    const rec = await importPreset(importText);
+    if (rec) {
+      setImportText("");
+      setImportOpen(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2 rounded border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="flex items-center gap-2">
+        <span className="font-medium uppercase tracking-wider text-neutral-500">
+          Presets
+        </span>
+        <select
+          value={selectedId}
+          onChange={(e) => onLoad(e.target.value)}
+          className="flex-1 rounded border border-neutral-300 bg-white px-2 py-0.5 text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+        >
+          <option value="">— Load preset —</option>
+          {matching.length > 0 && (
+            <optgroup label={`For ${EFFECT_LABELS[effect.type]}`}>
+              {matching.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          {presets.length > matching.length && (
+            <optgroup label="Other types">
+              {presets
+                .filter((p) => p.effectType !== effect.type)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({EFFECT_LABELS[p.effectType]})
+                  </option>
+                ))}
+            </optgroup>
+          )}
+        </select>
+        <button
+          type="button"
+          onClick={() => setNamingOpen((v) => !v)}
+          className="flex items-center gap-1 rounded border border-neutral-300 bg-white px-2 py-0.5 text-neutral-800 hover:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200"
+        >
+          <Copy size={11} />
+          Save preset…
+        </button>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={!selectedId}
+          title="Copy selected preset's JSON to clipboard"
+          className="flex items-center gap-1 rounded border border-neutral-300 bg-white px-2 py-0.5 text-neutral-800 enabled:hover:border-neutral-500 disabled:opacity-40 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200"
+        >
+          <Download size={11} />
+          Export
+        </button>
+        <button
+          type="button"
+          onClick={() => setImportOpen((v) => !v)}
+          className="flex items-center gap-1 rounded border border-neutral-300 bg-white px-2 py-0.5 text-neutral-800 hover:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200"
+        >
+          <Upload size={11} />
+          Import
+        </button>
+        {selectedId && (
+          <button
+            type="button"
+            onClick={async () => {
+              await removePreset(selectedId);
+              setSelectedId("");
+            }}
+            title="Delete the selected preset"
+            className="rounded border border-red-300 bg-red-50 px-1.5 py-0.5 text-red-700 hover:bg-red-100 dark:border-red-900/60 dark:bg-transparent dark:text-red-300 dark:hover:bg-red-900/30"
+          >
+            <Trash2 size={11} />
+          </button>
+        )}
+      </div>
+      {namingOpen && (
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Preset name"
+            className="flex-1 rounded border border-neutral-300 bg-white px-2 py-0.5 text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          />
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={!name.trim()}
+            className="rounded bg-sky-500 px-2 py-0.5 text-white enabled:hover:bg-sky-400 disabled:opacity-40"
+          >
+            Save
+          </button>
+        </div>
+      )}
+      {importOpen && (
+        <div className="flex flex-col gap-1">
+          <textarea
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
+            placeholder="Paste preset JSON here…"
+            rows={4}
+            className="w-full rounded border border-neutral-300 bg-white px-2 py-1 font-mono text-[11px] text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          />
+          <button
+            type="button"
+            onClick={onImport}
+            disabled={!importText.trim()}
+            className="self-end rounded bg-sky-500 px-2 py-0.5 text-white enabled:hover:bg-sky-400 disabled:opacity-40"
+          >
+            Import preset
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
