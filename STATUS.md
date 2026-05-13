@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-05-13 · commit [`481db3d`](https://github.com/shawnkowalchuk/reactimate/commit/481db3d) + sign-in UX + cloud presets (this commit)
+**Last updated:** 2026-05-13 · commit [`e04a2ee`](https://github.com/shawnkowalchuk/reactimate/commit/e04a2ee)
 
 ---
 
