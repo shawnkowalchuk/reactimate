@@ -101,8 +101,8 @@ export function EffectModal() {
     }
     if (nextType === "particle") {
       patch.particle = effect.particle ?? {
-        density: 8,
-        size: 14,
+        density: 24,
+        size: 20,
         color: "#fbbf24",
         preset: "gold",
         shape: "star" as const,
@@ -122,8 +122,8 @@ export function EffectModal() {
     update: Partial<NonNullable<typeof effect.particle>>,
   ) => {
     const current = effect.particle ?? {
-      density: 8,
-      size: 14,
+      density: 24,
+      size: 20,
       color: "#fbbf24",
       preset: "gold" as const,
     };
@@ -612,8 +612,8 @@ interface ParticlePanelProps {
 function ParticlePreview({ config }: { config: ParticleConfig }) {
   const [, tick] = useState(0);
   const ct = config.type ?? "standard";
-  const w = 240;
-  const h = 100;
+  const w = 300;
+  const h = 120;
   const lifespan = config.lifespanSec ?? 0.6;
   const density = config.density;
   const sizeBase = config.size;
@@ -668,7 +668,7 @@ function ParticlePreview({ config }: { config: ParticleConfig }) {
 
   return (
     <div
-      className="relative overflow-hidden rounded border border-neutral-300 bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900"
+      className="relative overflow-hidden rounded border border-neutral-300 bg-neutral-200 dark:border-neutral-700 dark:bg-black"
       style={{ width: w, height: h }}
     >
       {particles.map((p) => {

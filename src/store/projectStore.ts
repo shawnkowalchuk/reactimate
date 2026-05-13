@@ -395,8 +395,8 @@ export const useProjectStore = create<ProjectState>()(
                 ...(type === "particle"
                   ? {
                       particle: {
-                        density: 8,
-                        size: 14,
+                        density: 24,
+                        size: 20,
                         color: "#fbbf24",
                         preset: "gold" as const,
                         shape: "star" as const,

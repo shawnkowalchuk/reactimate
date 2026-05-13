@@ -91,6 +91,9 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
   // We only check time + mode here; per-frame we re-check cursor position
   // inside the rAF tick so the spawner doesn't tear down on each move.
   const { w, h } = sizeRef.current;
+  // Fallback: if wrapper not measured, use frame dimensions.
+  const useW = w > 0 ? w : 800;
+  const useH = h > 0 ? h : 200;
   const liveCandidates = effects.filter((e) => {
     if (e.type !== "particle" || !e.particle) return false;
     if (time < e.startTime || time > e.startTime + e.duration) return false;
@@ -199,10 +202,6 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
     shape: ParticleShape;
     scale: number;
   }> = [];
-  // Guard: don't compute until wrapper dimensions are measured.
-  if (w <= 0 || h <= 0) {
-    // skip — particles would collapse to (0,0)
-  } else {
   for (const e of effects) {
     if (e.type !== "particle" || !e.particle) continue;
     const cfg = e.particle;
@@ -229,7 +228,7 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
         const spawnT = baseTime + (i / total) * lifespan;
         const age = time - spawnT;
         if (age < 0 || age > lifespan) continue;
-        const path = particlePath(particleType, seed, w, h, padding, age, lifespan);
+        const path = particlePath(particleType, seed, useW, useH, padding, age, lifespan);
         if (!path) continue;
         const baseRot = pseudo(seed, 3) * 360;
         const rotation = baseRot + rotSpeed * age;
@@ -258,7 +257,7 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
         const spawnT = e.startTime + (i / total) * e.duration;
         const age = time - spawnT;
         if (age < 0 || age > lifespan) continue;
-        const path = particlePath(particleType, seed, w, h, padding, age, lifespan);
+        const path = particlePath(particleType, seed, useW, useH, padding, age, lifespan);
         if (!path) continue;
         const baseRot = pseudo(seed, 3) * 360;
         const rotation = baseRot + rotSpeed * age;
@@ -279,11 +278,10 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
       }
     }
   }
-  }
 
   // Each render, recompute live particle visuals from their birth time.
   const nowMs = typeof performance !== "undefined" ? performance.now() : Date.now();
-  void renderTick; // ensure dep is "read" so the linter is happy
+  void renderTick;
 
   return (
     <span
