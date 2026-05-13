@@ -4,7 +4,7 @@ import type { RegisterElement } from "../../playback/useAnimationEngine";
 import { usePlaybackStore } from "../../store/playbackStore";
 import { useSpotlightStore } from "../../store/spotlightStore";
 import { TintLayer } from "./TintLayer";
-import { SparkleOverlay } from "./SparkleOverlay";
+import { ParticleOverlay } from "./ParticleOverlay";
 
 interface Segment {
   kind: "plain" | "component";
@@ -132,12 +132,12 @@ export function RenderedText({
           willChange: "transform, opacity",
         };
 
-        // Aggregate active tint AND sparkle effects from this component
+        // Aggregate active tint AND particle effects from this component
         // AND any other component whose range OVERLAPS this rendered
         // segment. Overlapping components (duplicates) only render visually
         // via the first one, but their effects still apply on top of it.
         const tintEffects: Effect[] = [];
-        const sparkleEffects: Effect[] = [];
+        const particleEffects: Effect[] = [];
         for (const other of project.layer.components) {
           if (
             other.startIndex < c.endIndex &&
@@ -145,12 +145,12 @@ export function RenderedText({
           ) {
             for (const e of other.effects) {
               if (isActiveTint(e, time)) tintEffects.push(e);
-              if (e.type === "sparkle" && e.sparkle) {
+              if (e.type === "particle" && e.particle) {
                 const end = e.startTime + e.duration;
                 const active =
                   time >= e.startTime &&
-                  (e.sparkle.continueAfter || time <= end);
-                if (active) sparkleEffects.push(e);
+                  (e.particle.continueAfter || time <= end);
+                if (active) particleEffects.push(e);
               }
             }
           }
@@ -177,7 +177,7 @@ export function RenderedText({
           </span>
         );
 
-        if (tintEffects.length === 0 && sparkleEffects.length === 0) {
+        if (tintEffects.length === 0 && particleEffects.length === 0) {
           return (
             <span key={seg.key} style={{ display: "inline-block" }}>
               {baseSpan}
@@ -190,7 +190,7 @@ export function RenderedText({
             key={seg.key}
             text={seg.text}
             tintEffects={tintEffects}
-            sparkleEffects={sparkleEffects}
+            particleEffects={particleEffects}
             spotMouse={spotMouse}
             time={time}
             canvasWidth={project.canvas.width}
@@ -216,7 +216,7 @@ function isActiveTint(effect: Effect, time: number): boolean {
 interface TintWrapperProps {
   text: string;
   tintEffects: Effect[];
-  sparkleEffects: Effect[];
+  particleEffects: Effect[];
   spotMouse: { x: number; y: number };
   time: number;
   canvasWidth: number;
@@ -228,7 +228,7 @@ interface TintWrapperProps {
 function TintWrapper({
   text,
   tintEffects,
-  sparkleEffects,
+  particleEffects,
   spotMouse,
   time,
   canvasWidth,
@@ -258,9 +258,9 @@ function TintWrapper({
       frameRef={frameRef}
     >
       {children}
-      {sparkleEffects.length > 0 && (
-        <SparkleOverlay
-          effects={sparkleEffects}
+      {particleEffects.length > 0 && (
+        <ParticleOverlay
+          effects={particleEffects}
           time={time}
           frameRef={frameRef}
         />

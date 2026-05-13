@@ -14,7 +14,7 @@ const STEPS = [
   {
     icon: Sparkles,
     title: "Animate",
-    body: "Fade, slide, scale, rotate, color-shift, spotlight, sparkle, typewriter. Drag blocks on the timeline. Scrub and play.",
+    body: "Fade, slide, scale, rotate, color-shift, spotlight, particle, typewriter. Drag blocks on the timeline. Scrub and play.",
   },
   {
     icon: Download,

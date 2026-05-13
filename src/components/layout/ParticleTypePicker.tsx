@@ -1,9 +1,9 @@
 import { useRef } from "react";
 
-export type SparkleType = "standard" | "fireworks" | "volcano" | "dropping";
+export type ParticleType = "standard" | "fireworks" | "volcano" | "dropping";
 
-const TYPE_LIST: SparkleType[] = ["standard", "fireworks", "volcano", "dropping"];
-const TYPE_LABEL: Record<SparkleType, string> = {
+const TYPE_LIST: ParticleType[] = ["standard", "fireworks", "volcano", "dropping"];
+const TYPE_LABEL: Record<ParticleType, string> = {
   standard: "Standard",
   fireworks: "Fireworks",
   volcano: "Volcano",
@@ -15,18 +15,18 @@ const CELL_H = 50;
 const CELL_PAD = 4;
 
 interface Props {
-  value: SparkleType;
-  onChange: (next: SparkleType) => void;
+  value: ParticleType;
+  onChange: (next: ParticleType) => void;
 }
 
 /**
- * Two synced controls for picking a sparkle type:
+ * Two synced controls for picking a particle type:
  *  1. A 4-cell grid where each cell shows a mini SVG diagram + name.
  *  2. A horizontal slider beneath with 4 ticks and a draggable handle.
  *
  * Selecting in either control updates the other.
  */
-export function SparkleTypePicker({ value, onChange }: Props) {
+export function ParticleTypePicker({ value, onChange }: Props) {
   return (
     <div className="flex flex-col gap-2">
       <div className="grid grid-cols-4 gap-1.5">
@@ -55,7 +55,7 @@ export function SparkleTypePicker({ value, onChange }: Props) {
   );
 }
 
-function TypePreview({ type, active }: { type: SparkleType; active: boolean }) {
+function TypePreview({ type, active }: { type: ParticleType; active: boolean }) {
   const stroke = active ? "rgb(56, 189, 248)" : "currentColor";
   const fill = active ? "rgb(56, 189, 248)" : "currentColor";
   // Each preview is a 60x36 viewBox sketch of the particle behavior.
@@ -186,8 +186,10 @@ function TypeSlider({ value, onChange }: Props) {
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     e.preventDefault();
+    e.stopPropagation();
     const wrap = wrapRef.current;
     if (!wrap) return;
+    wrap.setPointerCapture(e.pointerId);
     const r = wrap.getBoundingClientRect();
 
     const apply = (clientX: number) => {
@@ -205,6 +207,7 @@ function TypeSlider({ value, onChange }: Props) {
 
     const onMove = (ev: PointerEvent) => apply(ev.clientX);
     const onUp = () => {
+      wrap.releasePointerCapture(e.pointerId);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);

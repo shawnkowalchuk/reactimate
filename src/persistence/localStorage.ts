@@ -10,6 +10,30 @@ interface SavedState {
 }
 
 /**
+ * Recursively walk an arbitrary JSON value and migrate any legacy
+ * "sparkle" string/property references to "particle".
+ */
+function migrateSparkleToParticle(value: unknown): unknown {
+  if (value === null || value === undefined) return value;
+  if (typeof value === "string") {
+    return value === "sparkle" ? "particle" : value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(migrateSparkleToParticle);
+  }
+  if (typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    const next: Record<string, unknown> = {};
+    for (const key of Object.keys(obj)) {
+      const newKey = key === "sparkle" ? "particle" : key;
+      next[newKey] = migrateSparkleToParticle(obj[key]);
+    }
+    return next;
+  }
+  return value;
+}
+
+/**
  * Validate a parsed value as a Project. Returns the project on success
  * or null on any failure (missing keys, wrong types, etc.). We trust
  * the rest of our code only after this gate.
@@ -44,7 +68,8 @@ export function loadFromStorage(): Project | null {
     if (!parsed || typeof parsed !== "object") return null;
     const state = parsed as Partial<SavedState>;
     if (state.schemaVersion !== SCHEMA_VERSION) return null;
-    return validateProject(state.project);
+    const migrated = migrateSparkleToParticle(state.project) as Project;
+    return validateProject(migrated);
   } catch {
     return null;
   }

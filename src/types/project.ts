@@ -8,7 +8,7 @@ export type EffectType =
   | "rotate"
   | "color-shift"
   | "spotlight"
-  | "sparkle"
+  | "particle"
   | "typewriter"
   | "custom";
 
@@ -107,29 +107,31 @@ export interface Effect {
     showBackdrop?: boolean;
   };
   /**
-   * For "sparkle" effects: small star particles rendered randomly within
+   * For "particle" effects: small star particles rendered randomly within
    * the OWNING component's text bounding box during the effect's window.
    */
-  sparkle?: {
-    /** Sparkles spawned per second. */
+  particle?: {
+    /** Particles spawned per second. */
     density: number;
     /** Star size in design px. */
     size: number;
     /** When preset = "custom", the single CSS color used for all stars. */
     color: string;
     preset: "gold" | "silver" | "rainbow" | "fire" | "custom";
+    /** Particle shape: star, circle, diamond, or square. */
+    shape?: "star" | "circle" | "diamond" | "square";
     /**
      * Particle behavior preset:
-     *  - "standard" : random in bbox, stationary (default)
-     *  - "fireworks": burst radially outward from bbox center
-     *  - "volcano"  : shoot upward from bottom, arc, fall under gravity
+     *  - "standard" : random in bbox, gentle drift (default)
+     *  - "fireworks": rocket launch + explosion burst
+     *  - "volcano"  : fountain spray upward from bottom
      *  - "dropping" : cascade down from above the bbox
      */
     type?: "standard" | "fireworks" | "volcano" | "dropping";
     /**
      * - "component" : random points inside the text bounding box
      * - "around"    : same bbox, extended outward by `rangePx` on each side
-     * - "follow"    : sparkles spawn at the mouse cursor over the canvas
+     * - "follow"    : particles spawn at the mouse cursor over the canvas
      * - "hover"     : like follow, but ONLY while the cursor is inside
      *                 the component's text bounding box
      */
@@ -138,13 +140,13 @@ export interface Effect {
     rangePx?: number;
     /** Px jitter from the cursor when spawning in follow/hover modes. */
     spawnRadiusPx?: number;
-    /** Per-sparkle lifetime in seconds (overrides auto-derived value). */
+    /** Per-particle lifetime in seconds (overrides auto-derived value). */
     lifespanSec?: number;
-    /** ± fraction of `size` to jitter per sparkle (0 = none, 0.5 = ±50%). */
+    /** ± fraction of `size` to jitter per particle (0 = none, 0.5 = ±50%). */
     sizeJitter?: number;
-    /** Degrees per second a sparkle rotates while alive (0 = no spin). */
+    /** Degrees per second a particle rotates while alive (0 = no spin). */
     rotationSpeed?: number;
-    /** When true, sparkles keep spawning after the effect's [start,end] ends. */
+    /** When true, particles keep spawning after the effect's [start,end] ends. */
     continueAfter?: boolean;
   };
   /**

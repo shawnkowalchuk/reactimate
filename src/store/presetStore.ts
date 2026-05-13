@@ -14,7 +14,7 @@ export type PresetConfig = Pick<
   | "from"
   | "targets"
   | "spotlight"
-  | "sparkle"
+  | "particle"
   | "typewriter"
   | "staggerLetters"
   | "staggerDelay"
@@ -53,13 +53,20 @@ export interface PresetStorage {
 
 const STORAGE_KEY = "reactimate.presets.v1";
 
+function migratePresets(records: PresetRecord[]): PresetRecord[] {
+  return JSON.parse(
+    JSON.stringify(records).replaceAll('"sparkle"', '"particle"'),
+  );
+}
+
 class LocalStorageBackend implements PresetStorage {
   async list(): Promise<PresetRecord[]> {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return [];
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
+      const records = Array.isArray(parsed) ? parsed : [];
+      return migratePresets(records);
     } catch {
       return [];
     }

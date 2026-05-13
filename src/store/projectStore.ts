@@ -392,13 +392,14 @@ export const useProjectStore = create<ProjectState>()(
                       },
                     }
                   : {}),
-                ...(type === "sparkle"
+                ...(type === "particle"
                   ? {
-                      sparkle: {
+                      particle: {
                         density: 8,
                         size: 14,
                         color: "#fbbf24",
                         preset: "gold" as const,
+                        shape: "star" as const,
                         type: "standard" as const,
                         mode: "component" as const,
                         rangePx: 20,

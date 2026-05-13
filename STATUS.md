@@ -122,7 +122,7 @@
 ### Animation engine (pure logic + tested)
 | Module | Purpose |
 | ------ | ------- |
-| `types/project.ts` | `Project`, `Layer`, `Component`, `Effect`, `ComponentStyle`, `ComputedStyle`, `EasingType`, `EffectType` (incl. `spotlight`/`sparkle`/`typewriter`/`custom`), spotlight/sparkle/typewriter config blocks, `staggerLetters` / `staggerDelay` / `staggerDirection`, optional per-effect `from` |
+| `types/project.ts` | `Project`, `Layer`, `Component`, `Effect`, `ComponentStyle`, `ComputedStyle`, `EasingType`, `EffectType` (incl. `spotlight`/`particle`/`typewriter`/`custom`), spotlight/particle/typewriter config blocks, `staggerLetters` / `staggerDelay` / `staggerDirection`, optional per-effect `from` |
 | `engine/easing.ts` | `linear`, `ease-in`, `ease-out`, `ease-in-out`, `spring`, `bounce` |
 | `engine/interpolate.ts` | `lerp`, `lerpColor`, `lerpProperty` |
 | `engine/ranges.ts` | `adjustRanges`: text-edit → component-index fixup; `rangeOverlapsAny` |
@@ -133,7 +133,7 @@
 - Each effect can declare an explicit per-prop `from` value; if absent, the engine falls back to the previous effect's target (or `component.style` for the first effect)
 - `staggerLetters` shifts each letter's per-effect window by `staggerDelay * letterIndex`. `staggerDirection: 'reverse'` animates the last letter first
 - `typewriter` auto-derives the per-letter delay from `duration / letterCount`. `typewriter.mode === 'snap'` collapses each letter's window to ~1ms so it flips instantly; `'fade'` uses the effect's normal duration per letter
-- **Visibility window**: a component is forced to `opacity = 0` outside any of its effects' `[start, end]` ranges. Typewriter and rotate effects keep the text visible AFTER they finish (the letter stays typed). Sparkle effects with `continueAfter: true` also stay active past their end. If the component is active but no effect on it touches opacity, baseline opacity is forced to 1 so the user doesn't accidentally render an invisible component
+- **Visibility window**: a component is forced to `opacity = 0` outside any of its effects' `[start, end]` ranges. Typewriter and rotate effects keep the text visible AFTER they finish (the letter stays typed). Particle effects with `continueAfter: true` also stay active past their end. If the component is active but no effect on it touches opacity, baseline opacity is forced to 1 so the user doesn't accidentally render an invisible component
 - Empty-effects components are hidden entirely
 
 ### Playback
@@ -155,13 +155,13 @@
 
 ### EffectModal (uiStore-driven)
 - `store/uiStore.ts` exposes `effectModal: { componentId, effectId } | null`. Decoupled from `selectionStore` so selection ≠ modal-open
-- **Type dropdown** ("(no effect) / Fade / Slide / Scale / Rotate / Color shift / Spotlight / Sparkle / Typewriter") — switching type seeds the new type's defaults and clears stale type-specific config blocks
+- **Type dropdown** ("(no effect) / Fade / Slide / Scale / Rotate / Color shift / Spotlight / Particle / Typewriter") — switching type seeds the new type's defaults and clears stale type-specific config blocks
 - `Start` and `Duration` number inputs
 - **EasingPicker** — SVG curve graphs in a grid (linear, ease-in, ease-out, ease-in-out, spring, bounce); replaces the easing dropdown
 - **Per-prop Start → End editors** for each animated property (opacity, x, y, scale, rotation, color, fontSize) — explicit `from` + `to`
 - Type-specific config:
   - Spotlight: shape (circle/square), size, color, opacity, motion mode, mask + maskMode + feather + backdrop toggle
-  - Sparkle: density, size, color/preset, particle type (Standard / Fireworks / Volcano / Dropping via **SparkleTypePicker**), mode (component / around / follow / hover), rangePx, spawnRadiusPx, lifespanSec, sizeJitter, rotationSpeed, continueAfter
+  - Particle: density, size, color/preset, particle type (Standard / Fireworks / Volcano / Dropping via **ParticleTypePicker**), mode (component / around / follow / hover), rangePx, spawnRadiusPx, lifespanSec, sizeJitter, rotationSpeed, continueAfter
   - Typewriter: mode (snap / fade)
 - **Preset save/load bar** at the top:
   - `store/presetStore.ts` — `PresetStorage` interface with two implementations:
@@ -179,10 +179,10 @@
   - Splits layer text into plain + componentized segments, sorted by `startIndex`
   - Plain non-whitespace text is **not rendered** in the preview (only componentized text appears) — plain whitespace between components is rendered invisibly to preserve spacing
   - Per-letter rendering kicks in when any effect on the component has `staggerLetters` or is `typewriter`; each letter is its own registered span keyed `${componentId}|${i}`
-  - Wraps componentized segments in a **TintWrapper** when any active spotlight effect has `maskText`, layering `SpotlightOverlay`, `TintLayer`, and `SparkleOverlay` as needed
+  - Wraps componentized segments in a **TintWrapper** when any active spotlight effect has `maskText`, layering `SpotlightOverlay`, `TintLayer`, and `ParticleOverlay` as needed
   - Max text width capped at 55% of canvas width for natural wrap
 - `components/preview/SpotlightOverlay.tsx` — colored backdrop shape (circle/square) that follows mouse / sweep-left / sweep-right; soft feather; optional backdrop toggle
-- `components/preview/SparkleOverlay.tsx` — particle engine with four physics modes (Standard, Fireworks, Volcano, Dropping) and four spawn modes (component / around / follow / hover); per-sparkle lifetime, jitter, rotation
+- `components/preview/ParticleOverlay.tsx` — particle engine with four physics modes (Standard, Fireworks, Volcano, Dropping) and four spawn modes (component / around / follow / hover); per-particle lifetime, jitter, rotation
 - `components/preview/TintLayer.tsx` — masks the owning component's text so spotlight `tint` or `reveal` modes recolor only the beam's intersection
 - `store/spotlightStore.ts` — mouse position relative to the preview canvas, fed to spotlight `motion: "mouse"` effects
 - `store/canvasScaleStore.ts` — shared scale + position between editor mini-canvas and preview canvas so overlays measure correctly
@@ -199,7 +199,7 @@
 - `export/easingMap.ts` — our `EasingType` → Motion ease names (`spring`/`bounce` approximate to `easeOut`/`backOut`)
 - Toolbar **Export** button downloads `<slug>.jsx`
 - Code tab **Copy** button (clipboard API + select-all fallback)
-- Heads-up: the new effect types (spotlight, sparkle, typewriter) are visible in the editor preview but the exporter currently only emits the standard CSS-property animations — exporting spotlight/sparkle/typewriter as real Motion JSX is on the backlog
+- Heads-up: the new effect types (spotlight, particle, typewriter) are visible in the editor preview but the exporter currently only emits the standard CSS-property animations — exporting spotlight/particle/typewriter as real Motion JSX is on the backlog
 
 ### Persistence (Phase 9)
 - `persistence/localStorage.ts` — schema-versioned save/load with `validateProject` runtime gate
@@ -233,9 +233,9 @@
 
 ### Export the new effect types
 **Status:** not started. **Effort:** medium.
-`spotlight`, `sparkle`, and `typewriter` show up correctly in the editor preview but the `Hero.jsx` exporter only emits the core CSS-property motion props. Real Motion JSX for these probably means:
+`spotlight`, `particle`, and `typewriter` show up correctly in the editor preview but the `Hero.jsx` exporter only emits the core CSS-property motion props. Real Motion JSX for these probably means:
 - Spotlight → a separate `<motion.div>` sibling with `framer-motion` `useMousePosition` (mouse) or a `transition` keyframe sweep, plus a CSS `mix-blend-mode` or `mask-image` to mask the text
-- Sparkle → a child `<motion.div>` particle field using `AnimatePresence` + a generator
+- Particle → a child `<motion.div>` particle field using `AnimatePresence` + a generator
 - Typewriter → an array of `<motion.span>` per letter with staggered `transition.delay`
 
 ### Cloud project storage
@@ -262,7 +262,7 @@ If the user presses Enter at the very end of the text and then types, the new te
 - Onboarding tooltips for first-time users
 - Cubic-bezier easing curve editor in the EasingPicker (currently 6 named presets)
 - Compact toolbar when narrow
-- Tests for the new effect types (sparkle / spotlight physics, typewriter timing)
+- Tests for the new effect types (particle / spotlight physics, typewriter timing)
 
 ### Far horizon
 - Multi-line text / multiple stacked layers

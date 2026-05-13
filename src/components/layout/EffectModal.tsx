@@ -11,8 +11,9 @@ import type {
 } from "../../types/project";
 import { Modal } from "./Modal";
 import { EasingPicker } from "./EasingPicker";
-import { SparkleTypePicker, type SparkleType } from "./SparkleTypePicker";
+import { ParticleTypePicker, type ParticleType } from "./ParticleTypePicker";
 import { ColorPicker } from "../ui/ColorPicker";
+import { PRESET_COLOR_FNS, PARTICLE_SHAPES, particlePath, hash, pseudo } from "../preview/particleUtils";
 
 const numberInput =
   "w-20 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
@@ -29,7 +30,7 @@ const TYPE_OPTIONS: EffectType[] = [
   "rotate",
   "color-shift",
   "spotlight",
-  "sparkle",
+  "particle",
   "typewriter",
 ];
 
@@ -74,7 +75,7 @@ export function EffectModal() {
     updateEffect(component.id, effect.id, { duration: Math.max(0.05, v) });
 
   // Switching type resets `from`/`targets` AND nulls out any stale
-  // type-specific config blocks (spotlight/sparkle/typewriter) from the
+  // type-specific config blocks (spotlight/particle/typewriter) from the
   // previous type. The new type's own config block is then seeded.
   const onType = (v: string) => {
     const nextType = v as EffectType;
@@ -84,7 +85,7 @@ export function EffectModal() {
       from: { ...defaults.from },
       targets: { ...defaults.targets },
       spotlight: undefined,
-      sparkle: undefined,
+      particle: undefined,
       typewriter: undefined,
       staggerLetters: false,
     };
@@ -98,12 +99,13 @@ export function EffectModal() {
         showBackdrop: true,
       };
     }
-    if (nextType === "sparkle") {
-      patch.sparkle = effect.sparkle ?? {
+    if (nextType === "particle") {
+      patch.particle = effect.particle ?? {
         density: 8,
         size: 14,
         color: "#fbbf24",
         preset: "gold",
+        shape: "star" as const,
         type: "standard",
         mode: "component",
         continueAfter: false,
@@ -116,17 +118,17 @@ export function EffectModal() {
     updateEffect(component.id, effect.id, patch);
   };
 
-  const patchSparkle = (
-    update: Partial<NonNullable<typeof effect.sparkle>>,
+  const patchParticle = (
+    update: Partial<NonNullable<typeof effect.particle>>,
   ) => {
-    const current = effect.sparkle ?? {
+    const current = effect.particle ?? {
       density: 8,
       size: 14,
       color: "#fbbf24",
       preset: "gold" as const,
     };
     updateEffect(component.id, effect.id, {
-      sparkle: { ...current, ...update },
+      particle: { ...current, ...update },
     });
   };
 
@@ -253,7 +255,7 @@ export function EffectModal() {
           />
         </div>
 
-        {effect.type !== "sparkle" && (
+        {effect.type !== "particle" && (
           <div className="flex flex-col gap-1.5 rounded border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
             <label className="flex items-center gap-2 text-xs">
               <input
@@ -335,17 +337,17 @@ export function EffectModal() {
           />
         )}
 
-        {effect.type === "sparkle" && (
-          <SparklePanel
-            sparkle={
-              effect.sparkle ?? {
+        {effect.type === "particle" && (
+          <ParticlePanel
+            particle={
+              effect.particle ?? {
                 density: 8,
                 size: 14,
                 color: "#fbbf24",
                 preset: "gold",
               }
             }
-            onChange={patchSparkle}
+            onChange={patchParticle}
           />
         )}
 
@@ -357,7 +359,7 @@ export function EffectModal() {
         )}
 
         {effect.type !== "spotlight" &&
-          effect.type !== "sparkle" &&
+          effect.type !== "particle" &&
           effect.type !== "typewriter" &&
           animProps.length > 0 && (
           <div className="flex flex-col gap-2 rounded border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
@@ -586,12 +588,13 @@ function ShapeBtn({
   );
 }
 
-interface SparkleConfig {
+interface ParticleConfig {
   density: number;
   size: number;
   color: string;
   preset: "gold" | "silver" | "rainbow" | "fire" | "custom";
-  type?: SparkleType;
+  shape?: "star" | "circle" | "diamond" | "square";
+  type?: ParticleType;
   mode?: "component" | "around" | "follow" | "hover";
   rangePx?: number;
   spawnRadiusPx?: number;
@@ -601,21 +604,109 @@ interface SparkleConfig {
   continueAfter?: boolean;
 }
 
-interface SparklePanelProps {
-  sparkle: SparkleConfig;
-  onChange: (update: Partial<SparkleConfig>) => void;
+interface ParticlePanelProps {
+  particle: ParticleConfig;
+  onChange: (update: Partial<ParticleConfig>) => void;
 }
 
-function SparklePanel({ sparkle, onChange }: SparklePanelProps) {
+function ParticlePreview({ config }: { config: ParticleConfig }) {
+  const [, tick] = useState(0);
+  const ct = config.type ?? "standard";
+  const w = 240;
+  const h = 100;
+  const lifespan = config.lifespanSec ?? 0.6;
+  const density = config.density;
+  const sizeBase = config.size;
+  const sizeJitter = config.sizeJitter ?? 0.4;
+  const rotSpeed = config.rotationSpeed ?? 0;
+  const preset = config.preset;
+  const shape = config.shape ?? "star";
+  const d = (PARTICLE_SHAPES as Record<string, string>)[shape] ?? PARTICLE_SHAPES.star;
+
+  useEffect(() => {
+    const id = setInterval(() => tick((t) => t + 1), 50);
+    return () => clearInterval(id);
+  }, []);
+
+  const now = (Date.now() / 1000) % 10;
+  const total = Math.max(1, Math.round(density * lifespan));
+  const particles: Array<{
+    key: string;
+    x: number;
+    y: number;
+    size: number;
+    color: string;
+    opacity: number;
+    rotation: number;
+    scale: number;
+  }> = [];
+
+  for (let i = 0; i < total; i++) {
+    const seed = hash(`preview_${i}_${Math.floor(now * 10)}`);
+    const spawnT = now - (i / total) * lifespan;
+    const age = now - spawnT;
+    if (age < 0 || age > lifespan) continue;
+    const path = particlePath(ct, seed, w, h, 0, age, lifespan);
+    if (!path) continue;
+    const baseRot = pseudo(seed, 3) * 360;
+    const rotation = baseRot + rotSpeed * age;
+    const sizeMul = 1 + (pseudo(seed, 4) - 0.5) * 2 * sizeJitter;
+    const size = Math.max(2, sizeBase * sizeMul);
+    const colorFn = PRESET_COLOR_FNS[preset] ?? PRESET_COLOR_FNS.gold;
+    const color = colorFn(i, config.color);
+    particles.push({
+      key: `prev_${i}`,
+      x: path.x,
+      y: path.y,
+      size,
+      color,
+      opacity: path.opacity,
+      rotation,
+      scale: path.scale ?? 1,
+    });
+  }
+
+  return (
+    <div
+      className="relative overflow-hidden rounded border border-neutral-300 bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900"
+      style={{ width: w, height: h }}
+    >
+      {particles.map((p) => {
+        const es = p.size * p.scale;
+        return (
+          <svg
+            key={p.key}
+            width={es}
+            height={es}
+            viewBox="0 0 24 24"
+            className="absolute"
+            style={{
+              left: p.x - es / 2,
+              top: p.y - es / 2,
+              opacity: p.opacity,
+              transform: `rotate(${p.rotation}deg)`,
+              pointerEvents: "none",
+            }}
+          >
+            <path d={d} fill={p.color} />
+          </svg>
+        );
+      })}
+    </div>
+  );
+}
+
+function ParticlePanel({ particle, onChange }: ParticlePanelProps) {
   return (
     <div className="flex flex-col gap-3 rounded border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
       <div className="text-xs uppercase tracking-wider text-neutral-500">
-        Sparkle
+        Particle
       </div>
+      <ParticlePreview config={particle} />
       <label className="flex flex-col gap-1.5">
         <span className="text-xs text-neutral-500">Particle type</span>
-        <SparkleTypePicker
-          value={sparkle.type ?? "standard"}
+        <ParticleTypePicker
+          value={particle.type ?? "standard"}
           onChange={(t) => onChange({ type: t })}
         />
       </label>
@@ -623,9 +714,9 @@ function SparklePanel({ sparkle, onChange }: SparklePanelProps) {
         <label className="flex flex-col gap-1">
           <span className="text-xs text-neutral-500">Preset</span>
           <select
-            value={sparkle.preset}
+            value={particle.preset}
             onChange={(e) =>
-              onChange({ preset: e.target.value as SparkleConfig["preset"] })
+              onChange({ preset: e.target.value as ParticleConfig["preset"] })
             }
             className="rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
           >
@@ -638,11 +729,27 @@ function SparklePanel({ sparkle, onChange }: SparklePanelProps) {
         </label>
 
         <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Shape</span>
+          <select
+            value={particle.shape ?? "star"}
+            onChange={(e) =>
+              onChange({ shape: e.target.value as ParticleConfig["shape"] })
+            }
+            className="rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          >
+            <option value="star">Star</option>
+            <option value="circle">Circle</option>
+            <option value="diamond">Diamond</option>
+            <option value="square">Square</option>
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1">
           <span className="text-xs text-neutral-500">Where</span>
           <select
-            value={sparkle.mode ?? "component"}
+            value={particle.mode ?? "component"}
             onChange={(e) =>
-              onChange({ mode: e.target.value as NonNullable<SparkleConfig["mode"]> })
+              onChange({ mode: e.target.value as NonNullable<ParticleConfig["mode"]> })
             }
             className="rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
           >
@@ -653,14 +760,14 @@ function SparklePanel({ sparkle, onChange }: SparklePanelProps) {
           </select>
         </label>
 
-        {sparkle.mode === "around" && (
+        {particle.mode === "around" && (
           <label className="flex flex-col gap-1">
             <span className="text-xs text-neutral-500">Range (px)</span>
             <input
               type="number"
               min={0}
               step={5}
-              value={sparkle.rangePx ?? 20}
+              value={particle.rangePx ?? 20}
               onChange={(e) =>
                 onChange({ rangePx: Math.max(0, parseInt(e.target.value, 10) || 0) })
               }
@@ -675,7 +782,7 @@ function SparklePanel({ sparkle, onChange }: SparklePanelProps) {
             type="number"
             min={1}
             step={1}
-            value={sparkle.density}
+            value={particle.density}
             onChange={(e) =>
               onChange({
                 density: Math.max(1, parseInt(e.target.value, 10) || 1),
@@ -691,7 +798,7 @@ function SparklePanel({ sparkle, onChange }: SparklePanelProps) {
             type="number"
             min={4}
             step={2}
-            value={sparkle.size}
+            value={particle.size}
             onChange={(e) =>
               onChange({ size: Math.max(4, parseInt(e.target.value, 10) || 4) })
             }
@@ -699,26 +806,26 @@ function SparklePanel({ sparkle, onChange }: SparklePanelProps) {
           />
         </label>
 
-        {sparkle.preset === "custom" && (
+        {particle.preset === "custom" && (
           <label className="flex flex-col gap-1">
             <span className="text-xs text-neutral-500">Color</span>
             <ColorPicker
-              value={sparkle.color}
+              value={particle.color}
               onChange={(c) => onChange({ color: c })}
-              title="Sparkle color"
+              title="Particle color"
               size="md"
             />
           </label>
         )}
 
-        {(sparkle.mode === "follow" || sparkle.mode === "hover") && (
+        {(particle.mode === "follow" || particle.mode === "hover") && (
           <label className="flex flex-col gap-1">
             <span className="text-xs text-neutral-500">Cursor jitter (px)</span>
             <input
               type="number"
               min={0}
               step={2}
-              value={sparkle.spawnRadiusPx ?? 30}
+              value={particle.spawnRadiusPx ?? 30}
               onChange={(e) =>
                 onChange({
                   spawnRadiusPx: Math.max(0, parseInt(e.target.value, 10) || 0),
@@ -735,7 +842,7 @@ function SparklePanel({ sparkle, onChange }: SparklePanelProps) {
             type="number"
             min={0.1}
             step={0.1}
-            value={+(sparkle.lifespanSec ?? 0.6).toFixed(2)}
+            value={+(particle.lifespanSec ?? 0.6).toFixed(2)}
             onChange={(e) =>
               onChange({
                 lifespanSec: Math.max(0.1, parseFloat(e.target.value) || 0.1),
@@ -752,7 +859,7 @@ function SparklePanel({ sparkle, onChange }: SparklePanelProps) {
             min={0}
             max={100}
             step={5}
-            value={Math.round((sparkle.sizeJitter ?? 0.4) * 100)}
+            value={Math.round((particle.sizeJitter ?? 0.4) * 100)}
             onChange={(e) =>
               onChange({
                 sizeJitter: Math.max(
@@ -770,7 +877,7 @@ function SparklePanel({ sparkle, onChange }: SparklePanelProps) {
           <input
             type="number"
             step={15}
-            value={sparkle.rotationSpeed ?? 0}
+            value={particle.rotationSpeed ?? 0}
             onChange={(e) =>
               onChange({ rotationSpeed: parseFloat(e.target.value) || 0 })
             }
@@ -781,7 +888,7 @@ function SparklePanel({ sparkle, onChange }: SparklePanelProps) {
         <label className="col-span-2 flex items-center gap-2 text-xs">
           <input
             type="checkbox"
-            checked={Boolean(sparkle.continueAfter)}
+            checked={Boolean(particle.continueAfter)}
             onChange={(e) => onChange({ continueAfter: e.target.checked })}
             className="h-3.5 w-3.5 cursor-pointer"
           />
@@ -789,7 +896,7 @@ function SparklePanel({ sparkle, onChange }: SparklePanelProps) {
             Continue after end
           </span>
           <span className="text-neutral-500">
-            keep sparkling past the effect's end time
+            keep particles spawning past the effect's end time
           </span>
         </label>
       </div>
@@ -839,7 +946,7 @@ interface PresetBarProps {
     from?: AnimatableTargets;
     targets: AnimatableTargets;
     spotlight?: import("../../types/project").Effect["spotlight"];
-    sparkle?: import("../../types/project").Effect["sparkle"];
+    particle?: import("../../types/project").Effect["particle"];
     typewriter?: import("../../types/project").Effect["typewriter"];
     staggerLetters?: boolean;
     staggerDelay?: number;
@@ -876,7 +983,7 @@ function PresetBar({ effect, onApply }: PresetBarProps) {
       from: effect.from,
       targets: effect.targets,
       spotlight: effect.spotlight,
-      sparkle: effect.sparkle,
+      particle: effect.particle,
       typewriter: effect.typewriter,
       staggerLetters: effect.staggerLetters,
       staggerDelay: effect.staggerDelay,

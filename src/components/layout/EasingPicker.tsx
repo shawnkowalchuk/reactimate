@@ -11,8 +11,8 @@ const EASING_LIST: EasingType[] = [
   "bounce",
 ];
 
-const W = 60;
-const H = 36;
+const W = 44;
+const H = 24;
 const PAD = 4;
 
 interface Props {
@@ -27,7 +27,7 @@ interface Props {
  */
 export function EasingPicker({ value, onChange }: Props) {
   return (
-    <div className="grid grid-cols-3 gap-1.5">
+    <div className="grid grid-cols-6 gap-1">
       {EASING_LIST.map((e) => (
         <button
           key={e}
@@ -35,7 +35,7 @@ export function EasingPicker({ value, onChange }: Props) {
           onClick={() => onChange(e)}
           title={e}
           aria-pressed={e === value}
-          className={`flex flex-col items-center gap-0.5 rounded border p-1.5 text-[10px] transition-colors ${
+          className={`flex flex-col items-center gap-0.5 rounded border p-1 text-[9px] transition-colors ${
             e === value
               ? "border-sky-400 bg-sky-50 text-sky-900 dark:border-sky-500/60 dark:bg-sky-900/30 dark:text-sky-100"
               : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:border-neutral-500"

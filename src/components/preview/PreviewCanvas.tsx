@@ -65,7 +65,7 @@ export function PreviewCanvas({ project, registerElement }: PreviewCanvasProps) 
           // Lock the layout to the declared design size — without this
           // the flex parent shrinks the frame BEFORE the transform is
           // applied, so design-pixel positioning (mouse, spotlight,
-          // sparkle, mask) ends up scaled twice and offset.
+          // particle, mask) ends up scaled twice and offset.
           flexShrink: 0,
           flexGrow: 0,
           background: project.canvas.background,

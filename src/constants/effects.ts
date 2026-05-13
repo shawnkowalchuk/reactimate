@@ -50,7 +50,7 @@ export const EFFECT_DEFAULTS: Record<EffectType, EffectDefaults> = {
     from: {},
     targets: {},
   },
-  sparkle: {
+  particle: {
     duration: 1.0,
     easing: "linear",
     from: {},
@@ -77,7 +77,7 @@ export const EFFECT_LABELS: Record<EffectType, string> = {
   rotate: "Rotate",
   "color-shift": "Color shift",
   spotlight: "Spotlight",
-  sparkle: "Sparkle",
+  particle: "Particle",
   typewriter: "Typewriter",
   // "custom" is the placeholder for a blank effect — no animated props.
   // Used as the default when the user adds an effect via "+" before

@@ -192,14 +192,9 @@ In v1, the **projects still live in `localStorage`** per browser even when signe
 | Auth (opt) | Supabase email + Google + Apple, sign-in gate | ✓ |
 | Inspector | Always-on Project + Component InspectorBar at top, EffectModal w/ easing graphs + per-prop start/end | ✓ |
 | Spotlight effect | mouse / sweep motion, mask + feather + backdrop | ✓ |
-| Sparkle effect | 4 spawn modes × 4 particle physics presets | ✓ |
-| Typewriter effect | per-letter reveal (snap / fade), forward / reverse | ✓ |
-| Stagger letters | per-letter rendering for any effect | ✓ |
-| Canvas-shaped editor | scaled mini-canvas matching preview frame | ✓ |
-| Effect presets | save / load / import / export (`presetStore`) | ✓ |
-| Custom canvas size | W × H inputs when preset = Custom | ✓ |
-| 2 — layout polish | (visual polish) | partial |
-| Export spotlight / sparkle / typewriter | emit real Motion JSX for the new effect types | — |
+| Particle effect | 4 spawn modes × 4 particle physics presets | ✓ |
+
+| Export spotlight / particle / typewriter | emit real Motion JSX for the new effect types | — |
 | Cloud project storage | per-user project rows in Supabase, sync | — |
 | Templates / starter projects | — | — |
 

@@ -45,7 +45,7 @@ export function SpotlightOverlay({
       // The `scale` prop reflects the inline transform value, but the
       // frame may also be flex-shrunken below its declared width before
       // that transform is applied — so we recover the actual ratio from
-      // the bounding rect, matching what SparkleOverlay/TintLayer use.
+      // the bounding rect, matching what ParticleOverlay/TintLayer use.
       const designWidth = parseFloat(frame.style.width || "0") || rect.width;
       const realScale = designWidth > 0 ? rect.width / designWidth : 1;
       const safeScale = Math.max(0.0001, realScale);

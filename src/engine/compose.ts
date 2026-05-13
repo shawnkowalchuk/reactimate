@@ -123,7 +123,7 @@ export function computeComponentStyle(
       if (effect.type === "typewriter" || effect.type === "rotate") {
         return time >= startTime;
       }
-      if (effect.type === "sparkle" && effect.sparkle?.continueAfter) {
+      if (effect.type === "particle" && effect.particle?.continueAfter) {
         return time >= startTime;
       }
       return time >= startTime && time <= endTime;

@@ -18,7 +18,7 @@ const FEATURES = [
   {
     icon: Sparkles,
     title: "Effects that go beyond fades",
-    body: "Spotlight (mouse / sweep), sparkle particles (fireworks, volcano, dropping), per-letter typewriter, plus the basics.",
+    body: "Spotlight (mouse / sweep), particle effects (fireworks, volcano, dropping), per-letter typewriter, plus the basics.",
   },
   {
     icon: Palette,

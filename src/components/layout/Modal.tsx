@@ -33,7 +33,7 @@ export function Modal({ open, onClose, title, children, maxWidth = "max-w-lg" }:
       onMouseDown={onClose}
     >
       <div
-        className={`relative w-full ${maxWidth} rounded-lg border border-neutral-200 bg-white shadow-xl dark:border-neutral-800 dark:bg-neutral-950`}
+        className={`relative w-full ${maxWidth} max-h-[90vh] flex flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-xl dark:border-neutral-800 dark:bg-neutral-950`}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-2.5 dark:border-neutral-800">
@@ -49,7 +49,7 @@ export function Modal({ open, onClose, title, children, maxWidth = "max-w-lg" }:
             <X size={16} />
           </button>
         </div>
-        <div className="p-4">{children}</div>
+        <div className="overflow-y-auto p-4">{children}</div>
       </div>
     </div>
   );
