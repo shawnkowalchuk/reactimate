@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Allow: /feedback
+
+# The editor and admin areas are JS-heavy and gated; not useful in search results.
+Disallow: /app
+Disallow: /admin
+
+Sitemap: https://reactimate.app/sitemap.xml

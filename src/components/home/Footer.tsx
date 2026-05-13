@@ -1,4 +1,5 @@
 import { Github } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export function Footer() {
   return (
@@ -11,6 +12,12 @@ export function Footer() {
           <span className="text-xs">· Hero Animator</span>
         </div>
         <div className="flex items-center gap-4">
+          <Link
+            to="/feedback"
+            className="hover:text-neutral-800 dark:hover:text-neutral-200"
+          >
+            Feedback
+          </Link>
           <a
             href="https://github.com/shawnkowalchuk/reactimate"
             target="_blank"

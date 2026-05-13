@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Github, Moon, Sun } from "lucide-react";
+import { ArrowRight, Github, MessageSquare, Moon, Shield, Sun } from "lucide-react";
 import { useThemeStore } from "../../store/themeStore";
 import { useAuth } from "../../auth/useAuth";
+import { useIsAdmin } from "../../auth/useAdmin";
 import { isAuthEnabled } from "../../auth/supabase";
 import { SignInScreen } from "../../auth/SignInScreen";
 
@@ -10,6 +11,7 @@ export function Navbar() {
   const theme = useThemeStore((s) => s.theme);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const { user } = useAuth();
+  const isAdmin = useIsAdmin();
   const [signInOpen, setSignInOpen] = useState(false);
 
   return (
@@ -34,6 +36,23 @@ export function Navbar() {
             >
               Examples
             </a>
+            <Link
+              to="/feedback"
+              className="inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
+            >
+              <MessageSquare size={14} />
+              Feedback
+            </Link>
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className="inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sky-600 hover:bg-sky-50 hover:text-sky-700 dark:text-sky-400 dark:hover:bg-sky-950/40 dark:hover:text-sky-300"
+                title="Admin"
+              >
+                <Shield size={14} />
+                Admin
+              </Link>
+            )}
             <a
               href="https://github.com/shawnkowalchuk/reactimate"
               target="_blank"

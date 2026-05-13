@@ -2,16 +2,61 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-05-13 · commit [`70e8a4c`](https://github.com/shawnkowalchuk/reactimate/commit/70e8a4c)
+**Last updated:** 2026-05-13 · commit [`0b7f520`](https://github.com/shawnkowalchuk/reactimate/commit/0b7f520) + SEO + admin + feedback (this commit)
 
 ---
 
 ## What works today
 
 ### Routing
-- `react-router-dom` v7. `/` → `HomePage` (public marketing site), `/app` → `EditorPage` (the animator). Catch-all routes back to `/`
-- `AuthGate` now wraps only `/app` — when Supabase auth is configured and the user isn't signed in, the editor route redirects to `SignInScreen`; the public home stays accessible without auth
+- `react-router-dom` v7. Routes:
+  - `/` → `HomePage` (public marketing site)
+  - `/feedback` → `FeedbackPage` (public; signed-in users submit + read their threads; falls back to a GitHub-issues prompt when Supabase isn't configured)
+  - `/app` → `EditorPage` wrapped in `AuthGate`
+  - `/admin`, `/admin/users`, `/admin/feedback`, `/admin/feedback/:id` → admin subpages wrapped in `AdminGate`
+  - `*` → `HomePage`
+- `AuthGate` wraps only `/app`; `AdminGate` wraps `/admin/*` and additionally requires `profiles.is_admin = true`
+- `AdminSync` headless component mounts at app root to subscribe `useAdminStore` to Supabase auth changes
 - App entry: `main.tsx` mounts `<BrowserRouter>` with the route table; `themeStore` is imported for its side effect (applies `dark` class before first paint)
+
+### SEO
+- Full meta tag suite in `index.html`: title, description, keywords, canonical (`https://reactimate.app/` — change for your domain), theme-color (per color-scheme), Open Graph (`og:type` / `og:url` / `og:title` / `og:description` / `og:image` / `og:locale`), Twitter card (`summary_large_image`), and a `robots` directive
+- JSON-LD structured data (`SoftwareApplication` schema) so search engines understand the product
+- `public/og-image.svg` — 1200×630 social-share card with the reactimate logo + tagline (referenced by `og:image` and `twitter:image`)
+- `public/robots.txt` — allows `/` and `/feedback`, disallows `/app` and `/admin`, points to the sitemap
+- `public/sitemap.xml` — lists `/` and `/feedback`
+- `<noscript>` fallback inside `#root` with the pitch + GitHub link, so crawlers without JS still see meaningful content
+- Per-route `document.title` updates via `useEffect` in `HomePage`, `FeedbackPage`, and the admin pages
+
+### Feedback (`/feedback`)
+- Public-facing route; the page renders for everyone (so anyone can find it from search), but submitting + reading threads requires sign-in
+- When Supabase isn't configured: a callout points users to GitHub Issues
+- When signed in:
+  - **New feedback** form (Subject + Message, with length caps) → inserts into `public.feedback` via `api/feedbackApi.ts.submitFeedback`. User-id, email, and timestamp are filled in by the client + DB defaults
+  - **Your previous feedback** list — collapsible threads (subject + status pill + reply count); expanding fetches replies from `public.feedback_replies` and renders them in a sky-tinted "Admin reply" panel
+- All queries use the Supabase anon client; RLS enforces who sees what (users only see their own; admins see everything)
+
+### Admin backend (`/admin/*`, gated)
+- `auth/AdminGate.tsx` — wraps every admin route. Behavior:
+  - Supabase not configured → `SetupRequired` screen with the env-var + schema.sql + admin-promotion SQL instructions
+  - Loading → spinner
+  - Signed-out → `SignInScreen`
+  - Signed-in but `profile.is_admin = false` → `Forbidden` screen with the exact SQL to promote
+  - Otherwise → renders children
+- `pages/admin/AdminLayout.tsx` — sidebar nav (Dashboard / Users / Feedback) + footer with current admin email, "Editor" link back to `/app`, sign-out button
+- **Dashboard** (`/admin`) — 4 stat cards (total users, signups last 7d, total feedback, open feedback) + the 10 most-recent feedback rows linked to detail view
+- **Users** (`/admin/users`) — searchable table over `public.profiles` (email, joined date, last_seen, admin pill)
+- **Feedback** (`/admin/feedback`) — list filtered by status (all/open/replied/closed); rows link to the detail page
+- **Feedback detail** (`/admin/feedback/:id`) — full thread (subject + body + sender + status dropdown) plus existing replies and a Reply form. Posting a reply also flips the row's status to `replied`
+- Admin state lives in `useAdminStore` (zustand): the user's profile is cached and refreshed on every auth state change
+
+### Supabase schema (`supabase/schema.sql`)
+- `public.profiles` — `id uuid pk (-> auth.users)`, `email`, `is_admin`, `created_at`, `last_seen_at`. Populated by a `handle_new_user` trigger on `auth.users` insert. Existing users are backfilled by the script
+- `public.feedback` — `subject`, `body`, `status` ∈ {open, replied, closed}, indexed by user_id and created_at
+- `public.feedback_replies` — admin-authored replies tied to feedback rows (cascade delete)
+- `public.feedback_with_counts` — view exposing `reply_count` and `last_reply_at` for the admin list / dashboard
+- **RLS policies**: users see their own profile/feedback/replies; admins see everything; only admins can post replies or update feedback status; users can only insert feedback for themselves
+- Idempotent — safe to re-run after schema changes
 
 ### Public home page (`/`)
 - `pages/HomePage.tsx` composes: `Navbar` · `Hero` · `HowItWorks` · `Examples` · `Features` · `CallToAction` · `Footer`

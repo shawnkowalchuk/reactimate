@@ -113,6 +113,26 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi…
 
 Restart `npm run dev`. The app now shows a sign-in screen before the editor.
 
+### 4. Run the SQL schema
+
+To enable the **Feedback page** (`/feedback`) and the **Admin backend** (`/admin`), paste [`supabase/schema.sql`](./supabase/schema.sql) into the Supabase project's **SQL Editor** and run it. It creates:
+
+- `public.profiles` — one row per auth user, populated by a trigger on `auth.users` insert. Carries `is_admin: boolean`.
+- `public.feedback` — user-submitted messages.
+- `public.feedback_replies` — admin replies to a thread.
+- `public.feedback_with_counts` — view exposing `reply_count` and `last_reply_at`.
+- RLS policies so users can only read their own data and admins can read everything.
+
+### 5. Promote yourself to admin
+
+After signing in once (which creates your profile row via the trigger), run in the SQL editor:
+
+```sql
+update public.profiles set is_admin = true where email = 'you@example.com';
+```
+
+The `/admin` nav link will appear in the navbar; you'll have access to the Dashboard, Users, and Feedback admin pages.
+
 ### Heads-up
 
 In v1, the **projects still live in `localStorage`** per browser even when signed in. Auth currently does access control only — it doesn't sync your projects across devices. Per-user cloud project storage is a separate planned feature.
