@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-05-13 · commit [`e1bd2c9`](https://github.com/shawnkowalchuk/reactimate/commit/e1bd2c9)
+**Last updated:** 2026-05-13 · commit [`pending`](https://github.com/shawnkowalchuk/reactimate/commit/pending)
 
 ---
 
@@ -76,8 +76,11 @@
 - Settings link in the home Navbar (when signed in) and in the editor's UserMenu (gear icon)
 
 ### Public home page (`/`)
-- `pages/HomePage.tsx` composes: `Navbar` · `Hero` · `HowItWorks` · `Examples` · `Features` · `CallToAction` · `Footer`
-- **Navbar** (sticky, blurred): logo · in-page anchors · GitHub link · theme toggle · `Sign in` (only when `isAuthEnabled` and user is null, opens `SignInScreen` in a backdrop modal) · primary CTA (`Continue editing` when signed in, otherwise `Open editor`) → `/app`
+- `pages/HomePage.tsx` composes: `Navbar` · `Hero` · `HowItWorks` · `Examples` · `Integration` · `Features` · `FAQ` · `CallToAction` · `Footer`
+- Cross-route anchor navigation: `useEffect` reads `location.hash` and scrolls the matching section into view (works from `/feedback`, `/settings`, etc.)
+- **Navbar** (sticky, blurred): logo · in-page anchors (`/#how`, `/#examples`, `/#faq` via `<Link>` for cross-route support) · Feedback link · Settings (signed-in) · Admin (admins) · GitHub link · theme toggle · `Sign in` (only when `isAuthEnabled` and user is null, opens `SignInScreen` in a backdrop modal) · primary CTA (`Continue editing` when signed in, otherwise `Open editor`) → `/app`
+- **Integration** section: 4-step guide (Export → Install Motion → Drop in → Import & render) with code snippet
+- **FAQ** section: 9-item accordion (license, integration, frameworks, deps, customization, JSX vs Lottie, privacy, offline, bug reports)
 - **Hero**: title with three live `motion/react` words animating in on mount (per-word fade, slide, scale); body copy; primary CTA + GitHub link
 - **How it works**: 4-step explainer (Type → Componentize → Animate → Export) with lucide icons and numbered chips
 - **Examples**: 4 live animated heroes rendered as real `motion/react` JSX (Welcome stagger fade, Slide + color shift, Typewriter, Pop + scale bounce). Each card has its own background color (dark/light/navy/cream) so the visual matches the target site style; tabs flip between **Preview** (live animation) and **Code** (the JSX you'd export, with a **Copy** button). All examples loop on a shared 5s timer; a per-card **Replay** button forces a fresh mount
@@ -89,14 +92,15 @@
 
 ### Editor shell
 - Four-row layout: **Toolbar** · **InspectorBar** (top, always shown) · **Editor / Preview** main grid · **Timeline** footer (`grid-rows-[auto_auto_40vh_minmax(0,1fr)]`)
-- Toolbar: name, time slider, undo/redo, transport (skip-back / play-pause / **loop**), **theme toggle (sun/moon)**, save / load / reset, export
+- Toolbar: clickable logo → home page (`/`), time slider, undo/redo, transport (skip-back / play-pause / **loop**), **theme toggle (sun/moon)**, save / load / reset, export
 - Tabbed preview pane (live animation / live generated JSX). The preview stays mounted under the Code tab so animation engine refs don't churn
 - **Light/dark theme** for the app chrome — Tailwind `darkMode: 'class'` driven by `themeStore` (persisted as `reactimate.theme`); `applyThemeClass` runs at module load before React mounts so the first paint matches the saved preference
 - Optional `UserMenu` (avatar + email + sign-out) when Supabase auth is enabled
 
 ### InspectorBar (top of app)
-- **Project row** (always visible): editable `Name` / `Duration` / `Canvas` preset (16:9 · 1:1 · 9:16 · **Custom**) + `W × H` inputs (aspect-locked to the preset, free in `Custom` mode) / `Bg` (picker + hex/HSL text) / `Text` color (default text color) / Quick **Dark site** + **Light site** preset buttons that set bg + default text and rewrite any component whose color matched the prior default
-- **Component row** (appears when a component OR one of its effects is selected — so context stays visible while the EffectModal is open): inline **FontPicker** (custom picker, 26 Google Fonts grouped by category, each option rendered in its own family), `Weight`, `Size`, `Color`, **L/C/R alignment** (per-component), **Remove**
+- **Project row** (always visible): editable `Name` / `Duration` / `Canvas` preset (16:9 · 1:1 · 9:16 · **Custom**) + `W × H` inputs (aspect-locked to the preset, free in `Custom` mode) / `Bg` (swatch ColorPicker + hex text) / `Text` color (swatch ColorPicker) / Quick **Dark site** + **Light site** preset buttons that set bg + default text and rewrite any component whose color matched the prior default
+- **Component row** (appears when a component OR one of its effects is selected — so context stays visible while the EffectModal is open): inline **FontPicker** (custom picker, 26 Google Fonts grouped by category, each option rendered in its own family), `Weight`, `Size`, `Color` (swatch ColorPicker), **L/C/R alignment** (per-component), **Remove**
+- **ColorPicker** (`components/ui/ColorPicker.tsx`): swatch grid (32 preset colors) with popover, native color-picker fallback via hidden `<input type="color">`, hex text input — replaces all native color pickers across InspectorBar and EffectModal
 
 ### Text editor + componentize flow (Phase 3 + Phase 4)
 - `components/editor/TextEditor.tsx` — `contenteditable` rendered inside a scaled mini-canvas matching the preview (same width, height, background, centered both axes; uses `canvasScaleStore` to stay in sync with the preview pane)

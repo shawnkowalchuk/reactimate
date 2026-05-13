@@ -22,6 +22,7 @@ import {
   saveProjectFile,
 } from "../../persistence/importExport";
 import { clearStorage } from "../../persistence/localStorage";
+import { Link } from "react-router-dom";
 import { UserMenu } from "./UserMenu";
 
 export function Toolbar() {
@@ -97,10 +98,10 @@ export function Toolbar() {
 
   return (
     <header className="flex items-center gap-4 border-b border-neutral-200 bg-white px-4 py-2 dark:border-neutral-800 dark:bg-neutral-950">
-      <div className="flex items-baseline gap-3">
+      <Link to="/" className="flex items-baseline gap-3 hover:opacity-70 transition-opacity" title="Back to home page">
         <h1 className="text-sm font-semibold tracking-tight">reactimate</h1>
         <span className="text-xs text-neutral-500">Hero Animator</span>
-      </div>
+      </Link>
 
       <div className="flex items-center gap-1">
         <button

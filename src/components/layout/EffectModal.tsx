@@ -12,6 +12,7 @@ import type {
 import { Modal } from "./Modal";
 import { EasingPicker } from "./EasingPicker";
 import { SparkleTypePicker, type SparkleType } from "./SparkleTypePicker";
+import { ColorPicker } from "../ui/ColorPicker";
 
 const numberInput =
   "w-20 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
@@ -490,20 +491,12 @@ function SpotlightPanel({ spotlight, onChange }: SpotlightPanelProps) {
 
         <label className="col-span-2 flex flex-col gap-1">
           <span className="text-xs text-neutral-500">Color</span>
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={toHex(spotlight.color)}
-              onChange={(e) => onChange({ color: e.target.value })}
-              className="h-7 w-10 cursor-pointer rounded border border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-950"
-            />
-            <input
-              type="text"
-              value={spotlight.color}
-              onChange={(e) => onChange({ color: e.target.value })}
-              className="w-32 rounded border border-neutral-300 bg-white px-2 py-1 font-mono text-xs text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
-            />
-          </div>
+          <ColorPicker
+            value={spotlight.color}
+            onChange={(c) => onChange({ color: c })}
+            title="Spotlight color"
+            size="md"
+          />
         </label>
 
         <label className="flex flex-col gap-1">
@@ -709,20 +702,12 @@ function SparklePanel({ sparkle, onChange }: SparklePanelProps) {
         {sparkle.preset === "custom" && (
           <label className="flex flex-col gap-1">
             <span className="text-xs text-neutral-500">Color</span>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={toHex(sparkle.color)}
-                onChange={(e) => onChange({ color: e.target.value })}
-                className="h-7 w-10 cursor-pointer rounded border border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-950"
-              />
-              <input
-                type="text"
-                value={sparkle.color}
-                onChange={(e) => onChange({ color: e.target.value })}
-                className="w-32 rounded border border-neutral-300 bg-white px-2 py-1 font-mono text-xs text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
-              />
-            </div>
+            <ColorPicker
+              value={sparkle.color}
+              onChange={(c) => onChange({ color: c })}
+              title="Sparkle color"
+              size="md"
+            />
           </label>
         )}
 
@@ -1088,17 +1073,11 @@ function PropInput({ prop, value, onChange, unit }: PropInputProps) {
     const v = typeof value === "string" ? value : "#ffffff";
     return (
       <div className="flex items-center gap-1.5">
-        <input
-          type="color"
-          value={toHex(v)}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-6 w-8 cursor-pointer rounded border border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-900"
-        />
-        <input
-          type="text"
+        <ColorPicker
           value={v}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-24 rounded border border-neutral-300 bg-white px-1.5 py-0.5 font-mono text-xs text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+          onChange={(c) => onChange(c)}
+          title="Color value"
+          size="sm"
         />
       </div>
     );
@@ -1123,18 +1102,4 @@ function PropInput({ prop, value, onChange, unit }: PropInputProps) {
       ) : null}
     </div>
   );
-}
-
-function toHex(color: string): string {
-  if (/^#[0-9a-f]{6}$/i.test(color.trim())) return color.trim();
-  if (typeof document === "undefined") return "#ffffff";
-  const el = document.createElement("div");
-  el.style.color = color;
-  document.body.appendChild(el);
-  const rgb = getComputedStyle(el).color;
-  document.body.removeChild(el);
-  const m = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-  if (!m) return "#ffffff";
-  const hex = (n: string) => parseInt(n, 10).toString(16).padStart(2, "0");
-  return `#${hex(m[1])}${hex(m[2])}${hex(m[3])}`;
 }

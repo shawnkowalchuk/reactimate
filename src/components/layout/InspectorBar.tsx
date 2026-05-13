@@ -11,6 +11,7 @@ import type {
 } from "../../types/project";
 import { EffectModal } from "./EffectModal";
 import { FontPicker } from "./FontPicker";
+import { ColorPicker } from "../ui/ColorPicker";
 
 const numberInput =
   "w-16 rounded border border-neutral-300 bg-white px-1 py-0.5 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
@@ -143,17 +144,10 @@ function ComponentInspectorStrip({ component, text }: ComponentInspectorProps) {
 
       <label className="flex items-center gap-1.5">
         <span className="text-neutral-500">Color</span>
-        <input
-          type="color"
-          value={toHex(component.style.color)}
-          onChange={(e) => patch({ color: e.target.value })}
-          className="h-5 w-7 cursor-pointer rounded border border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-900"
-        />
-        <input
-          type="text"
+        <ColorPicker
           value={component.style.color}
-          onChange={(e) => patch({ color: e.target.value })}
-          className="w-28 rounded border border-neutral-300 bg-white px-1 py-0.5 font-mono text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+          onChange={(c) => patch({ color: c })}
+          title="Component text color"
         />
       </label>
 
@@ -349,33 +343,19 @@ function ProjectInspectorStrip({ project }: { project: Project }) {
 
       <label className="flex items-center gap-1.5">
         <span className="text-neutral-500">Bg</span>
-        <input
-          type="color"
-          value={toHex(project.canvas.background)}
-          onChange={(e) => setBackground(e.target.value)}
-          className="h-5 w-7 cursor-pointer rounded border border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-900"
-        />
-        <input
-          type="text"
+        <ColorPicker
           value={project.canvas.background}
-          onChange={(e) => setBackground(e.target.value)}
-          className="w-28 rounded border border-neutral-300 bg-white px-1 py-0.5 font-mono text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+          onChange={setBackground}
+          title="Canvas background"
         />
       </label>
 
       <label className="flex items-center gap-1.5">
         <span className="text-neutral-500">Text</span>
-        <input
-          type="color"
-          value={toHex(project.defaultTextStyle.color)}
-          onChange={(e) => setDefaultTextColor(e.target.value)}
-          className="h-5 w-7 cursor-pointer rounded border border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-900"
-        />
-        <input
-          type="text"
+        <ColorPicker
           value={project.defaultTextStyle.color}
-          onChange={(e) => setDefaultTextColor(e.target.value)}
-          className="w-28 rounded border border-neutral-300 bg-white px-1 py-0.5 font-mono text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+          onChange={setDefaultTextColor}
+          title="Default text color"
         />
       </label>
 
@@ -398,20 +378,6 @@ function ProjectInspectorStrip({ project }: { project: Project }) {
       </div>
     </div>
   );
-}
-
-function toHex(color: string): string {
-  if (/^#[0-9a-f]{6}$/i.test(color.trim())) return color.trim();
-  if (typeof document === "undefined") return "#fafafa";
-  const el = document.createElement("div");
-  el.style.color = color;
-  document.body.appendChild(el);
-  const rgb = getComputedStyle(el).color;
-  document.body.removeChild(el);
-  const m = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-  if (!m) return "#fafafa";
-  const hex = (n: string) => parseInt(n, 10).toString(16).padStart(2, "0");
-  return `#${hex(m[1])}${hex(m[2])}${hex(m[3])}`;
 }
 
 function normalizeCss(color: string): string {

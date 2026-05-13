@@ -24,18 +24,24 @@ export function Navbar() {
           </Link>
 
           <nav className="flex items-center gap-1 text-sm">
-            <a
-              href="#how"
+            <Link
+              to="/#how"
               className="rounded px-2.5 py-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
             >
               How it works
-            </a>
-            <a
-              href="#examples"
+            </Link>
+            <Link
+              to="/#examples"
               className="rounded px-2.5 py-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
             >
               Examples
-            </a>
+            </Link>
+            <Link
+              to="/#faq"
+              className="rounded px-2.5 py-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
+            >
+              FAQ
+            </Link>
             <Link
               to="/feedback"
               className="inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
