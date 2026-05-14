@@ -7,17 +7,17 @@ import { TintLayer } from "./TintLayer";
 import { ParticleOverlay } from "./ParticleOverlay";
 
 interface Segment {
-  kind: "plain" | "component";
+  kind: "plain" | "component" | "overlay";
   text: string;
   component?: Component;
   key: string;
 }
 
 /**
- * Split layer text into segments, sorted by startIndex. Overlapping
- * components are silently skipped from rendering (their text would be
- * rendered as part of the first component's slice). The duplicate's
- * effects exist in state but don't drive any DOM element.
+ * Split layer text into segments in text order. The first component in a
+ * range renders inline; components that lie entirely within already-covered
+ * text become overlay segments that stack on top via absolute positioning.
+ * Effects from overlapped components still apply (collected later).
  */
 function splitTextIntoSegments(project: Project): Segment[] {
   const { text, components } = project.layer;
@@ -29,24 +29,28 @@ function splitTextIntoSegments(project: Project): Segment[] {
   const out: Segment[] = [];
   let cursor = 0;
   for (const c of sorted) {
-    const start = Math.max(cursor, c.startIndex);
+    const start = c.startIndex;
     const end = Math.min(text.length, c.endIndex);
+    if (end <= start) continue;
+
     if (start > cursor) {
       out.push({
         kind: "plain",
         text: text.slice(cursor, start),
         key: `plain_${cursor}`,
       });
+      cursor = start;
     }
-    if (end > start) {
-      out.push({
-        kind: "component",
-        text: text.slice(start, end),
-        component: c,
-        key: `comp_${c.id}`,
-      });
-    }
-    cursor = Math.max(cursor, end);
+
+    const isOverlay = end <= cursor;
+    out.push({
+      kind: isOverlay ? "overlay" : "component",
+      text: text.slice(start, end),
+      component: c,
+      key: `comp_${c.id}`,
+    });
+
+    if (!isOverlay) cursor = end;
   }
   if (cursor < text.length) {
     out.push({
@@ -103,13 +107,8 @@ export function RenderedText({
         WebkitUserSelect: "none",
       }}
     >
-      {segments.map((seg) => {
+      {segments.map((seg, idx, arr) => {
         if (seg.kind === "plain") {
-          // Only preserve plain WHITESPACE (spaces between componentized
-          // words). Plain non-whitespace characters (e.g. the "e" of
-          // "reactimat[e]" if the user hasn't componentized that letter)
-          // are hidden entirely so they don't leave a phantom gap in the
-          // visible flow.
           if (/^\s+$/.test(seg.text)) {
             return (
               <span key={seg.key} style={{ visibility: "hidden" }}>
@@ -119,7 +118,18 @@ export function RenderedText({
           }
           return null;
         }
+        // Overlay segments are rendered inside their preceding component's
+        // wrapper — skip them here.
+        if (seg.kind === "overlay") return null;
+
         const c = seg.component!;
+        // Collect trailing overlay segments that belong to this component.
+        const overlays: typeof seg[] = [];
+        let j = idx + 1;
+        while (j < arr.length && arr[j].kind === "overlay") {
+          overlays.push(arr[j]);
+          j++;
+        }
         // Per-letter rendering kicks in for any effect using staggerLetters
         // OR any typewriter effect (which auto-staggers per character).
         const stagger = c.effects.some(
@@ -201,10 +211,59 @@ export function RenderedText({
           baseSpan
         );
 
+        const overlaySpans = overlays.map((o) => {
+          const oc = o.component!;
+          const oStagger = oc.effects.some(
+            (e) => e.staggerLetters || e.type === "typewriter",
+          );
+          const oStyle = {
+            display: "inline-block" as const,
+            fontFamily: oc.style.fontFamily,
+            fontWeight: oc.style.fontWeight,
+            letterSpacing: `${oc.style.letterSpacing}px`,
+            willChange: "transform, opacity",
+          };
+          const oSpan = oStagger ? (
+            <span style={{ display: "inline-block" }}>
+              {Array.from(o.text).map((ch, i) => (
+                <span
+                  key={i}
+                  ref={(el) => registerElement(`${oc.id}|${i}`, el)}
+                  style={oStyle}
+                >
+                  {ch === " " ? " " : ch}
+                </span>
+              ))}
+            </span>
+          ) : (
+            <span ref={(el) => registerElement(oc.id, el)} style={oStyle}>
+              {o.text}
+            </span>
+          );
+          return (
+            <span
+              key={o.key}
+              style={{ position: "absolute", inset: 0 }}
+            >
+              {oSpan}
+            </span>
+          );
+        });
+
+        const needsOverlayWrapper = overlays.length > 0;
+        const innerWithOverlays = needsOverlayWrapper ? (
+          <span style={{ position: "relative", display: "inline-block" }}>
+            {inner}
+            {overlaySpans}
+          </span>
+        ) : (
+          inner
+        );
+
         if (tintEffects.length === 0 && particleEffects.length === 0) {
           return (
             <span key={seg.key} style={{ display: "inline-block" }}>
-              {inner}
+              {innerWithOverlays}
             </span>
           );
         }
@@ -221,7 +280,7 @@ export function RenderedText({
             canvasHeight={project.canvas.height}
             frameRef={frameRef}
           >
-            {inner}
+            {innerWithOverlays}
           </TintWrapper>
         );
       })}
