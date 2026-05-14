@@ -19,6 +19,7 @@ const PROP_TO_MOTION: Record<AnimatableProp, string> = {
   rotation: "rotate",
   color: "color",
   fontSize: "fontSize",
+  blur: "filter",
 };
 
 const PROP_TO_STYLE: Record<AnimatableProp, keyof ComponentStyle> = {
@@ -29,6 +30,7 @@ const PROP_TO_STYLE: Record<AnimatableProp, keyof ComponentStyle> = {
   rotation: "rotation",
   color: "color",
   fontSize: "fontSize",
+  blur: "blur",
 };
 
 type PropValue = number | string;

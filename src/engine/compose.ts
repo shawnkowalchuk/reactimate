@@ -28,6 +28,7 @@ export function computeComponentStyle(
     rotation: c.style.rotation,
     color: c.style.color,
     fontSize: c.style.fontSize,
+    blur: 0,
   };
 
   const lastValue: Record<string, unknown> = { ...current };
@@ -120,7 +121,7 @@ export function computeComponentStyle(
   const isActive =
     sorted.length > 0 &&
     sorted.some(({ effect, startTime, endTime }) => {
-      if (effect.type === "typewriter" || effect.type === "rotate") {
+      if (effect.type === "typewriter" || effect.type === "rotate" || effect.type === "blur") {
         return time >= startTime;
       }
       if (effect.type === "particle" && effect.particle?.continueAfter) {

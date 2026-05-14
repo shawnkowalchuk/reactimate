@@ -100,6 +100,11 @@ export interface ProjectState {
   setBackground: (color: string) => void;
   setDuration: (seconds: number) => void;
   setName: (name: string) => void;
+
+  // Timeline ordering & visibility
+  toggleComponentHidden: (componentId: string) => void;
+  moveComponentUp: (componentId: string) => void;
+  moveComponentDown: (componentId: string) => void;
 }
 
 const replaceComponent = (
@@ -181,6 +186,7 @@ export const useProjectStore = create<ProjectState>()(
         opacity: 1,
         scale: 1,
         rotation: 0,
+        blur: 0,
       };
       const style: ComponentStyle = { ...base, ...partial };
 
@@ -503,6 +509,44 @@ export const useProjectStore = create<ProjectState>()(
 
     setName: (name) =>
       set((state) => ({ project: { ...state.project, name } })),
+
+    toggleComponentHidden: (componentId) =>
+      set((state) => ({
+        project: replaceComponent(state.project, componentId, (c) => ({
+          ...c,
+          hidden: !c.hidden,
+        })),
+      })),
+
+    moveComponentUp: (componentId) =>
+      set((state) => {
+        const comps = state.project.layer.components;
+        const idx = comps.findIndex((c) => c.id === componentId);
+        if (idx <= 0) return state;
+        const swapped = [...comps];
+        [swapped[idx - 1], swapped[idx]] = [swapped[idx], swapped[idx - 1]];
+        return {
+          project: {
+            ...state.project,
+            layer: { ...state.project.layer, components: swapped },
+          },
+        };
+      }),
+
+    moveComponentDown: (componentId) =>
+      set((state) => {
+        const comps = state.project.layer.components;
+        const idx = comps.findIndex((c) => c.id === componentId);
+        if (idx < 0 || idx >= comps.length - 1) return state;
+        const swapped = [...comps];
+        [swapped[idx], swapped[idx + 1]] = [swapped[idx + 1], swapped[idx]];
+        return {
+          project: {
+            ...state.project,
+            layer: { ...state.project.layer, components: swapped },
+          },
+        };
+      }),
   })),
 );
 

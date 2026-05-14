@@ -19,6 +19,7 @@ const baseComponent = (overrides: Partial<Component> = {}): Component => ({
     opacity: 0,
     scale: 1,
     rotation: 0,
+    blur: 0,
   },
   effects: [],
   ...overrides,

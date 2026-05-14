@@ -31,11 +31,13 @@ export function useAnimationEngine() {
         const letterIndex = sep === -1 ? 0 : parseInt(key.slice(sep + 1), 10);
         const c = project.layer.components.find((x) => x.id === componentId);
         if (!c) continue;
-        const s = computeComponentStyle(c, time, letterIndex);
+        const clamped = Math.min(time, project.duration);
+        const s = computeComponentStyle(c, clamped, letterIndex);
         el.style.transform = `translate(${s.x}px, ${s.y}px) scale(${s.scale}) rotate(${s.rotation}deg)`;
         el.style.opacity = String(s.opacity);
         el.style.color = s.color;
         el.style.fontSize = `${s.fontSize}px`;
+        el.style.filter = s.blur > 0 ? `blur(${s.blur}px)` : "";
       }
     },
     [project],
@@ -53,13 +55,24 @@ export function useAnimationEngine() {
       if (t >= project.duration) {
         const looping = usePlaybackStore.getState().loop;
         if (looping) {
-          // Wrap. Reset the anchor so the next frame's `t` is back near 0,
-          // but carry any overflow so we don't lose a frame at very-short
-          // durations.
           const overflow = t - project.duration;
           startMs = now - overflow * 1000;
           apply(overflow);
           setCurrentTime(overflow);
+          rafRef.current = requestAnimationFrame(tick);
+          return;
+        }
+        const hasContinueAfter = project.layer.components.some((c) =>
+          c.effects.some(
+            (e) =>
+              e.type === "particle" &&
+              e.particle?.continueAfter &&
+              e.startTime + e.duration >= project.duration - 0.001,
+          ),
+        );
+        if (hasContinueAfter) {
+          apply(t);
+          setCurrentTime(t);
           rafRef.current = requestAnimationFrame(tick);
           return;
         }
@@ -97,11 +110,13 @@ export function useAnimationEngine() {
           (c) => c.id === componentId,
         );
         if (component) {
-          const s = computeComponentStyle(component, time, letterIndex);
+          const clamped = Math.min(time, project.duration);
+          const s = computeComponentStyle(component, clamped, letterIndex);
           el.style.transform = `translate(${s.x}px, ${s.y}px) scale(${s.scale}) rotate(${s.rotation}deg)`;
           el.style.opacity = String(s.opacity);
           el.style.color = s.color;
           el.style.fontSize = `${s.fontSize}px`;
+          el.style.filter = s.blur > 0 ? `blur(${s.blur}px)` : "";
         }
       } else {
         elementsRef.current.delete(id);

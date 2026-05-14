@@ -103,21 +103,28 @@ export function particlePath(
   }
 
   if (type === "volcano") {
-    // Fountain: particles shoot up from bottom with random spread,
-    // arc under gravity, fall back down.
     const cx = w / 2;
-    const spawnSpread = w * 0.25;
-    const spawnX = cx + (pseudo(seed, 1) - 0.5) * 2 * spawnSpread;
+    const ventWidth = w * 0.06;
+    const spawnX = cx + (pseudo(seed, 1) - 0.5) * ventWidth;
     const spawnY = h + 4;
-    const upVel = 180 + pseudo(seed, 2) * 140;
-    const horizDrift = (pseudo(seed, 5) - 0.5) * 80;
-    const gravity = 500;
-    const x = spawnX + horizDrift * age;
-    const y = spawnY - upVel * age + 0.5 * gravity * age * age;
+    // Eruption angle from vertical — wider angles create the umbrella arc.
+    // Power distribution biases particles toward the center plume.
+    const maxAngle = (Math.PI / 180) * 55;
+    const r = pseudo(seed, 2);
+    const biased = Math.pow(r, 1.8);
+    const angle = (biased - 0.5) * 2 * maxAngle;
+    const speed = 240 + pseudo(seed, 3) * 180;
+    const vx = Math.sin(angle) * speed;
+    const vy = Math.cos(angle) * speed;
+    // Turbulent wobble as particles rise through air.
+    const wobble = Math.sin(age * 7 + pseudo(seed, 4) * 100) * 2;
+    const gravity = 480;
+    const x = spawnX + vx * age + wobble;
+    const y = spawnY - vy * age + 0.5 * gravity * age * age;
     let opacity = 1;
-    if (t01 < 0.15) opacity = t01 / 0.15;
-    else if (t01 > 0.65) opacity = Math.max(0, (1 - t01) / 0.35);
-    return { x, y, opacity, scale: 1 - t01 * 0.4 };
+    if (t01 < 0.1) opacity = t01 / 0.1;
+    else if (t01 > 0.55) opacity = Math.max(0, (1 - t01) / 0.45);
+    return { x, y, opacity, scale: 1 - t01 * 0.3 };
   }
 
   if (type === "dropping") {

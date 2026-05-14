@@ -64,6 +64,11 @@ create policy "users update own last_seen"
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
+drop policy if exists "users insert own profile" on public.profiles;
+create policy "users insert own profile"
+  on public.profiles for insert
+  with check (auth.uid() = id);
+
 -- =============================================================================
 -- feedback: user-submitted messages to the admin
 -- =============================================================================

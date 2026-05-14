@@ -10,6 +10,7 @@ export type EffectType =
   | "spotlight"
   | "particle"
   | "typewriter"
+  | "blur"
   | "custom";
 
 export type EasingType =
@@ -28,6 +29,7 @@ export interface AnimatableTargets {
   rotation?: number;
   color?: string;
   fontSize?: number;
+  blur?: number;
 }
 
 export interface ComponentStyle {
@@ -43,6 +45,7 @@ export interface ComponentStyle {
   opacity: number;
   scale: number;
   rotation: number;
+  blur: number;
 }
 
 export interface Effect {
@@ -75,6 +78,8 @@ export interface Effect {
    * Applies to both `staggerLetters` effects and `typewriter` effects.
    */
   staggerDirection?: "forward" | "reverse";
+  /** For slide effects: mask the text within its original bounding box so it slides in from behind a window. */
+  maskBox?: boolean;
   /**
    * For "spotlight" effects: a colored shape rendered behind the text
    * during the effect's [startTime, startTime + duration] window.
@@ -166,6 +171,7 @@ export interface Component {
   color: string;
   style: ComponentStyle;
   effects: Effect[];
+  hidden?: boolean;
 }
 
 export interface Layer {
@@ -203,6 +209,7 @@ export interface ComputedStyle {
   rotation: number;
   color: string;
   fontSize: number;
+  blur: number;
 }
 
 export type AnimatableProp = keyof AnimatableTargets;

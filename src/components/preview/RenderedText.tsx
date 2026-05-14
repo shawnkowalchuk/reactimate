@@ -21,7 +21,8 @@ interface Segment {
  */
 function splitTextIntoSegments(project: Project): Segment[] {
   const { text, components } = project.layer;
-  const sorted = [...components].sort(
+  const visible = components.filter((c) => !c.hidden);
+  const sorted = [...visible].sort(
     (a, b) => a.startIndex - b.startIndex,
   );
 
@@ -139,6 +140,7 @@ export function RenderedText({
         const tintEffects: Effect[] = [];
         const particleEffects: Effect[] = [];
         for (const other of project.layer.components) {
+          if (other.hidden) continue;
           if (
             other.startIndex < c.endIndex &&
             other.endIndex > c.startIndex
@@ -155,6 +157,10 @@ export function RenderedText({
             }
           }
         }
+
+        const hasMaskBox = c.effects.some(
+          (e) => e.type === "slide" && e.maskBox,
+        );
 
         const baseSpan = stagger ? (
           <span style={{ display: "inline-block" }}>
@@ -177,10 +183,24 @@ export function RenderedText({
           </span>
         );
 
+        const inner = hasMaskBox ? (
+          <span
+            style={{
+              display: "inline-block",
+              overflow: "hidden",
+              verticalAlign: "bottom",
+            }}
+          >
+            {baseSpan}
+          </span>
+        ) : (
+          baseSpan
+        );
+
         if (tintEffects.length === 0 && particleEffects.length === 0) {
           return (
             <span key={seg.key} style={{ display: "inline-block" }}>
-              {baseSpan}
+              {inner}
             </span>
           );
         }
@@ -197,7 +217,7 @@ export function RenderedText({
             canvasHeight={project.canvas.height}
             frameRef={frameRef}
           >
-            {baseSpan}
+            {inner}
           </TintWrapper>
         );
       })}

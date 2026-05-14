@@ -12,13 +12,14 @@ export async function fetchMyProfile(): Promise<Profile | null> {
   if (!supabase) return null;
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return null;
+
   const { data, error } = await supabase
     .from("profiles")
     .select("id, email, is_admin, created_at, last_seen_at")
     .eq("id", userData.user.id)
     .maybeSingle();
   if (error) {
-    console.warn("fetchMyProfile:", error.message);
+    console.warn("fetchMyProfile:", error.code, error.message);
     return null;
   }
   return data as Profile | null;

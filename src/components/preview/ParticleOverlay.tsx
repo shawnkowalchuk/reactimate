@@ -15,8 +15,6 @@ interface LiveParticle {
   id: number;
   x: number;
   y: number;
-  offsetX: number;
-  offsetY: number;
   baseRotation: number;
   bornAtMs: number;
   color: string;
@@ -24,6 +22,10 @@ interface LiveParticle {
   lifespanMs: number;
   rotationSpeed: number;
   shape: ParticleShape;
+  particleType: NonNullable<Effect["particle"]>["type"];
+  seed: number;
+  spawnCX: number;
+  spawnCY: number;
 }
 
 /**
@@ -96,7 +98,8 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
   const useH = h > 0 ? h : 200;
   const liveCandidates = effects.filter((e) => {
     if (e.type !== "particle" || !e.particle) return false;
-    if (time < e.startTime || time > e.startTime + e.duration) return false;
+    if (time < e.startTime) return false;
+    if (!e.particle.continueAfter && time > e.startTime + e.duration) return false;
     return e.particle.mode === "follow" || e.particle.mode === "hover";
   });
   const hasCandidates = liveCandidates.length > 0;
@@ -124,21 +127,32 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
       const m = mouseRef.current;
       const bbox = bboxRef.current;
       // CHASE: each frame, lerp every alive particle's position toward
-      // (cursor + its persistent offset). With factor 0.18 particles
-      // visibly trail the cursor and converge on it when stationary.
-      const chase = 0.18;
+      // (cursor + its persistent offset). For non-standard types, apply
+      // particle-type velocity + gravity so each type has distinct motion.
+      const chase = 0.12;
+      const b = bboxRef.current;
+      const vw = Math.max(b.w, 160);
+      const vh = Math.max(b.h, 80);
       setLiveParticles((prev) =>
         prev
           .filter((s) => now - s.bornAtMs < s.lifespanMs)
           .map((s) => {
-            if (!m) return s;
-            const targetX = m.x - bbox.ox + s.offsetX;
-            const targetY = m.y - bbox.oy + s.offsetY;
-            return {
-              ...s,
-              x: s.x + (targetX - s.x) * chase,
-              y: s.y + (targetY - s.y) * chase,
-            };
+            const ageSec = (now - s.bornAtMs) / 1000;
+            const lifespan = s.lifespanMs / 1000;
+            const path = particlePath(s.particleType ?? "standard", s.seed, vw, vh, 0, ageSec, lifespan);
+            let px = s.spawnCX;
+            let py = s.spawnCY;
+            if (path) {
+              px = s.spawnCX + (path.x - vw / 2);
+              py = s.spawnCY + (path.y - vh / 2);
+            }
+            if (m) {
+              const cx = m.x - bbox.ox;
+              const cy = m.y - bbox.oy;
+              px += (cx - px) * chase;
+              py += (cy - py) * chase;
+            }
+            return { ...s, x: px, y: py };
           }),
       );
       const overBbox =
@@ -154,23 +168,21 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
         const intervalMs = 1000 / Math.max(0.1, cfg.density);
         const last = lastSpawn[e.id] ?? 0;
         if (now - last >= intervalMs && m) {
-          const jitter = cfg.spawnRadiusPx ?? 30;
+          const cfg = e.particle!;
           const sizeJitter = cfg.sizeJitter ?? 0.4;
           const shape = cfg.shape ?? "star";
+          const pType = cfg.type ?? "standard";
           const colorFn = PRESET_COLOR_FNS[cfg.preset];
           const color = colorFn(nextIdRef.current, cfg.color);
           const sizeMul = 1 + (Math.random() - 0.5) * 2 * sizeJitter;
           const size = Math.max(2, cfg.size * sizeMul);
-          const offsetX = (Math.random() - 0.5) * jitter * 2;
-          const offsetY = (Math.random() - 0.5) * jitter * 2;
+          const seed = hash(`${e.id}_live_${nextIdRef.current}`);
           setLiveParticles((prev) => [
             ...prev,
             {
               id: nextIdRef.current++,
-              x: m.x - bbox.ox + offsetX,
-              y: m.y - bbox.oy + offsetY,
-              offsetX,
-              offsetY,
+              x: m.x - bbox.ox,
+              y: m.y - bbox.oy,
               baseRotation: Math.random() * 360,
               bornAtMs: now,
               color,
@@ -178,6 +190,10 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
               lifespanMs: (cfg.lifespanSec ?? 0.6) * 1000,
               rotationSpeed: cfg.rotationSpeed ?? 0,
               shape,
+              particleType: pType,
+              seed,
+              spawnCX: m.x - bbox.ox,
+              spawnCY: m.y - bbox.oy,
             },
           ]);
           lastSpawn[e.id] = now;
@@ -222,30 +238,34 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
     if (cfg.continueAfter && time > end) {
       const multiplier = particleType === "fireworks" ? 8 : 1;
       const total = Math.max(1, Math.round(cfg.density * lifespan * multiplier));
-      const baseTime = time - lifespan;
-      for (let i = 0; i < total; i++) {
-        const seed = hash(`${e.id}_cont_${i}${particleType === "standard" ? "_" + Math.floor(time * 20) : ""}`);
-        const spawnT = baseTime + (i / total) * lifespan;
-        const age = time - spawnT;
-        if (age < 0 || age > lifespan) continue;
-        const path = particlePath(particleType, seed, useW, useH, padding, age, lifespan);
-        if (!path) continue;
-        const baseRot = pseudo(seed, 3) * 360;
-        const rotation = baseRot + rotSpeed * age;
-        const sizeMul = 1 + (pseudo(seed, 4) - 0.5) * 2 * sizeJitter;
-        const size = Math.max(2, cfg.size * sizeMul);
-        const color = PRESET_COLOR_FNS[cfg.preset]?.(i, cfg.color) ?? cfg.color;
-        detParticles.push({
-          key: `${e.id}_cont_${i}`,
-          x: path.x,
-          y: path.y,
-          size,
-          color,
-          opacity: path.opacity,
-          rotation,
-          shape,
-          scale: path.scale ?? 1,
-        });
+      const cyclesSince = Math.floor((time - end) / lifespan);
+      for (let cycle = cyclesSince - 1; cycle <= cyclesSince; cycle++) {
+        if (cycle < 0) continue;
+        const anchor = end + cycle * lifespan;
+        for (let i = 0; i < total; i++) {
+          const spawnT = anchor + (i / total) * lifespan;
+          const age = time - spawnT;
+          if (age < 0 || age > lifespan) continue;
+          const seed = hash(`${e.id}_cont_${i}_c${cycle}${particleType === "standard" ? "_" + Math.floor(time * 20) : ""}`);
+          const path = particlePath(particleType, seed, useW, useH, padding, age, lifespan);
+          if (!path) continue;
+          const baseRot = pseudo(seed, 3) * 360;
+          const rotation = baseRot + rotSpeed * age;
+          const sizeMul = 1 + (pseudo(seed, 4) - 0.5) * 2 * sizeJitter;
+          const size = Math.max(2, cfg.size * sizeMul);
+          const color = PRESET_COLOR_FNS[cfg.preset]?.(i, cfg.color) ?? cfg.color;
+          detParticles.push({
+            key: `${e.id}_cont_${cycle}_${i}`,
+            x: path.x,
+            y: path.y,
+            size,
+            color,
+            opacity: path.opacity,
+            rotation,
+            shape,
+            scale: path.scale ?? 1,
+          });
+        }
       }
     } else {
       const multiplier = particleType === "fireworks" ? 8 : 1;
@@ -300,8 +320,16 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
       {liveParticles.map((s) => {
         const age = nowMs - s.bornAtMs;
         const t01 = Math.min(1, Math.max(0, age / s.lifespanMs));
-        const opacity = t01 < 0.5 ? t01 * 2 : 2 - t01 * 2;
+        let opacity: number;
+        if (s.particleType === "volcano" || s.particleType === "dropping") {
+          if (t01 < 0.15) opacity = t01 / 0.15;
+          else if (t01 > 0.65) opacity = Math.max(0, (1 - t01) / 0.35);
+          else opacity = 1;
+        } else {
+          opacity = t01 < 0.5 ? t01 * 2 : 2 - t01 * 2;
+        }
         const rotation = s.baseRotation + s.rotationSpeed * (age / 1000);
+        const scale = s.particleType === "volcano" ? 1 - t01 * 0.3 : 1;
         return (
           <Particle
             key={`live_${s.id}`}
@@ -312,7 +340,7 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
             opacity={opacity}
             rotation={rotation}
             shape={s.shape}
-            scale={1}
+            scale={scale}
           />
         );
       })}

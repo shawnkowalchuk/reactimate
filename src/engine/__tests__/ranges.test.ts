@@ -19,6 +19,7 @@ const c = (id: string, start: number, end: number): Component => ({
     opacity: 1,
     scale: 1,
     rotation: 0,
+    blur: 0,
   },
   effects: [],
 });

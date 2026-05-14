@@ -62,6 +62,12 @@ export const EFFECT_DEFAULTS: Record<EffectType, EffectDefaults> = {
     from: { opacity: 0 },
     targets: { opacity: 1 },
   },
+  blur: {
+    duration: 0.5,
+    easing: "ease-out",
+    from: { blur: 0 },
+    targets: { blur: 8 },
+  },
   custom: {
     duration: 0.5,
     easing: "ease-in-out",
@@ -79,6 +85,7 @@ export const EFFECT_LABELS: Record<EffectType, string> = {
   spotlight: "Spotlight",
   particle: "Particle",
   typewriter: "Typewriter",
+  blur: "Blur",
   // "custom" is the placeholder for a blank effect — no animated props.
   // Used as the default when the user adds an effect via "+" before
   // picking a type in the modal.

@@ -30,6 +30,7 @@ export function makeSampleProject(): Project {
       opacity: 0,
       scale: 1,
       rotation: 0,
+      blur: 0,
     },
     effects: [
       {
@@ -60,6 +61,7 @@ export function makeSampleProject(): Project {
       opacity: 0,
       scale: 0.9,
       rotation: 0,
+      blur: 0,
     },
     effects: [
       {

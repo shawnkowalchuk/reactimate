@@ -26,7 +26,8 @@ export function AdminGate({ children }: { children: ReactNode }) {
   if (isLoading) return <Spinner />;
   if (!user) return <SignInScreen />;
   if (profileLoading && profile === null) return <Spinner />;
-  if (!profile?.is_admin) return <ForbiddenScreen email={user.email ?? null} />;
+  if (!profile) return <ProfileMissing uid={user.id} />;
+  if (!profile.is_admin) return <ForbiddenScreen email={user.email ?? null} />;
 
   return <>{children}</>;
 }
@@ -79,6 +80,37 @@ function ForbiddenScreen({ email }: { email: string | null }) {
       <pre className="w-full overflow-auto rounded border border-neutral-200 bg-neutral-50 p-3 text-xs dark:border-neutral-800 dark:bg-neutral-900">
         {`update public.profiles set is_admin = true where email = '${email ?? "you@example.com"}';`}
       </pre>
+      <Link
+        to="/"
+        className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:border-neutral-500 dark:border-neutral-700"
+      >
+        Back to home
+      </Link>
+    </div>
+  );
+}
+
+function ProfileMissing({ uid }: { email?: string | null; uid?: string }) {
+  return (
+    <div className="mx-auto flex min-h-screen max-w-xl flex-col items-start justify-center gap-4 px-6 text-neutral-700 dark:text-neutral-300">
+      <ShieldAlert size={28} className="text-amber-500" />
+      <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
+        Profile not found
+      </h1>
+      <p className="text-sm">
+        Your auth ID is:{" "}
+        <code className="rounded bg-neutral-100 px-1 dark:bg-neutral-900 text-xs break-all">{uid ?? "unknown"}</code>
+      </p>
+      <p className="text-sm">
+        Compare with your profile ID in the Supabase Table Editor. They must match.
+      </p>
+      <button
+        type="button"
+        onClick={() => useAdminStore.getState().refresh()}
+        className="rounded-md border border-sky-300 bg-sky-50 px-3 py-1.5 text-sm text-sky-800 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200"
+      >
+        Retry
+      </button>
       <Link
         to="/"
         className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:border-neutral-500 dark:border-neutral-700"

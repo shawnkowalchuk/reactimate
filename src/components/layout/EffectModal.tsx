@@ -32,6 +32,7 @@ const TYPE_OPTIONS: EffectType[] = [
   "spotlight",
   "particle",
   "typewriter",
+  "blur",
 ];
 
 const PROP_LABELS: Record<AnimatableProp, string> = {
@@ -42,6 +43,7 @@ const PROP_LABELS: Record<AnimatableProp, string> = {
   rotation: "Rotation",
   color: "Color",
   fontSize: "Font size",
+  blur: "Blur",
 };
 
 const PROP_UNITS: Partial<Record<AnimatableProp, string>> = {
@@ -49,6 +51,7 @@ const PROP_UNITS: Partial<Record<AnimatableProp, string>> = {
   y: "px",
   rotation: "°",
   fontSize: "px",
+  blur: "px",
 };
 
 export function EffectModal() {
@@ -254,6 +257,25 @@ export function EffectModal() {
             onChange={(e) => updateEffect(component.id, effect.id, { easing: e })}
           />
         </div>
+
+        {effect.type === "slide" && (
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={Boolean(effect.maskBox)}
+              onChange={(e) =>
+                updateEffect(component.id, effect.id, { maskBox: e.target.checked })
+              }
+              className="h-3.5 w-3.5 cursor-pointer"
+            />
+            <span className="font-medium text-neutral-900 dark:text-neutral-100">
+              Mask box
+            </span>
+            <span className="text-neutral-500">
+              clip text within its bounding box so it slides in from behind
+            </span>
+          </label>
+        )}
 
         {effect.type !== "particle" && (
           <div className="flex flex-col gap-1.5 rounded border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
@@ -612,11 +634,11 @@ interface ParticlePanelProps {
 function ParticlePreview({ config }: { config: ParticleConfig }) {
   const [, tick] = useState(0);
   const ct = config.type ?? "standard";
-  const w = 300;
-  const h = 120;
+  const w = 180;
+  const h = 72;
   const lifespan = config.lifespanSec ?? 0.6;
   const density = config.density;
-  const sizeBase = config.size;
+  const sizeBase = config.size * 0.5;
   const sizeJitter = config.sizeJitter ?? 0.4;
   const rotSpeed = config.rotationSpeed ?? 0;
   const preset = config.preset;
@@ -630,6 +652,7 @@ function ParticlePreview({ config }: { config: ParticleConfig }) {
 
   const now = (Date.now() / 1000) % 10;
   const total = Math.max(1, Math.round(density * lifespan));
+  const cyclesSince = Math.floor(now / lifespan);
   const particles: Array<{
     key: string;
     x: number;
@@ -641,29 +664,33 @@ function ParticlePreview({ config }: { config: ParticleConfig }) {
     scale: number;
   }> = [];
 
-  for (let i = 0; i < total; i++) {
-    const seed = hash(`preview_${i}_${Math.floor(now * 10)}`);
-    const spawnT = now - (i / total) * lifespan;
-    const age = now - spawnT;
-    if (age < 0 || age > lifespan) continue;
-    const path = particlePath(ct, seed, w, h, 0, age, lifespan);
-    if (!path) continue;
-    const baseRot = pseudo(seed, 3) * 360;
-    const rotation = baseRot + rotSpeed * age;
-    const sizeMul = 1 + (pseudo(seed, 4) - 0.5) * 2 * sizeJitter;
-    const size = Math.max(2, sizeBase * sizeMul);
-    const colorFn = PRESET_COLOR_FNS[preset] ?? PRESET_COLOR_FNS.gold;
-    const color = colorFn(i, config.color);
-    particles.push({
-      key: `prev_${i}`,
-      x: path.x,
-      y: path.y,
-      size,
-      color,
-      opacity: path.opacity,
-      rotation,
-      scale: path.scale ?? 1,
-    });
+  for (let cycle = cyclesSince - 1; cycle <= cyclesSince; cycle++) {
+    if (cycle < 0) continue;
+    const anchor = cycle * lifespan;
+    for (let i = 0; i < total; i++) {
+      const spawnT = anchor + (i / total) * lifespan;
+      const age = now - spawnT;
+      if (age < 0 || age > lifespan) continue;
+      const seed = hash(`preview_${i}_c${cycle}_${ct === "standard" ? Math.floor(now * 10) : ""}`);
+      const path = particlePath(ct, seed, w, h, 0, age, lifespan);
+      if (!path) continue;
+      const baseRot = pseudo(seed, 3) * 360;
+      const rotation = baseRot + rotSpeed * age;
+      const sizeMul = 1 + (pseudo(seed, 4) - 0.5) * 2 * sizeJitter;
+      const size = Math.max(2, sizeBase * sizeMul);
+      const colorFn = PRESET_COLOR_FNS[preset] ?? PRESET_COLOR_FNS.gold;
+      const color = colorFn(i, config.color);
+      particles.push({
+        key: `prev_${cycle}_${i}`,
+        x: path.x,
+        y: path.y,
+        size,
+        color,
+        opacity: path.opacity,
+        rotation,
+        scale: path.scale ?? 1,
+      });
+    }
   }
 
   return (
@@ -1192,15 +1219,38 @@ function PropInput({ prop, value, onChange, unit }: PropInputProps) {
 
   const v = typeof value === "number" ? value : 0;
   const step = prop === "opacity" || prop === "scale" ? 0.05 : 1;
+  const decimals = prop === "rotation" ? 0 : 2;
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const display =
+    draft !== null
+      ? draft
+      : Number.isFinite(v)
+        ? +v.toFixed(decimals)
+        : 0;
+
+  const commit = (raw: string) => {
+    const n = parseFloat(raw);
+    if (Number.isFinite(n)) {
+      setDraft(null);
+      onChange(n);
+    } else {
+      setDraft(raw);
+    }
+  };
+
   return (
     <div className="flex items-center gap-1.5">
       <input
-        type="number"
+        type="text"
+        inputMode="decimal"
         step={step}
-        value={Number.isFinite(v) ? +v.toFixed(prop === "rotation" ? 0 : 2) : 0}
-        onChange={(e) => {
-          const n = parseFloat(e.target.value);
-          onChange(Number.isFinite(n) ? n : 0);
+        value={display}
+        onChange={(e) => commit(e.target.value)}
+        onBlur={() => {
+          if (draft !== null) {
+            setDraft(null);
+          }
         }}
         className="w-20 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
       />

@@ -32,9 +32,9 @@ export function HomePage() {
   }, [location.hash]);
 
   return (
-    <div className="min-h-screen bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+    <div className="h-screen flex flex-col bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       <Navbar />
-      <main>
+      <main className="flex-1 overflow-y-auto">
         <Hero />
         <HowItWorks />
         <Examples />

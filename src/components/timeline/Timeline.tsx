@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { Copy } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Eye, EyeOff } from "lucide-react";
 import { useProjectStore } from "../../store/projectStore";
 import { usePlaybackStore } from "../../store/playbackStore";
 import { useSelectionStore } from "../../store/selectionStore";
@@ -14,6 +14,9 @@ const GUTTER_WIDTH = 200;
 export function Timeline() {
   const project = useProjectStore((s) => s.project);
   const duplicateComponent = useProjectStore((s) => s.duplicateComponent);
+  const toggleComponentHidden = useProjectStore((s) => s.toggleComponentHidden);
+  const moveComponentUp = useProjectStore((s) => s.moveComponentUp);
+  const moveComponentDown = useProjectStore((s) => s.moveComponentDown);
   const currentTime = usePlaybackStore((s) => s.currentTime);
   const setCurrentTime = usePlaybackStore((s) => s.setCurrentTime);
   const selectNone = useSelectionStore((s) => s.selectNone);
@@ -71,20 +74,50 @@ export function Timeline() {
           style={{ width: GUTTER_WIDTH }}
         >
           <div className="h-6 border-b border-neutral-200 dark:border-neutral-800" />
-          {components.map((c) => {
+          {components.map((c, idx) => {
             const isSelected =
               selectionTarget.kind === "component" &&
               selectionTarget.componentId === c.id;
             return (
               <div
                 key={c.id}
-                className={`flex items-center gap-2 border-b border-neutral-200 px-3 text-xs dark:border-neutral-800 ${
+                className={`flex items-center gap-1 border-b border-neutral-200 px-2 text-xs dark:border-neutral-800 ${
                   isSelected
                     ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100"
                     : "text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-900/60"
                 }`}
                 style={{ height: ROW_HEIGHT }}
               >
+                <div className="flex flex-col -space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); moveComponentUp(c.id); }}
+                    disabled={idx === 0}
+                    className="rounded p-0.5 text-neutral-400 hover:text-neutral-700 disabled:opacity-20 dark:hover:text-neutral-200"
+                    title="Move up"
+                  >
+                    <ArrowUp size={10} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); moveComponentDown(c.id); }}
+                    disabled={idx === components.length - 1}
+                    className="rounded p-0.5 text-neutral-400 hover:text-neutral-700 disabled:opacity-20 dark:hover:text-neutral-200"
+                    title="Move down"
+                  >
+                    <ArrowDown size={10} />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); toggleComponentHidden(c.id); }}
+                  className={`rounded p-0.5 hover:text-neutral-700 dark:hover:text-neutral-200 ${
+                    c.hidden ? "text-neutral-300 dark:text-neutral-600" : "text-neutral-500"
+                  }`}
+                  title={c.hidden ? "Show component" : "Hide component"}
+                >
+                  {c.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
+                </button>
                 <button
                   type="button"
                   onClick={() => selectComponent(c.id)}
@@ -95,9 +128,9 @@ export function Timeline() {
                     className={`inline-block h-2 w-2 shrink-0 rounded-full ${
                       isSelected ? "ring-2 ring-sky-400/70" : ""
                     }`}
-                    style={{ background: c.color }}
+                    style={{ background: c.color, opacity: c.hidden ? 0.3 : 1 }}
                   />
-                  <span className="truncate">
+                  <span className={c.hidden ? "truncate opacity-40" : "truncate"}>
                     {project.layer.text.slice(c.startIndex, c.endIndex) ||
                       "(empty)"}
                   </span>
@@ -109,8 +142,7 @@ export function Timeline() {
                     if (newId) selectComponent(newId);
                   }}
                   className="rounded p-0.5 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
-                  title="Duplicate component (appends a copy of the text and its effects)"
-                  aria-label="Duplicate component"
+                  title="Duplicate component"
                 >
                   <Copy size={12} />
                 </button>
