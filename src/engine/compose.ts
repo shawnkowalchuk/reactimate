@@ -59,7 +59,13 @@ export function computeComponentStyle(
       // tiny step so opacity flips instantly at the scheduled time.
       const isSnap =
         e.type === "typewriter" && e.typewriter?.mode === "snap";
-      const dur = isSnap ? Math.max(0.001, e.duration / 1000) : e.duration;
+      // When stagger is active, later letters get less time so they all
+      // reach their targets by the effect's nominal end time.
+      const dur = isSnap
+        ? Math.max(0.001, e.duration / 1000)
+        : shift > 0
+          ? Math.max(0.001, e.duration - shift)
+          : e.duration;
       return {
         effect: e,
         startTime: e.startTime + shift,
