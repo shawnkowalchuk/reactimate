@@ -1222,6 +1222,8 @@ interface PropInputProps {
 }
 
 function PropInput({ prop, value, onChange, unit }: PropInputProps) {
+  const [draft, setDraft] = useState<string | null>(null);
+
   if (prop === "color") {
     const v = typeof value === "string" ? value : "#ffffff";
     return (
@@ -1239,7 +1241,6 @@ function PropInput({ prop, value, onChange, unit }: PropInputProps) {
   const v = typeof value === "number" ? value : 0;
   const step = prop === "opacity" || prop === "scale" ? 0.05 : 1;
   const decimals = prop === "rotation" ? 0 : 2;
-  const [draft, setDraft] = useState<string | null>(null);
 
   const display =
     draft !== null
