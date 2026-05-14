@@ -93,11 +93,11 @@ export function SpotlightOverlay({
         } else if (motion === "sweep-left") {
           // Enter from off-screen left, exit off-screen right.
           cx = -size + (canvasWidth + size * 2) * t01;
-          cy = canvasHeight / 2;
+          cy = cfg.sweepY ?? canvasHeight / 2;
         } else {
           // sweep-right: enter from off-screen right, exit off-screen left.
           cx = canvasWidth + size - (canvasWidth + size * 2) * t01;
-          cy = canvasHeight / 2;
+          cy = cfg.sweepY ?? canvasHeight / 2;
         }
         const isCircle = shape === "circle";
         const w = size * 2;

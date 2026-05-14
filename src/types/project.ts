@@ -110,6 +110,8 @@ export interface Effect {
     featherPx?: number;
     /** Show the colored backdrop shape. Defaults to true. */
     showBackdrop?: boolean;
+    /** Y position in design px for sweep-left / sweep-right motion. Defaults to canvas height / 2. */
+    sweepY?: number;
   };
   /**
    * For "particle" effects: small star particles rendered randomly within

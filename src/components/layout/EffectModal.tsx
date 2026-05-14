@@ -438,6 +438,7 @@ interface SpotlightConfig {
   maskMode?: "tint" | "reveal";
   featherPx?: number;
   showBackdrop?: boolean;
+  sweepY?: number;
 }
 
 interface SpotlightPanelProps {
@@ -483,6 +484,24 @@ function SpotlightPanel({ spotlight, onChange }: SpotlightPanelProps) {
             <option value="sweep-right">Sweep ← (right to left)</option>
           </select>
         </label>
+
+        {(spotlight.motion === "sweep-left" || spotlight.motion === "sweep-right") && (
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-neutral-500">Sweep Y (px)</span>
+            <input
+              type="number"
+              step={5}
+              value={spotlight.sweepY ?? 0}
+              onChange={(e) =>
+                onChange({ sweepY: parseFloat(e.target.value) || 0 })
+              }
+              className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+            />
+            <span className="text-[10px] text-neutral-400">
+              Leave 0 for center
+            </span>
+          </label>
+        )}
 
         <label className="flex flex-col gap-1">
           <span className="text-xs text-neutral-500">Size (px)</span>

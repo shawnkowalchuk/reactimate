@@ -295,10 +295,10 @@ function TintWrapper({
           cy = spotMouse.y;
         } else if (cfg.motion === "sweep-left") {
           cx = -cfg.size + (canvasWidth + cfg.size * 2) * t01;
-          cy = canvasHeight / 2;
+          cy = cfg.sweepY ?? canvasHeight / 2;
         } else {
           cx = canvasWidth + cfg.size - (canvasWidth + cfg.size * 2) * t01;
-          cy = canvasHeight / 2;
+          cy = cfg.sweepY ?? canvasHeight / 2;
         }
         return (
           <TintLayer
@@ -377,10 +377,10 @@ function RevealMaskWrapper({
         cy = spotMouse.y;
       } else if (cfg.motion === "sweep-left") {
         cx = -cfg.size + (canvasWidth + cfg.size * 2) * t01;
-        cy = canvasHeight / 2;
+        cy = cfg.sweepY ?? canvasHeight / 2;
       } else {
         cx = canvasWidth + cfg.size - (canvasWidth + cfg.size * 2) * t01;
-        cy = canvasHeight / 2;
+        cy = cfg.sweepY ?? canvasHeight / 2;
       }
       const lx = cx - offsetRef.current.x;
       const ly = cy - offsetRef.current.y;
