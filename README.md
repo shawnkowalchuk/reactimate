@@ -192,7 +192,7 @@ In v1, the **projects still live in `localStorage`** per browser even when signe
 | Auth (opt) | Supabase email + Google + Apple, sign-in gate | ✓ |
 | Inspector | Always-on Project + Component InspectorBar at top, EffectModal w/ easing graphs + per-prop start/end | ✓ |
 | Spotlight effect | mouse / sweep motion, mask + feather + backdrop | ✓ |
-| Particle effect | 4 spawn modes × 4 particle physics presets | ✓ |
+| Particle effect | 4 spawn modes × 4 particle physics presets + fireworks-js integration by crashmax-dev | ✓ |
 
 | Export spotlight / particle / typewriter | emit real Motion JSX for the new effect types | — |
 | Cloud project storage | per-user project rows in Supabase, sync | — |

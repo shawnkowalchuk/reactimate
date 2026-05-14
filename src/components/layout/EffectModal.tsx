@@ -32,6 +32,7 @@ const TYPE_OPTIONS: EffectType[] = [
   "spotlight",
   "particle",
   "typewriter",
+  "fireworks-js",
   "blur",
 ];
 
@@ -90,6 +91,7 @@ export function EffectModal() {
       spotlight: undefined,
       particle: undefined,
       typewriter: undefined,
+      fireworks: undefined,
       staggerLetters: false,
     };
     if (nextType === "spotlight") {
@@ -117,6 +119,39 @@ export function EffectModal() {
     if (nextType === "typewriter") {
       patch.typewriter = effect.typewriter ?? { mode: "fade" };
       patch.staggerLetters = true;
+    }
+    if (nextType === "fireworks-js") {
+      patch.fireworks = effect.fireworks ?? {
+        density: 50,
+        explosion: 5,
+        gravity: 1.5,
+        opacity: 0.5,
+        flickering: 50,
+        acceleration: 1.05,
+        friction: 0.97,
+        traceLength: 3,
+        traceSpeed: 10,
+        intensity: 30,
+        lineStyle: "round",
+        rocketsSpread: 80,
+        mode: "component",
+        spreadRadius: 100,
+        delayMin: 10,
+        delayMax: 60,
+        brightnessMin: 50,
+        brightnessMax: 80,
+        decayMin: 0.015,
+        decayMax: 0.03,
+        hueMin: 0,
+        hueMax: 360,
+        rocketsPointMin: 30,
+        rocketsPointMax: 70,
+        lineWidthExpMin: 1,
+        lineWidthExpMax: 3,
+        lineWidthTraceMin: 1,
+        lineWidthTraceMax: 2,
+        continueAfter: false,
+      };
     }
     updateEffect(component.id, effect.id, patch);
   };
@@ -158,6 +193,36 @@ export function EffectModal() {
     updateEffect(component.id, effect.id, {
       spotlight: { ...current, ...update },
     });
+  };
+
+  const patchFireworks = (
+    update: Partial<NonNullable<typeof effect.fireworks>>,
+  ) => {
+    const current = effect.fireworks ?? {
+      density: 50,
+      explosion: 5,
+      gravity: 1.5,
+      opacity: 0.5,
+      flickering: 50,
+      acceleration: 1.05,
+      friction: 0.97,
+      traceLength: 3,
+      traceSpeed: 10,
+      intensity: 30,
+      lineStyle: "round",
+      rocketsSpread: 80,
+      mode: "component",
+      spreadRadius: 100,
+      delayMin: 10,
+      delayMax: 60,
+      brightnessMin: 50,
+      brightnessMax: 80,
+      decayMin: 0.015,
+      decayMax: 0.03,
+      hueMin: 0,
+      hueMax: 360,
+    };
+    updateEffect(component.id, effect.id, { fireworks: { ...current, ...update } });
   };
 
   const onDelete = () => {
@@ -250,6 +315,7 @@ export function EffectModal() {
           </label>
         </div>
 
+        {effect.type !== "fireworks-js" && (
         <div className="flex flex-col gap-1.5">
           <span className="text-xs text-neutral-500">Easing</span>
           <EasingPicker
@@ -257,6 +323,7 @@ export function EffectModal() {
             onChange={(e) => updateEffect(component.id, effect.id, { easing: e })}
           />
         </div>
+        )}
 
         {effect.type === "slide" && (
           <label className="flex items-center gap-2 text-xs">
@@ -277,7 +344,7 @@ export function EffectModal() {
           </label>
         )}
 
-        {effect.type !== "particle" && (
+        {effect.type !== "particle" && effect.type !== "fireworks-js" && (
           <div className="flex flex-col gap-1.5 rounded border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
             <label className="flex items-center gap-2 text-xs">
               <input
@@ -380,9 +447,43 @@ export function EffectModal() {
           />
         )}
 
+        {effect.type === "fireworks-js" && (
+          <FireworksPanel
+            fireworks={
+              effect.fireworks ?? {
+                density: 50,
+                explosion: 5,
+                gravity: 1.5,
+                opacity: 0.5,
+                flickering: 50,
+                acceleration: 1.05,
+                friction: 0.97,
+                traceLength: 3,
+                traceSpeed: 10,
+                intensity: 30,
+                lineStyle: "round",
+                rocketsSpread: 80,
+                mode: "component",
+                spreadRadius: 100,
+                delayMin: 50,
+                delayMax: 200,
+                brightnessMin: 50,
+                brightnessMax: 80,
+                decayMin: 0.015,
+                decayMax: 0.03,
+                hueMin: 0,
+                hueMax: 360,
+                continueAfter: false,
+              }
+            }
+            onChange={patchFireworks}
+          />
+        )}
+
         {effect.type !== "spotlight" &&
           effect.type !== "particle" &&
           effect.type !== "typewriter" &&
+          effect.type !== "fireworks-js" &&
           animProps.length > 0 && (
           <div className="flex flex-col gap-2 rounded border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
             <div className="text-xs uppercase tracking-wider text-neutral-500">
@@ -806,14 +907,14 @@ function ParticlePanel({ particle, onChange }: ParticlePanelProps) {
           </select>
         </label>
 
-        {particle.mode === "around" && (
+        {(particle.mode === "component" || particle.mode === "around") && (
           <label className="flex flex-col gap-1">
-            <span className="text-xs text-neutral-500">Range (px)</span>
+            <span className="text-xs text-neutral-500">Spread (px)</span>
             <input
               type="number"
               min={0}
               step={5}
-              value={particle.rangePx ?? 20}
+              value={particle.rangePx ?? (particle.mode === "around" ? 20 : 0)}
               onChange={(e) =>
                 onChange({ rangePx: Math.max(0, parseInt(e.target.value, 10) || 0) })
               }
@@ -939,13 +1040,209 @@ function ParticlePanel({ particle, onChange }: ParticlePanelProps) {
             className="h-3.5 w-3.5 cursor-pointer"
           />
           <span className="font-medium text-neutral-900 dark:text-neutral-100">
-            Continue after end
+            Run Continuously
           </span>
           <span className="text-neutral-500">
             keep particles spawning past the effect's end time
           </span>
         </label>
       </div>
+    </div>
+  );
+}
+
+interface FireworksPanelProps {
+  fireworks: {
+    density: number;
+    explosion: number;
+    gravity?: number;
+    opacity?: number;
+    flickering?: number;
+    acceleration?: number;
+    friction?: number;
+    traceLength?: number;
+    traceSpeed?: number;
+    intensity?: number;
+    lineStyle?: "round" | "square";
+    followMouse?: boolean;
+    rocketsSpread?: number;
+    mode?: "component" | "around";
+    spreadRadius?: number;
+    delayMin?: number;
+    delayMax?: number;
+    brightnessMin?: number;
+    brightnessMax?: number;
+    decayMin?: number;
+    decayMax?: number;
+    hueMin?: number;
+    hueMax?: number;
+    rocketsPointMin?: number;
+    rocketsPointMax?: number;
+    lineWidthExpMin?: number;
+    lineWidthExpMax?: number;
+    lineWidthTraceMin?: number;
+    lineWidthTraceMax?: number;
+    continueAfter?: boolean;
+  };
+  onChange: (update: Partial<FireworksPanelProps["fireworks"]>) => void;
+}
+
+function DualSlider({ label, min, max, step, minVal, maxVal, onChange, unit }: {
+  label: string; min: number; max: number; step: number;
+  minVal: number; maxVal: number; unit?: string;
+  onChange: (min: number, max: number) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-neutral-500">{label}</span>
+        <span className="text-[10px] tabular-nums text-neutral-400">
+          {step >= 1 ? minVal : minVal.toFixed(step < 0.01 ? 3 : 2)} – {step >= 1 ? maxVal : maxVal.toFixed(step < 0.01 ? 3 : 2)}{unit ?? ""}
+        </span>
+      </div>
+      <div className="flex items-center gap-1">
+        <input
+          type="range"
+          min={min} max={max} step={step}
+          value={minVal}
+          onChange={(e) => { const v = parseFloat(e.target.value); onChange(Math.min(v, maxVal), maxVal); }}
+          className="h-4 flex-1 cursor-pointer appearance-none rounded bg-neutral-200 accent-sky-500 dark:bg-neutral-700"
+        />
+        <input
+          type="range"
+          min={min} max={max} step={step}
+          value={maxVal}
+          onChange={(e) => { const v = parseFloat(e.target.value); onChange(minVal, Math.max(v, minVal)); }}
+          className="h-4 flex-1 cursor-pointer appearance-none rounded bg-neutral-200 accent-amber-500 dark:bg-neutral-700"
+        />
+      </div>
+    </label>
+  );
+}
+
+function SliderField({ label, value, min, max, step, onChange }: {
+  label: string; value: number; min: number; max: number; step: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-xs text-neutral-500">{label}</span>
+      <div className="flex items-center gap-2">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(parseFloat(e.target.value))}
+          className="h-4 w-full cursor-pointer appearance-none rounded bg-neutral-200 accent-sky-500 dark:bg-neutral-700"
+        />
+        <span className="w-12 text-right text-xs tabular-nums text-neutral-700 dark:text-neutral-300">
+          {step >= 1 ? value : value.toFixed(step < 0.01 ? 3 : 2)}
+        </span>
+      </div>
+    </label>
+  );
+}
+
+function FireworksPanel({ fireworks, onChange }: FireworksPanelProps) {
+  return (
+    <div className="flex flex-col gap-3 rounded border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="text-xs uppercase tracking-wider text-neutral-500">
+        Fireworks (library)
+      </div>
+      <div className="rounded border border-amber-300 bg-amber-50 p-2 dark:border-amber-800/60 dark:bg-amber-900/20">
+        <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-200">
+          Powered by <a href="https://github.com/crashmax-dev/fireworks-js" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">fireworks-js</a> &copy; crashmax-dev (MIT license).
+        </p>
+        <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-400">
+          Canvas fireworks engine. Preview-only (not exported to Motion JSX).
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <SliderField label="Particles" value={fireworks.density} min={1} max={200} step={5} onChange={(v) => onChange({ density: v })} />
+        <SliderField label="Explosion" value={fireworks.explosion} min={1} max={20} step={1} onChange={(v) => onChange({ explosion: v })} />
+        <SliderField label="Gravity" value={fireworks.gravity ?? 1.5} min={0.1} max={5} step={0.1} onChange={(v) => onChange({ gravity: v })} />
+        <SliderField label="Opacity" value={fireworks.opacity ?? 0.5} min={0.1} max={1} step={0.05} onChange={(v) => onChange({ opacity: v })} />
+        <SliderField label="Flickering" value={fireworks.flickering ?? 50} min={0} max={100} step={5} onChange={(v) => onChange({ flickering: v })} />
+        <SliderField label="Acceleration" value={fireworks.acceleration ?? 1.05} min={1} max={1.1} step={0.01} onChange={(v) => onChange({ acceleration: v })} />
+        <SliderField label="Friction" value={fireworks.friction ?? 0.97} min={0.9} max={1} step={0.01} onChange={(v) => onChange({ friction: v })} />
+        <SliderField label="Trace len" value={fireworks.traceLength ?? 3} min={1} max={10} step={1} onChange={(v) => onChange({ traceLength: v })} />
+        <SliderField label="Trace speed" value={fireworks.traceSpeed ?? 10} min={1} max={20} step={1} onChange={(v) => onChange({ traceSpeed: v })} />
+        <SliderField label="Intensity" value={fireworks.intensity ?? 30} min={10} max={100} step={5} onChange={(v) => onChange({ intensity: v })} />
+        <SliderField label="Spread %" value={fireworks.rocketsSpread ?? 80} min={10} max={100} step={5} onChange={(v) => onChange({ rocketsSpread: v })} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Where</span>
+          <select
+            value={fireworks.mode ?? "component"}
+            onChange={(e) => onChange({ mode: e.target.value as "component" | "around" })}
+            className="rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          >
+            <option value="component">On the text</option>
+            <option value="around">Around the text</option>
+          </select>
+        </label>
+        <SliderField label="Spread radius (px)" value={fireworks.spreadRadius ?? 100} min={0} max={500} step={10} onChange={(v) => onChange({ spreadRadius: v })} />
+      </div>
+      <DualSlider label="Delay (ms)" min={10} max={2000} step={10}
+        minVal={fireworks.delayMin ?? 50} maxVal={fireworks.delayMax ?? 200}
+        onChange={(min, max) => onChange({ delayMin: min, delayMax: Math.max(min, max) })} />
+      <DualSlider label="Brightness" min={0} max={100} step={5}
+        minVal={fireworks.brightnessMin ?? 50} maxVal={fireworks.brightnessMax ?? 80}
+        onChange={(min, max) => onChange({ brightnessMin: min, brightnessMax: Math.max(min, max) })} />
+      <DualSlider label="Decay" min={0.005} max={0.05} step={0.005}
+        minVal={fireworks.decayMin ?? 0.015} maxVal={fireworks.decayMax ?? 0.03}
+        onChange={(min, max) => onChange({ decayMin: min, decayMax: Math.max(min, max) })} />
+      <DualSlider label="Hue" min={0} max={360} step={5}
+        minVal={fireworks.hueMin ?? 0} maxVal={fireworks.hueMax ?? 360}
+        onChange={(min, max) => onChange({ hueMin: min, hueMax: Math.max(min, max) })} />
+      <DualSlider label="Rockets point %" min={0} max={100} step={5}
+        minVal={fireworks.rocketsPointMin ?? 30} maxVal={fireworks.rocketsPointMax ?? 70}
+        onChange={(min, max) => onChange({ rocketsPointMin: min, rocketsPointMax: Math.max(min, max) })} />
+      <DualSlider label="Line width (explosion)" min={1} max={10} step={1}
+        minVal={fireworks.lineWidthExpMin ?? 1} maxVal={fireworks.lineWidthExpMax ?? 3}
+        onChange={(min, max) => onChange({ lineWidthExpMin: min, lineWidthExpMax: Math.max(min, max) })} />
+      <DualSlider label="Line width (trace)" min={1} max={5} step={1}
+        minVal={fireworks.lineWidthTraceMin ?? 1} maxVal={fireworks.lineWidthTraceMax ?? 2}
+        onChange={(min, max) => onChange({ lineWidthTraceMin: min, lineWidthTraceMax: Math.max(min, max) })} />
+      <div className="flex items-center gap-4">
+        <label className="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={Boolean(fireworks.followMouse)}
+            onChange={(e) => onChange({ followMouse: e.target.checked })}
+            className="h-3.5 w-3.5 cursor-pointer"
+          />
+          <span className="text-neutral-700 dark:text-neutral-300">Follow mouse</span>
+        </label>
+        <label className="flex items-center gap-2 text-xs">
+          <span className="text-neutral-500">Line style</span>
+          <select
+            value={fireworks.lineStyle ?? "round"}
+            onChange={(e) => onChange({ lineStyle: e.target.value as "round" | "square" })}
+            className="rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          >
+            <option value="round">Round</option>
+            <option value="square">Square</option>
+          </select>
+        </label>
+      </div>
+      <label className="flex items-center gap-2 text-xs">
+        <input
+          type="checkbox"
+          checked={Boolean(fireworks.continueAfter)}
+          onChange={(e) => onChange({ continueAfter: e.target.checked })}
+          className="h-3.5 w-3.5 cursor-pointer"
+        />
+        <span className="font-medium text-neutral-900 dark:text-neutral-100">
+          Run Continuously
+        </span>
+        <span className="text-neutral-500">
+          keep launching past the effect's end time
+        </span>
+      </label>
     </div>
   );
 }

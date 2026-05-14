@@ -1,20 +1,24 @@
 import { create } from "zustand";
 
 /**
- * Shared canvas display scale across the editor and preview panes.
+ * Per-pane fit-scale tracking and independent zoom control.
  *
- * Each pane registers the max scale that would fit its own pane.
- * Both panes then render at the MIN of all registered scales, so they
- * always look the same size on screen (the smaller pane drives).
+ * Each pane registers its fit scale (how much the canvas shrinks to
+ * fill the available pane). A per-pane zoom multiplier is applied on
+ * top, so the editor and preview can be independently zoomed.
  */
 export interface CanvasScaleState {
   fitScales: Record<string, number>;
   registerFit: (id: string, scale: number) => void;
   unregisterFit: (id: string) => void;
+  /** Per-pane zoom multipliers (default 1.0 = 100%). */
+  zoomLevels: Record<string, number>;
+  setZoom: (id: string, zoom: number) => void;
 }
 
 export const useCanvasScaleStore = create<CanvasScaleState>((set) => ({
   fitScales: {},
+  zoomLevels: {},
   registerFit: (id, scale) =>
     set((s) => ({ fitScales: { ...s.fitScales, [id]: scale } })),
   unregisterFit: (id) =>
@@ -23,6 +27,8 @@ export const useCanvasScaleStore = create<CanvasScaleState>((set) => ({
       delete next[id];
       return { fitScales: next };
     }),
+  setZoom: (id, zoom) =>
+    set((s) => ({ zoomLevels: { ...s.zoomLevels, [id]: Math.max(0.25, Math.min(4, zoom)) } })),
 }));
 
 /** Returns the MIN of all registered fit scales (or fallback). */

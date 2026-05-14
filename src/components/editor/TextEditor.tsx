@@ -1,10 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Minus, Plus } from "lucide-react";
 import { useProjectStore } from "../../store/projectStore";
 import { useSelectionStore } from "../../store/selectionStore";
-import {
-  selectSharedScale,
-  useCanvasScaleStore,
-} from "../../store/canvasScaleStore";
+import { useCanvasScaleStore } from "../../store/canvasScaleStore";
 import { diffStrings } from "../../utils/textDiff";
 import { ComponentOverlay } from "./ComponentOverlay";
 import { EditorActions } from "./EditorActions";
@@ -123,10 +121,12 @@ export function TextEditor() {
   // the local fit to the shared scale store; both editor and preview
   // render at the MIN so they always look the same size on screen.
   const wrapRef = useRef<HTMLDivElement>(null);
-  const [, setLocalFit] = useState(1);
+  const [localFit, setLocalFit] = useState(1);
   const registerFit = useCanvasScaleStore((s) => s.registerFit);
   const unregisterFit = useCanvasScaleStore((s) => s.unregisterFit);
-  const scale = useCanvasScaleStore((s) => selectSharedScale(s, 1));
+  const zoomLevel = useCanvasScaleStore((s) => s.zoomLevels["editor"] ?? 1);
+  const setZoom = useCanvasScaleStore((s) => s.setZoom);
+  const scale = localFit * zoomLevel;
   useLayoutEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
@@ -149,6 +149,10 @@ export function TextEditor() {
     <div className="flex h-full flex-col gap-2">
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-neutral-500">
         <span>Editor</span>
+        {/* Zoom controls */}
+        <button type="button" className="rounded p-0.5 hover:bg-neutral-200 dark:hover:bg-neutral-800" onClick={() => setZoom("editor", Math.round((zoomLevel - 0.25) * 4) / 4)} title="Zoom out"><Minus size={12} /></button>
+        <button type="button" className="rounded px-1 tabular-nums hover:bg-neutral-200 dark:hover:bg-neutral-800" onClick={() => setZoom("editor", 1)} title="Reset zoom">{Math.round(zoomLevel * 100)}%</button>
+        <button type="button" className="rounded p-0.5 hover:bg-neutral-200 dark:hover:bg-neutral-800" onClick={() => setZoom("editor", Math.round((zoomLevel + 0.25) * 4) / 4)} title="Zoom in"><Plus size={12} /></button>
         <span className="text-neutral-400 dark:text-neutral-700">·</span>
         <span className="text-neutral-500 normal-case tracking-normal">
           Type freely. Select text to{" "}

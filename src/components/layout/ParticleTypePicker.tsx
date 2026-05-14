@@ -19,7 +19,7 @@ interface Props {
 
 export function ParticleTypePicker({ value, onChange }: Props) {
   return (
-    <div className="grid grid-cols-4 gap-1.5">
+      <div className="grid grid-cols-4 gap-1.5">
       {TYPE_LIST.map((t) => {
         const active = t === value;
         return (

@@ -1,10 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Minus, Plus } from "lucide-react";
 import type { Project } from "../../types/project";
 import type { RegisterElement } from "../../playback/useAnimationEngine";
-import {
-  selectSharedScale,
-  useCanvasScaleStore,
-} from "../../store/canvasScaleStore";
+import { useCanvasScaleStore } from "../../store/canvasScaleStore";
 import { RenderedText } from "./RenderedText";
 import { SpotlightOverlay } from "./SpotlightOverlay";
 
@@ -22,12 +20,12 @@ interface PreviewCanvasProps {
 export function PreviewCanvas({ project, registerElement }: PreviewCanvasProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
-  const [, setLocalFit] = useState(1);
+  const [localFit, setLocalFit] = useState(1);
   const registerFit = useCanvasScaleStore((s) => s.registerFit);
   const unregisterFit = useCanvasScaleStore((s) => s.unregisterFit);
-  // Both panes publish their fit-scale; we render at the MIN so the
-  // editor and preview canvases always look the same size on screen.
-  const sharedScale = useCanvasScaleStore((s) => selectSharedScale(s, 1));
+  // Per-pane zoom (default 100%). Each pane zooms independently.
+  const zoomLevel = useCanvasScaleStore((s) => s.zoomLevels["preview"] ?? 1);
+  const setZoom = useCanvasScaleStore((s) => s.setZoom);
 
   useLayoutEffect(() => {
     const wrap = wrapRef.current;
@@ -49,7 +47,10 @@ export function PreviewCanvas({ project, registerElement }: PreviewCanvasProps) 
 
   useEffect(() => () => unregisterFit("preview"), [unregisterFit]);
 
-  const scale = sharedScale;
+  const scale = localFit * zoomLevel;
+  const zoomPct = Math.round(zoomLevel * 100);
+
+  const changeZoom = (delta: number) => setZoom("preview", Math.round((zoomLevel + delta) * 4) / 4);
 
   return (
     <div
@@ -62,10 +63,6 @@ export function PreviewCanvas({ project, registerElement }: PreviewCanvasProps) 
           position: "relative",
           width: project.canvas.width,
           height: project.canvas.height,
-          // Lock the layout to the declared design size — without this
-          // the flex parent shrinks the frame BEFORE the transform is
-          // applied, so design-pixel positioning (mouse, spotlight,
-          // particle, mask) ends up scaled twice and offset.
           flexShrink: 0,
           flexGrow: 0,
           background: project.canvas.background,
@@ -76,7 +73,6 @@ export function PreviewCanvas({ project, registerElement }: PreviewCanvasProps) 
           boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 30px 80px rgba(0,0,0,0.5)",
         }}
       >
-        {/* Spotlight backdrop sits BEHIND the text inside the canvas. */}
         <SpotlightOverlay
           frameRef={frameRef}
           canvasWidth={project.canvas.width}
@@ -99,8 +95,34 @@ export function PreviewCanvas({ project, registerElement }: PreviewCanvasProps) 
           />
         </div>
       </div>
-      <div className="pointer-events-none absolute bottom-2 right-3 text-[11px] text-neutral-500">
-        {project.canvas.width}×{project.canvas.height} · {project.canvas.preset}
+      <div className="pointer-events-none absolute bottom-2 right-3 flex items-center gap-1 text-[11px] text-neutral-500">
+        <button
+          type="button"
+          className="pointer-events-auto rounded p-0.5 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+          onClick={() => changeZoom(-0.25)}
+          title="Zoom out"
+        >
+          <Minus size={12} />
+        </button>
+        <button
+          type="button"
+          className="pointer-events-auto rounded px-1 tabular-nums hover:bg-neutral-200 dark:hover:bg-neutral-800"
+          onClick={() => setZoom("preview", 1)}
+          title="Reset zoom"
+        >
+          {zoomPct}%
+        </button>
+        <button
+          type="button"
+          className="pointer-events-auto rounded p-0.5 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+          onClick={() => changeZoom(0.25)}
+          title="Zoom in"
+        >
+          <Plus size={12} />
+        </button>
+        <span className="ml-2">
+          {project.canvas.width}×{project.canvas.height} · {project.canvas.preset}
+        </span>
       </div>
     </div>
   );

@@ -62,6 +62,12 @@ export const EFFECT_DEFAULTS: Record<EffectType, EffectDefaults> = {
     from: { opacity: 0 },
     targets: { opacity: 1 },
   },
+  "fireworks-js": {
+    duration: 2.0,
+    easing: "linear",
+    from: {},
+    targets: {},
+  },
   blur: {
     duration: 0.5,
     easing: "ease-out",
@@ -85,6 +91,7 @@ export const EFFECT_LABELS: Record<EffectType, string> = {
   spotlight: "Spotlight",
   particle: "Particle",
   typewriter: "Typewriter",
+  "fireworks-js": "Fireworks (lib)",
   blur: "Blur",
   // "custom" is the placeholder for a blank effect — no animated props.
   // Used as the default when the user adds an effect via "+" before

@@ -10,6 +10,7 @@ export type EffectType =
   | "spotlight"
   | "particle"
   | "typewriter"
+  | "fireworks-js"
   | "blur"
   | "custom";
 
@@ -154,6 +155,76 @@ export interface Effect {
     /** Degrees per second a particle rotates while alive (0 = no spin). */
     rotationSpeed?: number;
     /** When true, particles keep spawning after the effect's [start,end] ends. */
+    continueAfter?: boolean;
+  };
+  /**
+   * For "fireworks-js" effects: canvas-based fireworks engine by
+   * crashmax-dev (MIT). Renders via fireworks-js library.
+   * https://github.com/crashmax-dev/fireworks-js
+   *
+   * Density controls particle count, Size controls explosion scale.
+   * Preview-only — not exported to Motion JSX.
+   */
+  fireworks?: {
+    /** Particles per burst (fireworks-js `particles` option). */
+    density: number;
+    /** Explosion intensity 1-20 (fireworks-js `explosion`). */
+    explosion: number;
+    /** Gravity strength (fireworks-js `gravity`, default 1.5). */
+    gravity?: number;
+    /** Particle opacity 0-1 (fireworks-js `opacity`). */
+    opacity?: number;
+    /** Particle flickering 0-100 (fireworks-js `flickering`). */
+    flickering?: number;
+    /** Acceleration 1.0-1.1 (fireworks-js `acceleration`). */
+    acceleration?: number;
+    /** Friction 0.9-1.0 (fireworks-js `friction`). */
+    friction?: number;
+    /** Trace length 1-10 (fireworks-js `traceLength`). */
+    traceLength?: number;
+    /** Trace speed 1-20 (fireworks-js `traceSpeed`). */
+    traceSpeed?: number;
+    /** Launch intensity 10-100 (fireworks-js `intensity`). */
+    intensity?: number;
+    /** Line cap style: round or square. */
+    lineStyle?: "round" | "square";
+    /** When true, fireworks launch at the mouse cursor. */
+    followMouse?: boolean;
+    /** Launch point horizontal range 0-100 (% of canvas width, centered). */
+    rocketsSpread?: number;
+    /** Spawn mode: "component" = on the text, "around" = with spread radius. */
+    mode?: "component" | "around";
+    /** Extra spread around text bbox for "around" mode (design px). */
+    spreadRadius?: number;
+    /** Inter-burst delay min (ms). */
+    delayMin?: number;
+    /** Inter-burst delay max (ms). */
+    delayMax?: number;
+    /** Brightness min (0-100). */
+    brightnessMin?: number;
+    /** Brightness max (0-100). */
+    brightnessMax?: number;
+    /** Decay min (0.005-0.05). */
+    decayMin?: number;
+    /** Decay max (0.005-0.05). */
+    decayMax?: number;
+    /** Hue min (0-360). */
+    hueMin?: number;
+    /** Hue max (0-360). */
+    hueMax?: number;
+    /** Rockets point min (0-100 % of canvas). */
+    rocketsPointMin?: number;
+    /** Rockets point max (0-100 % of canvas). */
+    rocketsPointMax?: number;
+    /** Line width explosion min (px, 1-10). */
+    lineWidthExpMin?: number;
+    /** Line width explosion max (px, 1-10). */
+    lineWidthExpMax?: number;
+    /** Line width trace min (px, 1-5). */
+    lineWidthTraceMin?: number;
+    /** Line width trace max (px, 1-5). */
+    lineWidthTraceMax?: number;
+    /** When true, keep launching after effect end. */
     continueAfter?: boolean;
   };
   /**

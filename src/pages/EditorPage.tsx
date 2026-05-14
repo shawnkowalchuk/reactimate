@@ -22,7 +22,7 @@ export function EditorPage() {
   const [previewTab, setPreviewTab] = useState<PreviewTab>("preview");
 
   return (
-    <div className="grid h-screen grid-rows-[auto_auto_40vh_minmax(0,1fr)] bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+    <div className="grid h-screen grid-rows-[auto_auto_1fr_minmax(0,auto)] bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       <Toolbar />
       <InspectorBar />
 

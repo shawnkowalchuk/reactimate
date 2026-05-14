@@ -222,6 +222,7 @@
 
 ### Tooling & quality
 - Vite 6 + React 19 + TypeScript (strict) + Tailwind v3 (`darkMode: 'class'`)
+- **fireworks-js** by crashmax-dev (MIT) — canvas-based fireworks engine for the `"fireworks-js"` particle type
 - ESLint flat config + Prettier
 - **96 tests passing** across 10 files: ranges (15), compose (9 — updated for new visibility model), interpolate (11), palette (3), format (10), effectToMotion (7), generateComponent (9), localStorage (11), textDiff (13), projectStore split/merge (8)
 - GitHub Actions CI: `lint` → `typecheck` → `test` → `build`
