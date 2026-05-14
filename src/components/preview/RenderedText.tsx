@@ -159,7 +159,11 @@ export function RenderedText({
         }
 
         const hasMaskBox = c.effects.some(
-          (e) => e.type === "slide" && e.maskBox,
+          (e) =>
+            e.type === "slide" &&
+            e.maskBox &&
+            time >= e.startTime &&
+            time <= e.startTime + e.duration,
         );
 
         const baseSpan = stagger ? (
