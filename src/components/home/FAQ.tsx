@@ -23,7 +23,7 @@ const ITEMS: QA[] = [
         Open the editor, click <strong>Export</strong>, drop the downloaded{" "}
         <code className="rounded bg-neutral-100 px-1 text-[0.85em] dark:bg-neutral-800">Hero.jsx</code>{" "}
         into your React project's source tree, run{" "}
-        <code className="rounded bg-neutral-100 px-1 text-[0.85em] dark:bg-neutral-800">npm install motion</code>
+        <code className="rounded bg-neutral-100 px-1 text-[0.85em] dark:bg-neutral-800">npm install motion fireworks-js</code>
         , then import and render{" "}
         <code className="rounded bg-neutral-100 px-1 text-[0.85em] dark:bg-neutral-800">&lt;Hero /&gt;</code>{" "}
         wherever you want your animated headline. See the four steps above for the full walkthrough.

@@ -16,14 +16,14 @@ const STEPS = [
   },
   {
     icon: Package,
-    title: "Install Motion",
+    title: "Install dependencies",
     body: (
       <>
         Inside your React project:{" "}
         <code className="rounded bg-neutral-100 px-1 text-[0.85em] dark:bg-neutral-800">
-          npm install motion
+          npm install motion fireworks-js
         </code>
-        . That's the only dependency the exported component needs.
+        . These are the only dependencies the exported component needs.
       </>
     ),
   },
