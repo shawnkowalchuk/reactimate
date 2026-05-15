@@ -443,6 +443,7 @@ export function EffectModal() {
         {effect.type === "typewriter" && (
           <TypewriterPanel
             typewriter={effect.typewriter ?? { mode: "fade" }}
+            textColor={component.style.color}
             onChange={patchTypewriter}
           />
         )}
@@ -1248,11 +1249,48 @@ function FireworksPanel({ fireworks, onChange }: FireworksPanelProps) {
 }
 
 interface TypewriterPanelProps {
-  typewriter: { mode: "snap" | "fade" };
-  onChange: (update: Partial<{ mode: "snap" | "fade" }>) => void;
+  typewriter: NonNullable<import("../../types/project").Effect["typewriter"]>;
+  /** The owning component's text color — used as the default for the shape's color. */
+  textColor: string;
+  onChange: (
+    update: Partial<NonNullable<import("../../types/project").Effect["typewriter"]>>,
+  ) => void;
 }
 
-function TypewriterPanel({ typewriter, onChange }: TypewriterPanelProps) {
+function TypewriterPanel({ typewriter, textColor, onChange }: TypewriterPanelProps) {
+  const shape = typewriter.shape;
+
+  const setShapeKind = (kind: "none" | "square" | "circle") => {
+    if (kind === "none") {
+      onChange({ shape: undefined });
+      return;
+    }
+    if (!shape) {
+      onChange({
+        shape: {
+          type: kind,
+          layer: "behind",
+          color: textColor,
+          sizeFrom: 0,
+          sizeTo: 80,
+          blurFrom: 8,
+          blurTo: 0,
+          fadeFrom: 1,
+          fadeTo: 1,
+        },
+      });
+      return;
+    }
+    onChange({ shape: { ...shape, type: kind } });
+  };
+
+  const patchShape = (
+    update: Partial<NonNullable<typeof typewriter.shape>>,
+  ) => {
+    if (!shape) return;
+    onChange({ shape: { ...shape, ...update } });
+  };
+
   return (
     <div className="flex flex-col gap-3 rounded border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
       <div className="text-xs uppercase tracking-wider text-neutral-500">
@@ -1276,6 +1314,150 @@ function TypewriterPanel({ typewriter, onChange }: TypewriterPanelProps) {
           Each letter appears across the effect duration. Snap = instant
           per letter, Fade = each letter eases in.
         </span>
+      </label>
+
+      <div className="flex flex-col gap-1.5 text-xs">
+        <span className="text-neutral-500">Per-letter shape</span>
+        <div className="flex gap-1">
+          <ShapeBtn
+            active={!shape}
+            onClick={() => setShapeKind("none")}
+            label="None"
+          />
+          <ShapeBtn
+            active={shape?.type === "square"}
+            onClick={() => setShapeKind("square")}
+            label="Square"
+          />
+          <ShapeBtn
+            active={shape?.type === "circle"}
+            onClick={() => setShapeKind("circle")}
+            label="Circle"
+          />
+        </div>
+      </div>
+
+      {shape && (
+        <div className="flex flex-col gap-3 rounded border border-neutral-200 bg-white p-3 text-xs dark:border-neutral-800 dark:bg-neutral-950">
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-neutral-500">Layer</span>
+              <div className="flex gap-1">
+                <ShapeBtn
+                  active={shape.layer === "behind"}
+                  onClick={() => patchShape({ layer: "behind" })}
+                  label="Behind"
+                />
+                <ShapeBtn
+                  active={shape.layer === "front"}
+                  onClick={() => patchShape({ layer: "front" })}
+                  label="In front"
+                />
+              </div>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-neutral-500">Color</span>
+              <ColorPicker
+                value={shape.color}
+                onChange={(c) => patchShape({ color: c })}
+                title="Shape color"
+                size="md"
+              />
+            </label>
+          </div>
+
+          <ShapeRangeRow
+            label="Size (px)"
+            from={shape.sizeFrom}
+            to={shape.sizeTo}
+            min={0}
+            step={4}
+            onFrom={(v) => patchShape({ sizeFrom: Math.max(0, v) })}
+            onTo={(v) => patchShape({ sizeTo: Math.max(0, v) })}
+          />
+          <ShapeRangeRow
+            label="Blur (px)"
+            from={shape.blurFrom}
+            to={shape.blurTo}
+            min={0}
+            step={1}
+            onFrom={(v) => patchShape({ blurFrom: Math.max(0, v) })}
+            onTo={(v) => patchShape({ blurTo: Math.max(0, v) })}
+          />
+          <ShapeRangeRow
+            label="Fade (0–1)"
+            from={shape.fadeFrom}
+            to={shape.fadeTo}
+            min={0}
+            max={1}
+            step={0.05}
+            onFrom={(v) => patchShape({ fadeFrom: clamp01(v) })}
+            onTo={(v) => patchShape({ fadeTo: clamp01(v) })}
+          />
+
+          <span className="text-neutral-500">
+            Each letter's shape animates over its own slice of the typewriter
+            duration ({"duration ÷ N letters"}). Holds at the End values
+            after that — set Fade End to 0 to vanish, 1 to stay.
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function clamp01(v: number): number {
+  if (Number.isNaN(v)) return 0;
+  return Math.max(0, Math.min(1, v));
+}
+
+interface ShapeRangeRowProps {
+  label: string;
+  from: number;
+  to: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  onFrom: (v: number) => void;
+  onTo: (v: number) => void;
+}
+
+function ShapeRangeRow({
+  label,
+  from,
+  to,
+  min,
+  max,
+  step,
+  onFrom,
+  onTo,
+}: ShapeRangeRowProps) {
+  return (
+    <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
+      <span className="text-neutral-500">{label}</span>
+      <label className="flex items-center gap-1">
+        <span className="text-neutral-500">Start</span>
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={from}
+          onChange={(e) => onFrom(parseFloat(e.target.value) || 0)}
+          className="w-20 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+        />
+      </label>
+      <label className="flex items-center gap-1">
+        <span className="text-neutral-500">End</span>
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={to}
+          onChange={(e) => onTo(parseFloat(e.target.value) || 0)}
+          className="w-20 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+        />
       </label>
     </div>
   );

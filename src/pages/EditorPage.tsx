@@ -16,7 +16,7 @@ type PreviewTab = "preview" | "code";
 
 export function EditorPage() {
   const project = useProjectStore((s) => s.project);
-  const { registerElement } = useAnimationEngine();
+  const { registerElement, registerShape } = useAnimationEngine();
   useKeyboardShortcuts();
   useAutosave();
   useCloudSync();
@@ -50,7 +50,7 @@ export function EditorPage() {
           </div>
           <div className="flex-1 min-h-0">
             <div className={previewTab === "preview" ? "h-full" : "hidden"}>
-              <PreviewCanvas project={project} registerElement={registerElement} />
+              <PreviewCanvas project={project} registerElement={registerElement} registerShape={registerShape} />
             </div>
             <div className={previewTab === "code" ? "h-full" : "hidden"}>
               <CodeView project={project} />

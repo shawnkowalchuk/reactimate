@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import type { Project } from "../../types/project";
-import type { RegisterElement } from "../../playback/useAnimationEngine";
+import type { RegisterElement, RegisterShape } from "../../playback/useAnimationEngine";
 import { useCanvasScaleStore } from "../../store/canvasScaleStore";
 import { RenderedText } from "./RenderedText";
 import { SpotlightOverlay } from "./SpotlightOverlay";
@@ -9,6 +9,7 @@ import { SpotlightOverlay } from "./SpotlightOverlay";
 interface PreviewCanvasProps {
   project: Project;
   registerElement: RegisterElement;
+  registerShape: RegisterShape;
 }
 
 /**
@@ -17,7 +18,7 @@ interface PreviewCanvasProps {
  * canvas's design dimensions so distances and sizes stay correct
  * — only the outer transform scales the whole thing.
  */
-export function PreviewCanvas({ project, registerElement }: PreviewCanvasProps) {
+export function PreviewCanvas({ project, registerElement, registerShape }: PreviewCanvasProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const [localFit, setLocalFit] = useState(1);
@@ -91,6 +92,7 @@ export function PreviewCanvas({ project, registerElement }: PreviewCanvasProps) 
           <RenderedText
             project={project}
             registerElement={registerElement}
+            registerShape={registerShape}
             frameRef={frameRef}
           />
         </div>

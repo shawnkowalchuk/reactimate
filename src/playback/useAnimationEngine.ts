@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useProjectStore } from "../store/projectStore";
 import { usePlaybackStore } from "../store/playbackStore";
-import { computeComponentStyle } from "../engine/compose";
+import { computeComponentStyle, computeTypewriterShape } from "../engine/compose";
+import type { Component, Effect } from "../types/project";
 
 /**
  * Drives playback by writing directly to the DOM via refs registered
@@ -18,7 +19,31 @@ export function useAnimationEngine() {
   const setPlaying = usePlaybackStore((s) => s.setPlaying);
 
   const elementsRef = useRef<Map<string, HTMLElement>>(new Map());
+  // Parallel registration channel for per-letter typewriter shape elements.
+  // Same key convention (`componentId|letterIndex`); the engine looks up the
+  // typewriter effect on the component and calls computeTypewriterShape.
+  const shapesRef = useRef<Map<string, HTMLElement>>(new Map());
   const rafRef = useRef<number | null>(null);
+
+  const writeShape = (
+    el: HTMLElement,
+    component: Component,
+    letterIndex: number,
+    time: number,
+  ) => {
+    const tw = component.effects.find(
+      (e: Effect) => e.type === "typewriter" && e.typewriter?.shape,
+    );
+    if (!tw) return;
+    const totalLetters = Math.max(1, component.endIndex - component.startIndex);
+    const shape = computeTypewriterShape(tw, totalLetters, letterIndex, time);
+    if (!shape) return;
+    el.style.width = `${shape.size}px`;
+    el.style.height = `${shape.size}px`;
+    el.style.opacity = String(shape.opacity);
+    el.style.filter = shape.blur > 0 ? `blur(${shape.blur}px)` : "";
+    el.style.visibility = shape.visible ? "visible" : "hidden";
+  };
 
   const apply = useCallback(
     (time: number) => {
@@ -38,6 +63,16 @@ export function useAnimationEngine() {
         el.style.color = s.color;
         el.style.fontSize = `${s.fontSize}px`;
         el.style.filter = s.blur > 0 ? `blur(${s.blur}px)` : "";
+      }
+      // Same loop over registered shape elements.
+      for (const [key, el] of shapesRef.current) {
+        const sep = key.indexOf("|");
+        const componentId = sep === -1 ? key : key.slice(0, sep);
+        const letterIndex = sep === -1 ? 0 : parseInt(key.slice(sep + 1), 10);
+        const c = project.layer.components.find((x) => x.id === componentId);
+        if (!c) continue;
+        const clamped = Math.min(time, project.duration);
+        writeShape(el, c, letterIndex, clamped);
       }
     },
     [project],
@@ -125,7 +160,31 @@ export function useAnimationEngine() {
     [project],
   );
 
-  return { registerElement };
+  const registerShape = useCallback(
+    (id: string, el: HTMLElement | null) => {
+      if (el) {
+        shapesRef.current.set(id, el);
+        // Apply current state so a freshly mounted shape doesn't flash.
+        const time = usePlaybackStore.getState().currentTime;
+        const sep = id.indexOf("|");
+        const componentId = sep === -1 ? id : id.slice(0, sep);
+        const letterIndex = sep === -1 ? 0 : parseInt(id.slice(sep + 1), 10);
+        const component = project.layer.components.find(
+          (c) => c.id === componentId,
+        );
+        if (component) {
+          const clamped = Math.min(time, project.duration);
+          writeShape(el, component, letterIndex, clamped);
+        }
+      } else {
+        shapesRef.current.delete(id);
+      }
+    },
+    [project],
+  );
+
+  return { registerElement, registerShape };
 }
 
 export type RegisterElement = (id: string, el: HTMLElement | null) => void;
+export type RegisterShape = (id: string, el: HTMLElement | null) => void;

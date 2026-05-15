@@ -231,10 +231,38 @@ export interface Effect {
    * For "typewriter" effects: each letter reveals at
    * startTime + i*(duration/N). `mode` controls whether each letter
    * snaps in instantly or fades in over a small per-letter window.
+   * `shape` (optional) renders a per-letter square or circle that
+   * animates Size / Blur / Fade over the same per-letter window,
+   * either behind or in front of the letter glyph.
    */
   typewriter?: {
     mode: "snap" | "fade";
+    shape?: TypewriterShape;
   };
+}
+
+/**
+ * Per-letter visual element for the typewriter effect. Each letter
+ * gets its own shape centered on its glyph, animated over the
+ * letter's individual reveal window (duration / N). Holds at the
+ * `*To` values after the window ends — set `fadeTo: 0` if you want
+ * it to disappear post-reveal.
+ */
+export interface TypewriterShape {
+  type: "square" | "circle";
+  /** z-index relative to the letter glyph. */
+  layer: "front" | "behind";
+  /** CSS color used for the shape fill. */
+  color: string;
+  /** Pixel size at start / end of each letter's reveal window. */
+  sizeFrom: number;
+  sizeTo: number;
+  /** CSS blur (px) at start / end. */
+  blurFrom: number;
+  blurTo: number;
+  /** Opacity 0..1 at start / end. */
+  fadeFrom: number;
+  fadeTo: number;
 }
 
 export interface Component {

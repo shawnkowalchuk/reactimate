@@ -2,9 +2,22 @@ import type {
   AnimatableProp,
   Component,
   ComputedStyle,
+  Effect,
 } from "../types/project";
 import { applyEasing } from "./easing";
 import { lerpProperty } from "./interpolate";
+
+/** Result of `computeTypewriterShape` — applied to the per-letter shape DOM. */
+export interface ComputedShape {
+  /** px, applied as both width and height. */
+  size: number;
+  /** px, applied via `filter: blur(<n>px)`. */
+  blur: number;
+  /** 0..1, applied to `opacity`. */
+  opacity: number;
+  /** false before the letter's window starts; caller hides the element. */
+  visible: boolean;
+}
 
 /**
  * Compute the visual style of a component at a given time.
@@ -149,4 +162,60 @@ export function computeComponentStyle(
   }
 
   return current;
+}
+
+/**
+ * Compute the per-letter shape state for a typewriter effect at `time`.
+ * Mirrors the per-letter time-shift logic in `computeComponentStyle` so
+ * the shape's animation lines up exactly with the letter's reveal:
+ *  - Each letter's window is `[start + (duration/N) * idx, start + (duration/N) * (idx+1))`.
+ *  - `staggerDirection: "reverse"` flips `idx` so the last letter goes first.
+ *  - Before the window starts → returns the start values + `visible: false`
+ *    so the caller can hide the element entirely (avoids a flash at sizeFrom).
+ *  - After the window ends → holds at the end values (visible). Lets the
+ *    user control "stays visible" vs "vanishes" purely via `fadeTo`.
+ *
+ * Returns `null` when the effect isn't a typewriter or has no shape config.
+ */
+export function computeTypewriterShape(
+  effect: Effect,
+  totalLetters: number,
+  letterIndex: number,
+  time: number,
+): ComputedShape | null {
+  if (effect.type !== "typewriter" || !effect.typewriter?.shape) return null;
+  const shape = effect.typewriter.shape;
+  const n = Math.max(1, totalLetters);
+  const perLetter = effect.duration / n;
+  const idx =
+    effect.staggerDirection === "reverse"
+      ? Math.max(0, n - 1 - letterIndex)
+      : letterIndex;
+  const start = effect.startTime + perLetter * idx;
+  const end = start + perLetter;
+
+  if (time < start) {
+    return {
+      size: shape.sizeFrom,
+      blur: shape.blurFrom,
+      opacity: shape.fadeFrom,
+      visible: false,
+    };
+  }
+  if (time >= end || perLetter <= 0) {
+    return {
+      size: shape.sizeTo,
+      blur: shape.blurTo,
+      opacity: shape.fadeTo,
+      visible: true,
+    };
+  }
+  const raw = (time - start) / perLetter;
+  const eased = applyEasing(raw, effect.easing);
+  return {
+    size: shape.sizeFrom + (shape.sizeTo - shape.sizeFrom) * eased,
+    blur: shape.blurFrom + (shape.blurTo - shape.blurFrom) * eased,
+    opacity: shape.fadeFrom + (shape.fadeTo - shape.fadeFrom) * eased,
+    visible: true,
+  };
 }

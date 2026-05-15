@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from "react";
-import type { Component, Effect, Project } from "../../types/project";
-import type { RegisterElement } from "../../playback/useAnimationEngine";
+import type { Component, Effect, Project, TypewriterShape } from "../../types/project";
+import type { RegisterElement, RegisterShape } from "../../playback/useAnimationEngine";
 import { usePlaybackStore } from "../../store/playbackStore";
 import { useSpotlightStore } from "../../store/spotlightStore";
 import { TintLayer } from "./TintLayer";
@@ -66,13 +66,42 @@ function splitTextIntoSegments(project: Project): Segment[] {
 interface RenderedTextProps {
   project: Project;
   registerElement: RegisterElement;
+  registerShape: RegisterShape;
   /** Canvas frame ref (for span-position measurement in TintLayer). */
   frameRef: RefObject<HTMLDivElement | null>;
+}
+
+/** Find the typewriter shape config on a component, if any. */
+function shapeOf(c: Component): TypewriterShape | undefined {
+  for (const e of c.effects) {
+    if (e.type === "typewriter" && e.typewriter?.shape) return e.typewriter.shape;
+  }
+  return undefined;
+}
+
+/** Inline styles for a per-letter shape span (size/blur/opacity set by engine). */
+function shapeSpanStyle(shape: TypewriterShape): React.CSSProperties {
+  return {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    pointerEvents: "none",
+    zIndex: shape.layer === "front" ? 2 : 0,
+    backgroundColor: shape.color,
+    borderRadius: shape.type === "circle" ? "50%" : 0,
+    width: 0,
+    height: 0,
+    opacity: 0,
+    visibility: "hidden",
+    willChange: "width, height, opacity, filter",
+  };
 }
 
 export function RenderedText({
   project,
   registerElement,
+  registerShape,
   frameRef,
 }: RenderedTextProps) {
   const segments = splitTextIntoSegments(project);
@@ -185,17 +214,37 @@ export function RenderedText({
             time <= e.startTime + e.duration,
         );
 
+        const compShape = shapeOf(c);
         const baseSpan = stagger ? (
           <span style={{ display: "inline-block" }}>
-            {Array.from(seg.text).map((ch, i) => (
-              <span
-                key={i}
-                ref={(el) => registerElement(`${c.id}|${i}`, el)}
-                style={sharedSpanStyle}
-              >
-                {ch === " " ? " " : ch}
-              </span>
-            ))}
+            {Array.from(seg.text).map((ch, i) => {
+              const letter = (
+                <span
+                  ref={(el) => registerElement(`${c.id}|${i}`, el)}
+                  style={
+                    compShape
+                      ? { ...sharedSpanStyle, position: "relative", zIndex: 1 }
+                      : sharedSpanStyle
+                  }
+                >
+                  {ch === " " ? " " : ch}
+                </span>
+              );
+              if (!compShape) return <span key={i}>{letter}</span>;
+              return (
+                <span
+                  key={i}
+                  style={{ position: "relative", display: "inline-block" }}
+                >
+                  <span
+                    ref={(el) => registerShape(`${c.id}|${i}`, el)}
+                    aria-hidden="true"
+                    style={shapeSpanStyle(compShape)}
+                  />
+                  {letter}
+                </span>
+              );
+            })}
           </span>
         ) : (
           <span
@@ -232,17 +281,37 @@ export function RenderedText({
             letterSpacing: `${oc.style.letterSpacing}px`,
             willChange: "transform, opacity",
           };
+          const oShape = shapeOf(oc);
           const oSpan = oStagger ? (
             <span style={{ display: "inline-block" }}>
-              {Array.from(o.text).map((ch, i) => (
-                <span
-                  key={i}
-                  ref={(el) => registerElement(`${oc.id}|${i}`, el)}
-                  style={oStyle}
-                >
-                  {ch === " " ? " " : ch}
-                </span>
-              ))}
+              {Array.from(o.text).map((ch, i) => {
+                const letter = (
+                  <span
+                    ref={(el) => registerElement(`${oc.id}|${i}`, el)}
+                    style={
+                      oShape
+                        ? { ...oStyle, position: "relative", zIndex: 1 }
+                        : oStyle
+                    }
+                  >
+                    {ch === " " ? " " : ch}
+                  </span>
+                );
+                if (!oShape) return <span key={i}>{letter}</span>;
+                return (
+                  <span
+                    key={i}
+                    style={{ position: "relative", display: "inline-block" }}
+                  >
+                    <span
+                      ref={(el) => registerShape(`${oc.id}|${i}`, el)}
+                      aria-hidden="true"
+                      style={shapeSpanStyle(oShape)}
+                    />
+                    {letter}
+                  </span>
+                );
+              })}
             </span>
           ) : (
             <span ref={(el) => registerElement(oc.id, el)} style={oStyle}>
