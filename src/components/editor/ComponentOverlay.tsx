@@ -150,7 +150,7 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
               className="pointer-events-auto absolute flex items-center justify-center"
               style={{
                 top: b.top - hit / 2 - 2,
-                left: b.left + b.width + dupIdx * (dot + dotGap) - hit / 2 + 2,
+                left: b.left + b.width - dupIdx * (dot + dotGap) - hit / 2 + 2,
                 width: hit,
                 height: hit,
                 background: "transparent",
