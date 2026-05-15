@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Fireworks } from "fireworks-js";
 import { useProjectStore } from "../../store/projectStore";
+import { markSkipCloudSync } from "../../persistence/useCloudSync";
 import type { Project } from "../../types/project";
 import { newId } from "../../utils/id";
 import { MotionExample } from "./MotionExample";
@@ -79,6 +80,7 @@ export function Examples() {
   };
 
   const onOpenInEditor = (project: Project) => {
+    markSkipCloudSync();
     setProject(project);
     navigate("/app");
   };
@@ -213,9 +215,9 @@ export function Hero() {
 }`;
 const staggerProj = makeMiniProject("Welcome to reactimate.", [{
   id: newId("comp"), startIndex: 0, endIndex: 7, color: "#fbbf24",
-  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#fafafa", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 },
-  effects: [{ id: newId("fx"), type: "fade", startTime: 0.1, duration: 0.6, easing: "ease-out", targets: { opacity: 1 }, staggerLetters: true, staggerDelay: 0.05 }],
-}]);
+  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#fafafa", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
+  effects: [{ id: newId("fx"), type: "zoom", startTime: 0.1, duration: 3, easing: "ease-out", from: { opacity: 0, y: 18 }, targets: { opacity: 1, y: 0 }, staggerLetters: true, staggerDelay: 0.05 }],
+}], 3.5);
 
 /* ---- 2. Slide + color shift ---- */
 function SlideShiftHero() {
@@ -248,8 +250,8 @@ export function Hero() {
 const slideProj = makeMiniProject("The new way to animate.", [{
   id: newId("comp"), startIndex: 15, endIndex: 23, color: "#0ea5e9",
   style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#0ea5e9", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
-  effects: [{ id: newId("fx"), type: "slide", startTime: 0, duration: 0.7, easing: "ease-out", from: { opacity: 0, x: -100 }, targets: { opacity: 1, x: 0 } }],
-}]);
+  effects: [{ id: newId("fx"), type: "slide", startTime: 0.3, duration: 3, easing: "ease-out", from: { opacity: 0, x: -24, color: "#a3a3a3" }, targets: { opacity: 1, x: 0, color: "#0ea5e9" } }],
+}], 3.5);
 
 /* ---- 3. Typewriter ---- */
 function TypewriterHero() {
@@ -304,8 +306,8 @@ export function Hero() {
 const typewriterProj = makeMiniProject("Type it out,\ncharacter by character.", [{
   id: newId("comp"), startIndex: 0, endIndex: 36, color: "#22d3ee",
   style: { fontFamily: "ui-monospace, monospace", fontSize: 36, fontWeight: 400, color: "#fafafa", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
-  effects: [{ id: newId("fx"), type: "typewriter", startTime: 0, duration: 2, easing: "linear", targets: { opacity: 1 }, typewriter: { mode: "snap" }, staggerLetters: true }],
-}]);
+  effects: [{ id: newId("fx"), type: "typewriter", startTime: 0, duration: 2.5, easing: "linear", targets: { opacity: 1 }, typewriter: { mode: "snap" }, staggerLetters: true, staggerDelay: 0.05 }],
+}], 3);
 
 /* ---- 4. Pop in + scale bounce ---- */
 function PopHero() {
@@ -337,41 +339,23 @@ export function Hero() {
 }`;
 const popProj = makeMiniProject("Make it pop.", [{
   id: newId("comp"), startIndex: 8, endIndex: 12, color: "#d97706",
-  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#d97706", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 },
-  effects: [{ id: newId("fx"), type: "zoom", startTime: 0, duration: 0.7, easing: "ease-out", from: { scale: 0.6, opacity: 0 }, targets: { scale: 1, opacity: 1 } }],
-}], 2);
+  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#d97706", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
+  effects: [{ id: newId("fx"), type: "zoom", startTime: 0.3, duration: 2, easing: "ease-out", from: { scale: 0.6, opacity: 0 }, targets: { scale: 1, opacity: 1 } }],
+}], 2.5);
 
 /* ---- 5. Blur reveal ---- */
 function BlurHero() {
-  return (
-    <h3 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-      <motion.span
-        initial={{ filter: "blur(8px)", opacity: 0 }}
-        animate={{ filter: "blur(0px)", opacity: 1 }}
-        transition={{ duration: 0.7, delay: 0.1, ease: "easeOut" }}
-        style={{ display: "inline-block" }}
-      >Come into focus.</motion.span>
-    </h3>
-  );
+  return ( <h3 className="text-3xl font-extrabold tracking-tight sm:text-4xl"><motion.span initial={{ filter: "blur(8px)", opacity: 0 }} animate={{ filter: "blur(0px)", opacity: 1 }} transition={{ duration: 0.7, delay: 0.1, ease: "easeOut" }} style={{ display: "inline-block" }}>Come into focus.</motion.span></h3> );
 }
 const BLUR_CODE = `import { motion } from "motion/react";
 export function Hero() {
-  return (
-    <h1>
-      <motion.span
-        initial={{ filter: "blur(8px)", opacity: 0 }}
-        animate={{ filter: "blur(0px)", opacity: 1 }}
-        transition={{ duration: 0.7, delay: 0.1, ease: "easeOut" }}
-        style={{ display: "inline-block" }}
-      >Come into focus.</motion.span>
-    </h1>
-  );
+  return (<h1><motion.span initial={{ filter: "blur(8px)", opacity: 0 }} animate={{ filter: "blur(0px)", opacity: 1 }} transition={{ duration: 0.7, delay: 0.1, ease: "easeOut" }} style={{ display: "inline-block" }}>Come into focus.</motion.span></h1>);
 }`;
 const blurProj = makeMiniProject("Come into focus.", [{
   id: newId("comp"), startIndex: 0, endIndex: 16, color: "#a78bfa",
   style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#fafafa", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
-  effects: [{ id: newId("fx"), type: "blur", startTime: 0, duration: 0.7, easing: "ease-out", from: { blur: 8, opacity: 0 }, targets: { blur: 0, opacity: 1 } }],
-}]);
+  effects: [{ id: newId("fx"), type: "blur", startTime: 0.1, duration: 2, easing: "ease-out", from: { blur: 8, opacity: 0 }, targets: { blur: 0, opacity: 1 } }],
+}], 2.5);
 
 /* ---- 6. Slide up + fade ---- */
 function SlideUpHero() {
@@ -401,41 +385,9 @@ export function Hero() {
 }`;
 const slideUpProj = makeMiniProject("Rise up slowly.", [{
   id: newId("comp"), startIndex: 0, endIndex: 15, color: "#34d399",
-  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#34d399", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 },
-  effects: [{ id: newId("fx"), type: "slide", startTime: 0, duration: 0.6, easing: "ease-out", from: { opacity: 0, y: 100 }, targets: { opacity: 1, y: 0 } }],
-}], 2);
-
-/* ---- 7. Rotate twist ---- */
-function RotateHero() {
-  return (
-    <h3 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-      <motion.span
-        initial={{ opacity: 0, rotate: -12, scale: 0.8 }}
-        animate={{ opacity: 1, rotate: 0, scale: 1 }}
-        transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
-        style={{ display: "inline-block" }}
-      >Twist into view.</motion.span>
-    </h3>
-  );
-}
-const ROTATE_CODE = `import { motion } from "motion/react";
-export function Hero() {
-  return (
-    <h1>
-      <motion.span
-        initial={{ opacity: 0, rotate: -12, scale: 0.8 }}
-        animate={{ opacity: 1, rotate: 0, scale: 1 }}
-        transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
-        style={{ display: "inline-block" }}
-      >Twist into view.</motion.span>
-    </h1>
-  );
-}`;
-const rotateProj = makeMiniProject("Twist into view.", [{
-  id: newId("comp"), startIndex: 0, endIndex: 16, color: "#f472b6",
-  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#fafafa", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 },
-  effects: [{ id: newId("fx"), type: "rotate", startTime: 0, duration: 0.6, easing: "ease-out", from: { opacity: 0, rotation: -12 }, targets: { opacity: 1, rotation: 0 } }],
-}]);
+  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#34d399", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
+  effects: [{ id: newId("fx"), type: "slide", startTime: 0.2, duration: 2.5, easing: "ease-out", from: { opacity: 0, y: 40 }, targets: { opacity: 1, y: 0 } }],
+}], 3);
 
 /* ---- 8. Color flash ---- */
 function ColorFlashHero() {
@@ -468,8 +420,8 @@ export function Hero() {
 const colorFlashProj = makeMiniProject("Turn up the heat.", [{
   id: newId("comp"), startIndex: 12, endIndex: 17, color: "#f97316",
   style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#f97316", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
-  effects: [{ id: newId("fx"), type: "color-shift", startTime: 0, duration: 0.6, easing: "ease-out", from: { color: "#a3a3a3" }, targets: { color: "#f97316" } }],
-}]);
+  effects: [{ id: newId("fx"), type: "color-shift", startTime: 0.3, duration: 2.5, easing: "ease-out", from: { color: "#a3a3a3" }, targets: { color: "#f97316" } }],
+}], 3);
 
 /* ---- 9. Stagger zoom ---- */
 function StaggerZoomHero() {
@@ -511,45 +463,9 @@ export function Hero() {
 }`;
 const staggerZoomProj = makeMiniProject("Amplify", [{
   id: newId("comp"), startIndex: 0, endIndex: 7, color: "#818cf8",
-  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#fafafa", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 },
-  effects: [{ id: newId("fx"), type: "zoom", startTime: 0, duration: 0.8, easing: "ease-out", from: { scale: 0.5, opacity: 0, y: 20 }, targets: { scale: 1, opacity: 1, y: 0 }, staggerLetters: true, staggerDelay: 0.06 }],
-}], 2);
-
-/* ---- 10. Masked slide ---- */
-function MaskSlideHero() {
-  return (
-    <h3 className="text-3xl font-bold tracking-tight sm:text-4xl">
-      <span style={{ display: "inline-block", overflow: "hidden", verticalAlign: "bottom" }}>
-        <motion.span
-          initial={{ x: -200, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
-          style={{ display: "inline-block" }}
-        >Reveal from behind.</motion.span>
-      </span>
-    </h3>
-  );
-}
-const MASK_SLIDE_CODE = `import { motion } from "motion/react";
-export function Hero() {
-  return (
-    <h1>
-      <span style={{ display: "inline-block", overflow: "hidden", verticalAlign: "bottom" }}>
-        <motion.span
-          initial={{ x: -200, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
-          style={{ display: "inline-block" }}
-        >Reveal from behind.</motion.span>
-      </span>
-    </h1>
-  );
-}`;
-const maskSlideProj = makeMiniProject("Reveal from behind.", [{
-  id: newId("comp"), startIndex: 0, endIndex: 19, color: "#2dd4bf",
-  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#fafafa", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 },
-  effects: [{ id: newId("fx"), type: "slide", startTime: 0, duration: 0.6, easing: "ease-out", from: { opacity: 0, x: -100 }, targets: { opacity: 1, x: 0 }, maskBox: true }],
-}]);
+  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#fafafa", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
+  effects: [{ id: newId("fx"), type: "zoom", startTime: 0.2, duration: 2.5, easing: "ease-out", from: { scale: 0.5, opacity: 0, y: 20 }, targets: { scale: 1, opacity: 1, y: 0 }, staggerLetters: true, staggerDelay: 0.06 }],
+}], 3);
 
 /* ---- 11. Spring bounce ---- */
 function BounceHero() {
@@ -579,9 +495,9 @@ export function Hero() {
 }`;
 const bounceProj = makeMiniProject("Boing!", [{
   id: newId("comp"), startIndex: 0, endIndex: 6, color: "#facc15",
-  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#fafafa", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 },
-  effects: [{ id: newId("fx"), type: "slide", startTime: 0, duration: 0.5, easing: "spring", from: { opacity: 0, y: -100 }, targets: { opacity: 1, y: 0 } }],
-}]);
+  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#fafafa", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
+  effects: [{ id: newId("fx"), type: "slide", startTime: 0, duration: 2, easing: "spring", from: { opacity: 0, y: -40 }, targets: { opacity: 1, y: 0 } }],
+}], 2.5);
 
 /* ---- 12. Multi-word cascade ---- */
 function CascadeHero() {
@@ -618,10 +534,10 @@ export function Hero() {
   );
 }`;
 const cascadeProj = makeMiniProject("Design. Build. Ship.", [
-  { id: newId("comp"), startIndex: 0, endIndex: 7, color: "#38bdf8", style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#38bdf8", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 }, effects: [{ id: newId("fx"), type: "slide", startTime: 0, duration: 0.5, easing: "ease-out", from: { opacity: 0, x: -50 }, targets: { opacity: 1, x: 0 } }] },
-  { id: newId("comp"), startIndex: 8, endIndex: 14, color: "#f472b6", style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#f472b6", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 }, effects: [{ id: newId("fx"), type: "slide", startTime: 0.25, duration: 0.5, easing: "ease-out", from: { opacity: 0, x: -50 }, targets: { opacity: 1, x: 0 } }] },
-  { id: newId("comp"), startIndex: 15, endIndex: 20, color: "#a78bfa", style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#a78bfa", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 }, effects: [{ id: newId("fx"), type: "slide", startTime: 0.5, duration: 0.5, easing: "ease-out", from: { opacity: 0, x: -50 }, targets: { opacity: 1, x: 0 } }] },
-], 3);
+  { id: newId("comp"), startIndex: 0, endIndex: 7, color: "#38bdf8", style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#38bdf8", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 }, effects: [{ id: newId("fx"), type: "slide", startTime: 0.2, duration: 2.5, easing: "ease-out", from: { opacity: 0, x: -30 }, targets: { opacity: 1, x: 0 } }] },
+  { id: newId("comp"), startIndex: 8, endIndex: 14, color: "#f472b6", style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#f472b6", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 }, effects: [{ id: newId("fx"), type: "slide", startTime: 0.45, duration: 2.5, easing: "ease-out", from: { opacity: 0, x: -30 }, targets: { opacity: 1, x: 0 } }] },
+  { id: newId("comp"), startIndex: 15, endIndex: 20, color: "#a78bfa", style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#a78bfa", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 }, effects: [{ id: newId("fx"), type: "slide", startTime: 0.7, duration: 2.5, easing: "ease-out", from: { opacity: 0, x: -30 }, targets: { opacity: 1, x: 0 } }] },
+], 3.5);
 
 /* ---- 13. Particle burst ---- */
 function ParticleBurstHero() {
@@ -681,10 +597,10 @@ const particleProj = makeMiniProject("Sprinkle magic.", [{
   id: newId("comp"), startIndex: 9, endIndex: 15, color: "#fbbf24",
   style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#fbbf24", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
   effects: [
-    { id: newId("fx"), type: "zoom", startTime: 0, duration: 0.5, easing: "ease-out", from: { scale: 0.8, opacity: 0 }, targets: { scale: 1, opacity: 1 } },
-    { id: newId("fx"), type: "particle", startTime: 0, duration: 2, easing: "linear", targets: {}, particle: { density: 18, size: 14, color: "#fbbf24", preset: "gold", shape: "star", type: "standard", mode: "around", rangePx: 40, continueAfter: false } },
+    { id: newId("fx"), type: "zoom", startTime: 0.2, duration: 3, easing: "ease-out", from: { scale: 0.8, opacity: 0 }, targets: { scale: 1, opacity: 1 } },
+    { id: newId("fx"), type: "particle", startTime: 0, duration: 3, easing: "linear", targets: {}, particle: { density: 18, size: 14, color: "#fbbf24", preset: "gold", shape: "star", type: "standard", mode: "around", rangePx: 40 } },
   ],
-}]);
+}], 3.5);
 
 /* ---- 14. Fireworks launch ---- */
 function FireworksHero() {
@@ -744,44 +660,12 @@ export function Hero() {
 }`;
 const fireworksProj = makeMiniProject("Celebrate!", [{
   id: newId("comp"), startIndex: 0, endIndex: 10, color: "#f87171",
-  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#f87171", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 },
+  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#f87171", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
   effects: [
-    { id: newId("fx"), type: "slide", startTime: 0, duration: 0.6, easing: "ease-out", from: { opacity: 0, y: 100 }, targets: { opacity: 1, y: 0 } },
-    { id: newId("fx"), type: "fireworks-js", startTime: 0.5, duration: 2.5, easing: "linear", targets: {}, fireworks: { density: 60, explosion: 6, gravity: 1.5, opacity: 0.6, flickering: 50, acceleration: 1.05, friction: 0.97, traceLength: 3, traceSpeed: 10, intensity: 35, lineStyle: "round", mode: "around", spreadRadius: 200, delayMin: 80, delayMax: 300, brightnessMin: 50, brightnessMax: 80, decayMin: 0.015, decayMax: 0.03, hueMin: 0, hueMax: 30, continueAfter: false } },
+    { id: newId("fx"), type: "slide", startTime: 0.1, duration: 4, easing: "ease-out", from: { opacity: 0, y: 30 }, targets: { opacity: 1, y: 0 } },
+    { id: newId("fx"), type: "fireworks-js", startTime: 0.5, duration: 3.5, easing: "linear", targets: {}, fireworks: { density: 60, explosion: 6, gravity: 1.5, opacity: 0.6, flickering: 50, acceleration: 1.05, friction: 0.97, traceLength: 3, traceSpeed: 10, intensity: 35, lineStyle: "round", mode: "around", spreadRadius: 200, delayMin: 80, delayMax: 300, brightnessMin: 50, brightnessMax: 80, decayMin: 0.015, decayMax: 0.03, hueMin: 0, hueMax: 30 } },
   ],
-}], 3.5);
-
-/* ---- 15. Double zoom ---- */
-function DoubleZoomHero() {
-  return (
-    <h3 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-      <motion.span
-        initial={{ opacity: 0, scale: 0.3, y: -20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1, ease: [0.34, 1.56, 0.64, 1] }}
-        style={{ display: "inline-block" }}
-      >Pop out!</motion.span>
-    </h3>
-  );
-}
-const DOUBLE_ZOOM_CODE = `import { motion } from "motion/react";
-export function Hero() {
-  return (
-    <h1>
-      <motion.span
-        initial={{ opacity: 0, scale: 0.3, y: -20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1, ease: [0.34, 1.56, 0.64, 1] }}
-        style={{ display: "inline-block" }}
-      >Pop out!</motion.span>
-    </h1>
-  );
-}`;
-const doubleZoomProj = makeMiniProject("Pop out!", [{
-  id: newId("comp"), startIndex: 0, endIndex: 8, color: "#c084fc",
-  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#c084fc", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 },
-  effects: [{ id: newId("fx"), type: "zoom", startTime: 0, duration: 0.5, easing: "ease-out", from: { scale: 0.3, opacity: 0, y: -60 }, targets: { scale: 1, opacity: 1, y: 0 } }],
-}]);
+}], 4.5);
 
 /* ---- 16. Fade + letter-spacing reveal ---- */
 function LetterSpacingHero() {
@@ -823,9 +707,54 @@ export function Hero() {
 }`;
 const letterSpacingProj = makeMiniProject("Stretch", [{
   id: newId("comp"), startIndex: 0, endIndex: 7, color: "#34d399",
-  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#fafafa", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 },
-  effects: [{ id: newId("fx"), type: "fade", startTime: 0, duration: 0.6, easing: "ease-out", targets: { opacity: 1 }, staggerLetters: true, staggerDelay: 0.04 }],
-}]);
+  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#fafafa", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
+  effects: [{ id: newId("fx"), type: "zoom", startTime: 0.05, duration: 2.5, easing: "ease-out", from: { opacity: 0 }, targets: { opacity: 1 }, staggerLetters: true, staggerDelay: 0.04 }],
+}], 3);
+
+/* ---- 7. Rotate twist ---- */
+function RotateHero() {
+  return ( <h3 className="text-3xl font-extrabold tracking-tight sm:text-4xl"><motion.span initial={{ opacity: 0, rotate: -12, scale: 0.8 }} animate={{ opacity: 1, rotate: 0, scale: 1 }} transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }} style={{ display: "inline-block" }}>Twist into view.</motion.span></h3> );
+}
+const ROTATE_CODE = `import { motion } from "motion/react";
+export function Hero() {
+  return (<h1><motion.span initial={{ opacity: 0, rotate: -12, scale: 0.8 }} animate={{ opacity: 1, rotate: 0, scale: 1 }} transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }} style={{ display: "inline-block" }}>Twist into view.</motion.span></h1>);
+}`;
+
+const rotateProj = makeMiniProject("Twist into view.", [{
+  id: newId("comp"), startIndex: 0, endIndex: 16, color: "#f472b6",
+  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#fafafa", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
+  effects: [{ id: newId("fx"), type: "rotate", startTime: 0.1, duration: 2.5, easing: "ease-out", from: { opacity: 0, rotation: -12, scale: 0.8 }, targets: { opacity: 1, rotation: 0, scale: 1 } }],
+}], 3);
+
+/* ---- 10. Masked slide ---- */
+function MaskSlideHero() {
+  return ( <h3 className="text-3xl font-bold tracking-tight sm:text-4xl"><span style={{ display: "inline-block", overflow: "hidden", verticalAlign: "bottom" }}><motion.span initial={{ x: -200, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }} style={{ display: "inline-block" }}>Reveal from behind.</motion.span></span></h3> );
+}
+const MASK_SLIDE_CODE = `import { motion } from "motion/react";
+export function Hero() {
+  return (<h1><span style={{ display: "inline-block", overflow: "hidden", verticalAlign: "bottom" }}><motion.span initial={{ x: -200, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }} style={{ display: "inline-block" }}>Reveal from behind.</motion.span></span></h1>);
+}`;
+
+const maskSlideProj = makeMiniProject("Reveal from behind.", [{
+  id: newId("comp"), startIndex: 0, endIndex: 19, color: "#2dd4bf",
+  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#fafafa", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
+  effects: [{ id: newId("fx"), type: "slide", startTime: 0.3, duration: 2.5, easing: "ease-out", from: { opacity: 0, x: -200 }, targets: { opacity: 1, x: 0 }, maskBox: true }],
+}], 3);
+
+/* ---- 15. Double zoom pop ---- */
+function DoubleZoomHero() {
+  return ( <h3 className="text-3xl font-extrabold tracking-tight sm:text-4xl"><motion.span initial={{ opacity: 0, scale: 0.3, y: -20 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1, ease: [0.34, 1.56, 0.64, 1] }} style={{ display: "inline-block" }}>Pop out!</motion.span></h3> );
+}
+const DOUBLE_ZOOM_CODE = `import { motion } from "motion/react";
+export function Hero() {
+  return (<h1><motion.span initial={{ opacity: 0, scale: 0.3, y: -20 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1, ease: [0.34, 1.56, 0.64, 1] }} style={{ display: "inline-block" }}>Pop out!</motion.span></h1>);
+}`;
+
+const doubleZoomProj = makeMiniProject("Pop out!", [{
+  id: newId("comp"), startIndex: 0, endIndex: 8, color: "#c084fc",
+  style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 800, color: "#c084fc", letterSpacing: -1, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
+  effects: [{ id: newId("fx"), type: "zoom", startTime: 0.1, duration: 2, easing: "ease-out", from: { scale: 0.3, opacity: 0, y: -20 }, targets: { scale: 1, opacity: 1, y: 0 } }],
+}], 2.5);
 
 /* ---- Register all 16 ---- */
 interface ExampleEntry {
