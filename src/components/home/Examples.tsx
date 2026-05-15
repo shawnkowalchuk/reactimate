@@ -246,7 +246,7 @@ export function Hero() {
   );
 }`;
 const slideProj = makeMiniProject("The new way to animate.", [{
-  id: newId("comp"), startIndex: 13, endIndex: 21, color: "#0ea5e9",
+  id: newId("comp"), startIndex: 15, endIndex: 23, color: "#0ea5e9",
   style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#0ea5e9", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
   effects: [{ id: newId("fx"), type: "slide", startTime: 0, duration: 0.7, easing: "ease-out", from: { opacity: 0, x: -100 }, targets: { opacity: 1, x: 0 } }],
 }]);
@@ -302,7 +302,7 @@ export function Hero() {
   );
 }`;
 const typewriterProj = makeMiniProject("Type it out,\ncharacter by character.", [{
-  id: newId("comp"), startIndex: 0, endIndex: 37, color: "#22d3ee",
+  id: newId("comp"), startIndex: 0, endIndex: 36, color: "#22d3ee",
   style: { fontFamily: "ui-monospace, monospace", fontSize: 36, fontWeight: 400, color: "#fafafa", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 1, scale: 1, rotation: 0, blur: 0 },
   effects: [{ id: newId("fx"), type: "typewriter", startTime: 0, duration: 2, easing: "linear", targets: { opacity: 1 }, typewriter: { mode: "snap" }, staggerLetters: true }],
 }]);
@@ -546,7 +546,7 @@ export function Hero() {
   );
 }`;
 const maskSlideProj = makeMiniProject("Reveal from behind.", [{
-  id: newId("comp"), startIndex: 0, endIndex: 20, color: "#2dd4bf",
+  id: newId("comp"), startIndex: 0, endIndex: 19, color: "#2dd4bf",
   style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#fafafa", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 },
   effects: [{ id: newId("fx"), type: "slide", startTime: 0, duration: 0.6, easing: "ease-out", from: { opacity: 0, x: -100 }, targets: { opacity: 1, x: 0 }, maskBox: true }],
 }]);
@@ -618,9 +618,9 @@ export function Hero() {
   );
 }`;
 const cascadeProj = makeMiniProject("Design. Build. Ship.", [
-  { id: newId("comp"), startIndex: 0, endIndex: 8, color: "#38bdf8", style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#38bdf8", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 }, effects: [{ id: newId("fx"), type: "slide", startTime: 0, duration: 0.5, easing: "ease-out", from: { opacity: 0, x: -50 }, targets: { opacity: 1, x: 0 } }] },
-  { id: newId("comp"), startIndex: 9, endIndex: 15, color: "#f472b6", style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#f472b6", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 }, effects: [{ id: newId("fx"), type: "slide", startTime: 0.25, duration: 0.5, easing: "ease-out", from: { opacity: 0, x: -50 }, targets: { opacity: 1, x: 0 } }] },
-  { id: newId("comp"), startIndex: 16, endIndex: 21, color: "#a78bfa", style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#a78bfa", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 }, effects: [{ id: newId("fx"), type: "slide", startTime: 0.5, duration: 0.5, easing: "ease-out", from: { opacity: 0, x: -50 }, targets: { opacity: 1, x: 0 } }] },
+  { id: newId("comp"), startIndex: 0, endIndex: 7, color: "#38bdf8", style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#38bdf8", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 }, effects: [{ id: newId("fx"), type: "slide", startTime: 0, duration: 0.5, easing: "ease-out", from: { opacity: 0, x: -50 }, targets: { opacity: 1, x: 0 } }] },
+  { id: newId("comp"), startIndex: 8, endIndex: 14, color: "#f472b6", style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#f472b6", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 }, effects: [{ id: newId("fx"), type: "slide", startTime: 0.25, duration: 0.5, easing: "ease-out", from: { opacity: 0, x: -50 }, targets: { opacity: 1, x: 0 } }] },
+  { id: newId("comp"), startIndex: 15, endIndex: 20, color: "#a78bfa", style: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 72, fontWeight: 700, color: "#a78bfa", letterSpacing: 0, alignment: "center", x: 0, y: 0, opacity: 0, scale: 1, rotation: 0, blur: 0 }, effects: [{ id: newId("fx"), type: "slide", startTime: 0.5, duration: 0.5, easing: "ease-out", from: { opacity: 0, x: -50 }, targets: { opacity: 1, x: 0 } }] },
 ], 3);
 
 /* ---- 13. Particle burst ---- */
@@ -647,7 +647,7 @@ function ParticleBurstHero() {
       {stars.map((s) => (
         <motion.div
           key={s.key}
-          className="absolute rounded-full bg-yellow-400"
+          className="absolute rounded-full bg-yellow-400 z-20"
           initial={{ opacity: 0, scale: 0, x: `${s.x}%`, y: `${s.y}%` }}
           animate={{ opacity: [0, 1, 0], scale: [0, 1, 0.5] }}
           transition={{
