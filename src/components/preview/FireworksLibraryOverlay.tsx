@@ -32,7 +32,7 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
     if (e.fireworks.continueAfter && time > e.startTime) { shouldRun = true; break; }
   }
 
-  // Initialize/recreate fireworks instance when config or frame changes.
+  // Initialize fireworks instance once on mount.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !cfg) return;
@@ -40,13 +40,6 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
     if (!frame) return;
     const parent = canvas.parentElement;
     if (!parent) return;
-
-    // Clean up any previous instance.
-    if (fwRef.current) {
-      fwRef.current.stop(true);
-      fwRef.current = null;
-      runningRef.current = false;
-    }
 
     const r = parent.getBoundingClientRect();
     const f = frame.getBoundingClientRect();
@@ -121,8 +114,36 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       fwRef.current = null;
       runningRef.current = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfgKey, frameRef]);
+  }, []);
+
+  // Update live options when config changes without destroying the instance.
+  useEffect(() => {
+    const fw = fwRef.current;
+    if (!fw || !cfg) return;
+    fw.updateOptions({
+      opacity: cfg.opacity ?? 0.5,
+      acceleration: cfg.acceleration ?? 1.05,
+      friction: cfg.friction ?? 0.97,
+      gravity: cfg.gravity ?? 1.5,
+      particles: cfg.density ?? 50,
+      traceLength: cfg.traceLength ?? 3,
+      traceSpeed: cfg.traceSpeed ?? 10,
+      explosion: cfg.explosion ?? 5,
+      intensity: cfg.intensity ?? 30,
+      flickering: cfg.flickering ?? 50,
+      lineStyle: (cfg.lineStyle as "round" | "square") ?? "round",
+      hue: { min: cfg.hueMin ?? 0, max: cfg.hueMax ?? 360 },
+      delay: { min: cfg.delayMin ?? 10, max: cfg.delayMax ?? 60 },
+      rocketsPoint: { min: cfg.rocketsPointMin ?? 30, max: cfg.rocketsPointMax ?? 70 },
+      lineWidth: {
+        explosion: { min: cfg.lineWidthExpMin ?? 1, max: cfg.lineWidthExpMax ?? 3 },
+        trace: { min: cfg.lineWidthTraceMin ?? 1, max: cfg.lineWidthTraceMax ?? 2 },
+      },
+      brightness: { min: cfg.brightnessMin ?? 50, max: cfg.brightnessMax ?? 80 },
+      decay: { min: cfg.decayMin ?? 0.015, max: cfg.decayMax ?? 0.03 },
+      mouse: { click: cfg.followMouse ?? false, move: false, max: 1 },
+    });
+  }, [cfgKey]);
 
   // Start / stop based on shouldRun.
   useEffect(() => {

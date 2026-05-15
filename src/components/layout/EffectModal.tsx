@@ -617,7 +617,7 @@ function SpotlightPanel({ spotlight, onChange }: SpotlightPanelProps) {
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-xs text-neutral-500">Opacity</span>
+          <span className="text-xs text-neutral-500">Opacity <span className="text-[10px] text-neutral-400">0–1</span></span>
           <input
             type="number"
             min={0}
@@ -1573,6 +1573,10 @@ function PropInput({ prop, value, onChange, unit }: PropInputProps) {
       />
       {unit ? (
         <span className="text-[11px] text-neutral-400">{unit}</span>
+      ) : prop === "opacity" ? (
+        <span className="text-[10px] text-neutral-400">0–1</span>
+      ) : prop === "scale" ? (
+        <span className="text-[10px] text-neutral-400">1 = 100%</span>
       ) : null}
     </div>
   );
