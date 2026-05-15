@@ -14,11 +14,15 @@ import { AdminFeedbackDetail } from "./pages/admin/AdminFeedbackDetail";
 import { AuthGate } from "./auth/AuthGate";
 import { AdminGate } from "./auth/AdminGate";
 import { AdminSync } from "./auth/AdminSync";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <AdminSync />
+      <Analytics />
+      <SpeedInsights />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/feedback" element={<FeedbackPage />} />
