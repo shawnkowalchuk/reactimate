@@ -1,23 +1,16 @@
 import { useState, type ReactNode } from "react";
-import { Check, Code2, Copy, Eye, RotateCw } from "lucide-react";
+import { Check, Code2, Copy, Edit3, Eye, RotateCw } from "lucide-react";
 
 interface MotionExampleProps {
   title: string;
   caption?: string;
-  /** The rendered, animated demo. */
   demo: ReactNode;
-  /** The JSX source — what the user would get from exporting. */
   code: string;
-  /** Bumping this remounts `demo` so the user can replay the animation. */
   replayKey: number;
   onReplay: () => void;
-  /**
-   * Background for the demo frame. Lets each example show its own
-   * intended target (dark vs light site).
-   */
   background?: string;
-  /** Optional override for the demo frame's text color. */
   textColor?: string;
+  onOpenInEditor?: () => void;
 }
 
 export function MotionExample({
@@ -27,6 +20,7 @@ export function MotionExample({
   code,
   replayKey,
   onReplay,
+  onOpenInEditor,
   background = "#0a0a0a",
   textColor = "#fafafa",
 }: MotionExampleProps) {
@@ -53,6 +47,17 @@ export function MotionExample({
           )}
         </div>
         <div className="flex items-center gap-1 text-[11px]">
+          {onOpenInEditor && (
+            <button
+              type="button"
+              onClick={onOpenInEditor}
+              className="inline-flex items-center gap-1 rounded px-2 py-1 text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-950/40"
+              title="Open this example in the editor"
+            >
+              <Edit3 size={11} />
+              Editor
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setTab("preview")}

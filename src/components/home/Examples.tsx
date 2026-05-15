@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { ChevronLeft, ChevronRight, Edit3 } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Fireworks } from "fireworks-js";
 import { useProjectStore } from "../../store/projectStore";
 import type { Project } from "../../types/project";
 import { newId } from "../../utils/id";
@@ -119,26 +120,18 @@ export function Examples() {
                 {slice.map((ex, idx) => {
                   const globalIdx = page * PER_PAGE + idx;
                   return (
-                    <div key={globalIdx} className="relative group">
+                    <div key={globalIdx}>
                       <MotionExample
                         title={ex.title}
                         caption={ex.caption}
                         replayKey={replayKeyFor(shuffled.indexOf(ex))}
                         onReplay={() => bump(shuffled.indexOf(ex))}
+                        onOpenInEditor={() => onOpenInEditor(ex.project)}
                         background={ex.background}
                         textColor={ex.textColor}
                         demo={ex.demo}
                         code={ex.code}
                       />
-                      <button
-                        type="button"
-                        onClick={() => onOpenInEditor(ex.project)}
-                        className="absolute right-4 top-1.5 z-10 inline-flex items-center gap-1 rounded-md bg-sky-500 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-sky-400"
-                        title="Open this example in the editor"
-                      >
-                        <Edit3 size={11} />
-                        Open in Editor
-                      </button>
                     </div>
                   );
                 })}
@@ -632,16 +625,42 @@ const cascadeProj = makeMiniProject("Design. Build. Ship.", [
 
 /* ---- 13. Particle burst ---- */
 function ParticleBurstHero() {
+  const stars = Array.from({ length: 24 }, (_, i) => ({
+    key: i,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    size: 4 + Math.random() * 8,
+    delay: Math.random() * 1.5,
+    duration: 0.8 + Math.random() * 1.2,
+  }));
   return (
-    <h3 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-      Sprinkle{" "}
-      <motion.span
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
-        style={{ display: "inline-block", color: "#fbbf24" }}
-      >magic.</motion.span>
-    </h3>
+    <div className="relative">
+      <h3 className="text-3xl font-extrabold tracking-tight sm:text-4xl relative z-10">
+        Sprinkle{" "}
+        <motion.span
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+          style={{ display: "inline-block", color: "#fbbf24" }}
+        >magic.</motion.span>
+      </h3>
+      {stars.map((s) => (
+        <motion.div
+          key={s.key}
+          className="absolute rounded-full bg-yellow-400"
+          initial={{ opacity: 0, scale: 0, x: `${s.x}%`, y: `${s.y}%` }}
+          animate={{ opacity: [0, 1, 0], scale: [0, 1, 0.5] }}
+          transition={{
+            duration: s.duration,
+            delay: s.delay,
+            repeat: Infinity,
+            repeatDelay: Math.random() * 2,
+            ease: "easeInOut",
+          }}
+          style={{ width: s.size, height: s.size }}
+        />
+      ))}
+    </div>
   );
 }
 const PARTICLE_CODE = `import { motion } from "motion/react";
@@ -669,15 +688,45 @@ const particleProj = makeMiniProject("Sprinkle magic.", [{
 
 /* ---- 14. Fireworks launch ---- */
 function FireworksHero() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fwRef = useRef<Fireworks | null>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.width = canvas.parentElement?.clientWidth ?? 300;
+    canvas.height = 160;
+    const fw = new Fireworks(canvas, {
+      autoresize: false,
+      opacity: 0.6,
+      particles: 60,
+      explosion: 6,
+      intensity: 30,
+      delay: { min: 60, max: 200 },
+      hue: { min: 0, max: 30 },
+      rocketsPoint: { min: 30, max: 70 },
+      lineWidth: { explosion: { min: 1, max: 3 }, trace: { min: 1, max: 2 } },
+      mouse: { click: false, move: false, max: 1 },
+      sound: { enabled: false },
+    });
+    fwRef.current = fw;
+    fw.start();
+    return () => {
+      fw.stop(true);
+      fwRef.current = null;
+    };
+  }, []);
   return (
-    <h3 className="text-3xl font-bold tracking-tight sm:text-4xl">
-      <motion.span
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
-        style={{ display: "inline-block", color: "#f87171" }}
-      >Celebrate!</motion.span>
-    </h3>
+    <div className="relative">
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+      <h3 className="text-3xl font-bold tracking-tight sm:text-4xl relative z-10">
+        <motion.span
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
+          style={{ display: "inline-block", color: "#f87171" }}
+        >Celebrate!</motion.span>
+      </h3>
+    </div>
   );
 }
 const FIREWORKS_CODE = `import { motion } from "motion/react";
@@ -802,8 +851,8 @@ const EXAMPLES: ExampleEntry[] = [
   { title: "Masked slide", caption: "Text slides in from behind a bounding box", demo: <MaskSlideHero />, code: MASK_SLIDE_CODE, background: "#0f172a", textColor: "#2dd4bf", project: maskSlideProj },
   { title: "Spring bounce", caption: "Falls in with spring physics for a playful entrance", demo: <BounceHero />, code: BOUNCE_CODE, background: "#1c1917", textColor: "#facc15", project: bounceProj },
   { title: "Multi-word cascade", caption: "Three words cascade in staggered sequence", demo: <CascadeHero />, code: CASCADE_CODE, background: "#0f172a", textColor: "#fafafa", project: cascadeProj },
-  { title: "Particle burst", caption: "Zoom-in (particle stars activate in editor)", demo: <ParticleBurstHero />, code: PARTICLE_CODE, background: "#1c1917", textColor: "#fafafa", project: particleProj },
-  { title: "Fireworks launch", caption: "Slide-in (fireworks activate in editor)", demo: <FireworksHero />, code: FIREWORKS_CODE, background: "#0f172a", textColor: "#f87171", project: fireworksProj },
+  { title: "Particle burst", caption: "Zoom-in with floating star particles", demo: <ParticleBurstHero />, code: PARTICLE_CODE, background: "#1c1917", textColor: "#fafafa", project: particleProj },
+  { title: "Fireworks launch", caption: "Text slides up over real firework bursts", demo: <FireworksHero />, code: FIREWORKS_CODE, background: "#0f172a", textColor: "#f87171", project: fireworksProj },
   { title: "Double zoom pop", caption: "Springy zoom from 0.3x with custom cubic bezier", demo: <DoubleZoomHero />, code: DOUBLE_ZOOM_CODE, background: "#1e1b4b", textColor: "#c084fc", project: doubleZoomProj },
   { title: "Letter-spacing reveal", caption: "Characters compress into place with stagger", demo: <LetterSpacingHero />, code: LETTER_SPACING_CODE, background: "#022c22", textColor: "#34d399", project: letterSpacingProj },
 ];
