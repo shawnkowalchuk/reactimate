@@ -47,6 +47,10 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
       const overlayRect = overlay.getBoundingClientRect();
       const textLen = textNode.textContent?.length ?? 0;
 
+      // Preserve selection so Range ops don't interfere with caret.
+      const sel = window.getSelection();
+      const savedRanges = sel ? Array.from({ length: sel.rangeCount }, (_, i) => sel.getRangeAt(i).cloneRange()) : [];
+
       const next: RectGroup[] = components.map((c) => {
         const start = clamp(c.startIndex, 0, textLen);
         const end = clamp(c.endIndex, 0, textLen);
@@ -72,6 +76,12 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
           })),
         };
       });
+
+      // Restore selection.
+      if (sel) {
+        sel.removeAllRanges();
+        savedRanges.forEach(r => sel.addRange(r));
+      }
 
       setGroups(next);
       });
