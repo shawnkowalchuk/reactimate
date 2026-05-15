@@ -239,6 +239,9 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
       const multiplier = particleType === "fireworks" ? 8 : 1;
       const total = Math.max(1, Math.round(cfg.density * lifespan * multiplier));
       const cyclesSince = Math.floor((time - end) / lifespan);
+      const eSeed = hash(e.id);
+      const gwX = particleType !== "standard" ? Math.sin(time * 0.4 + eSeed) * 40 + Math.cos(time * 0.65 + eSeed + 1) * 30 : 0;
+      const gwY = 0;
       for (let cycle = cyclesSince - 1; cycle <= cyclesSince; cycle++) {
         if (cycle < 0) continue;
         const anchor = end + cycle * lifespan;
@@ -249,12 +252,8 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
           const seed = hash(`${e.id}_cont_${i}_c${cycle}${particleType === "standard" ? "_" + Math.floor(time * 20) : ""}`);
           const path = particlePath(particleType, seed, useW, useH, padding, age, lifespan);
           if (!path) continue;
-          const px = particleType !== "standard" 
-            ? path.x + Math.sin(time * 0.7 + pseudo(seed, 10) * 100) * 18 + Math.cos(time * 1.1 + pseudo(seed, 11) * 80) * 14
-            : path.x;
-          const py = particleType !== "standard"
-            ? path.y + Math.cos(time * 0.6 + pseudo(seed, 12) * 120) * 14 + Math.sin(time * 0.9 + pseudo(seed, 13) * 90) * 12
-            : path.y;
+          const px = path.x + gwX;
+          const py = path.y + gwY;
           const baseRot = pseudo(seed, 3) * 360;
           const rotation = baseRot + rotSpeed * age;
           const sizeMul = 1 + (pseudo(seed, 4) - 0.5) * 2 * sizeJitter;
@@ -276,21 +275,18 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
     } else {
       const multiplier = particleType === "fireworks" ? 8 : 1;
       const total = Math.max(1, Math.round(cfg.density * e.duration * multiplier));
+      const eSeed = hash(e.id);
+      const gwX = particleType !== "standard" ? Math.sin(time * 0.4 + eSeed) * 40 + Math.cos(time * 0.65 + eSeed + 1) * 30 : 0;
+      const gwY = 0;
       for (let i = 0; i < total; i++) {
-        // For standard particles, mix time into seed for gentle drift.
-        // For fireworks/volcano/dropping, keep seed stable so animation is smooth.
         const seed = hash(`${e.id}_${i}${particleType === "standard" ? "_" + Math.floor(time * 20) : ""}`);
         const spawnT = e.startTime + (i / total) * e.duration;
         const age = time - spawnT;
         if (age < 0 || age > lifespan) continue;
         const path = particlePath(particleType, seed, useW, useH, padding, age, lifespan);
         if (!path) continue;
-        const px = particleType !== "standard" 
-          ? path.x + Math.sin(time * 0.7 + pseudo(seed, 10) * 100) * 18 + Math.cos(time * 1.1 + pseudo(seed, 11) * 80) * 14
-          : path.x;
-        const py = particleType !== "standard"
-          ? path.y + Math.cos(time * 0.6 + pseudo(seed, 12) * 120) * 14 + Math.sin(time * 0.9 + pseudo(seed, 13) * 90) * 12
-          : path.y;
+        const px = path.x + gwX;
+        const py = path.y + gwY;
         const baseRot = pseudo(seed, 3) * 360;
         const rotation = baseRot + rotSpeed * age;
         const sizeMul = 1 + (pseudo(seed, 4) - 0.5) * 2 * sizeJitter;
