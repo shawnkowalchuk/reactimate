@@ -35,8 +35,10 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
     const overlay = overlayRef.current;
     if (!editor || !overlay) return;
 
+    let rafId = 0;
     const compute = () => {
-      requestAnimationFrame(() => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
       const textNode = findTextNode(editor);
       if (!textNode) {
         setGroups([]);
@@ -79,11 +81,11 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
     const ro = new ResizeObserver(compute);
     ro.observe(editor);
     window.addEventListener("resize", compute);
-    // Also recompute after fonts may have loaded async (Google Fonts).
     if (document.fonts) {
       document.fonts.ready.then(compute).catch(() => undefined);
     }
     return () => {
+      cancelAnimationFrame(rafId);
       ro.disconnect();
       window.removeEventListener("resize", compute);
     };
