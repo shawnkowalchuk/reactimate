@@ -61,14 +61,18 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
         } catch {
           continue;
         }
-        const r = range.getBoundingClientRect();
+        const bRect = range.getBoundingClientRect();
+        // Use getClientRects first rect for tighter vertical bounds
+        // (getBoundingClientRect can include extra line-height space).
+        const lines = Array.from(range.getClientRects());
+        const firstLine = lines.length > 0 ? lines[0] : bRect;
         next.push({
           id: c.id,
           color: c.color,
-          top: r.top - overlayRect.top,
-          left: r.left - overlayRect.left,
-          width: r.width,
-          height: r.height,
+          top: firstLine.top - overlayRect.top,
+          left: bRect.left - overlayRect.left,
+          width: bRect.width,
+          height: firstLine.height,
         });
       }
 
