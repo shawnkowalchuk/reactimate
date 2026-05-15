@@ -5,6 +5,7 @@ import type { RegisterElement, RegisterShape } from "../../playback/useAnimation
 import { useCanvasScaleStore } from "../../store/canvasScaleStore";
 import { RenderedText } from "./RenderedText";
 import { SpotlightOverlay } from "./SpotlightOverlay";
+import { EffectAreaOverlay } from "./EffectAreaOverlay";
 
 interface PreviewCanvasProps {
   project: Project;
@@ -96,6 +97,12 @@ export function PreviewCanvas({ project, registerElement, registerShape }: Previ
             frameRef={frameRef}
           />
         </div>
+        {/* Always-visible (while editing) draggable rectangles for any
+            particle / fireworks effect's spawn / target area. Sits ABOVE
+            the rendered text so the bbox handles are clickable, but its
+            wrapper has pointer-events: none so it never blocks the editor's
+            other interactions. */}
+        <EffectAreaOverlay project={project} scale={scale} />
       </div>
       <div className="pointer-events-none absolute bottom-2 right-3 flex items-center gap-1 text-[11px] text-neutral-500">
         <button

@@ -115,8 +115,8 @@ export interface Effect {
     sweepY?: number;
   };
   /**
-   * For "particle" effects: small star particles rendered randomly within
-   * the OWNING component's text bounding box during the effect's window.
+   * For "particle" effects: small star particles spawned within the
+   * effect's `area` rectangle during its time window.
    */
   particle?: {
     /** Particles spawned per second. */
@@ -137,15 +137,14 @@ export interface Effect {
      */
     type?: "standard" | "fireworks" | "volcano" | "dropping";
     /**
-     * - "component" : random points inside the text bounding box
-     * - "around"    : same bbox, extended outward by `rangePx` on each side
-     * - "follow"    : particles spawn at the mouse cursor over the canvas
-     * - "hover"     : like follow, but ONLY while the cursor is inside
-     *                 the component's text bounding box
+     * Spawn placement:
+     *  - "area"   : random points inside `area` (default)
+     *  - "follow" : particles spawn at the mouse cursor over the canvas
+     *  - "hover"  : like follow, but ONLY while the cursor is inside `area`
      */
-    mode?: "component" | "around" | "follow" | "hover";
-    /** Extra padding around the text bbox for "around" mode (design px). */
-    rangePx?: number;
+    mode?: "area" | "follow" | "hover";
+    /** Spawn rectangle in canvas DESIGN coords (px). Required for "area"/"hover" modes. */
+    area?: EffectArea;
     /** Px jitter from the cursor when spawning in follow/hover modes. */
     spawnRadiusPx?: number;
     /** Per-particle lifetime in seconds (overrides auto-derived value). */
@@ -188,14 +187,14 @@ export interface Effect {
     intensity?: number;
     /** Line cap style: round or square. */
     lineStyle?: "round" | "square";
-    /** When true, fireworks launch at the mouse cursor. */
+    /**
+     * "Click to launch" — when true, clicking anywhere on the preview
+     * canvas spawns a firework at the click position. Backed by
+     * fireworks-js's `mouse.click` option.
+     */
     followMouse?: boolean;
-    /** Launch point horizontal range 0-100 (% of canvas width, centered). */
-    rocketsSpread?: number;
-    /** Spawn mode: "component" = on the text, "around" = with spread radius. */
-    mode?: "component" | "around";
-    /** Extra spread around text bbox for "around" mode (design px). */
-    spreadRadius?: number;
+    /** Rocket explosion target rectangle in canvas DESIGN coords (px). */
+    area?: EffectArea;
     /** Inter-burst delay min (ms). */
     delayMin?: number;
     /** Inter-burst delay max (ms). */
@@ -239,6 +238,22 @@ export interface Effect {
     mode: "snap" | "fade";
     shape?: TypewriterShape;
   };
+}
+
+/**
+ * A rectangle in canvas DESIGN coordinates (px relative to project.canvas).
+ * Used by particle and fireworks effects to define their spawn / target area
+ * — NOT a hard clip, just the seed region for spawn positions.
+ */
+export interface EffectArea {
+  /** Top-left corner X (px). */
+  x: number;
+  /** Top-left corner Y (px). */
+  y: number;
+  /** Width in design px. */
+  width: number;
+  /** Height in design px. */
+  height: number;
 }
 
 /**

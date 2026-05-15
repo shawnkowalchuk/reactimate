@@ -79,6 +79,17 @@ When you add or modify an example, mentally walk through:
 - **Testing:** vitest, **96 tests passing across 10 files**. Run `npm test -- --run`. Don't merge a regression.
 - **Commits:** conventional. After landing user-facing changes, commit + push to `origin/main` only when explicitly asked (the user often wants to test locally first).
 
+## Particle / fireworks: `area` is canvas-design coords
+
+Both effect types own an `EffectArea` rectangle (`x, y, width, height` in canvas DESIGN px). `ParticleOverlay` spawns within `area`; `FireworksLibraryOverlay` translates `area` into fireworks-js `boundaries` so rockets explode within it.
+
+- `mode: "area"` is the default placement (replaces the old `"component"` / `"around"` modes).
+- Particle keeps `mode: "follow"` (cursor anywhere) and `mode: "hover"` (cursor inside `area`).
+- Fireworks has no `mode` field — area is always used.
+- The user adjusts `area` via the **`EffectAreaOverlay`** drag UI on the preview, NOT a numeric input. Show a read-only summary in the EffectModal panel.
+- Old projects (`mode: "component"`/`"around"` + `rangePx` / `spreadRadius`) auto-migrate to `area` in `validateProject`. Substitutes a sensible default rectangle since text bbox isn't measurable at load-time.
+- Fireworks `followMouse` is wired to fireworks-js `mouse.click` — UI label is **"Click to launch"**.
+
 ## Things that have bitten Claude before
 
 - **`fireworks-js` `stop(true)` removes the canvas from the DOM.** On React strict-mode re-mount the next `createCanvas` call sees `canvas.isConnected === false` and re-attaches the canvas to `document.body`, where `position: absolute; inset: 0` makes it span the entire viewport. Always use `fw.stop(false)`.

@@ -834,7 +834,7 @@ const particleProj = buildExample(
     range: [9, 15], color: "#fbbf24", styleOverride: { color: "#fbbf24" },
     effects: [
       { id: newId("fx"), type: "zoom", startTime: 0.2, duration: 3, easing: "ease-out", from: { scale: 0.8, opacity: 0 }, targets: { scale: 1, opacity: 1 } },
-      { id: newId("fx"), type: "particle", startTime: 0, duration: 3, easing: "linear", targets: {}, particle: { density: 18, size: 14, color: "#fbbf24", preset: "gold", shape: "star", type: "standard", mode: "around", rangePx: 40 } },
+      { id: newId("fx"), type: "particle", startTime: 0, duration: 3, easing: "linear", targets: {}, particle: { density: 18, size: 14, color: "#fbbf24", preset: "gold", shape: "star", type: "standard", mode: "area", area: { x: 400, y: 280, width: 400, height: 120 } } },
     ],
   }],
 );
@@ -932,7 +932,7 @@ const fireworksProj = buildExample(
     range: [0, 10], color: "#f87171", styleOverride: { color: "#f87171" },
     effects: [
       { id: newId("fx"), type: "slide", startTime: 0.1, duration: 4, easing: "ease-out", from: { opacity: 0, y: 30 }, targets: { opacity: 1, y: 0 } },
-      { id: newId("fx"), type: "fireworks-js", startTime: 0.5, duration: 3.5, easing: "linear", targets: {}, fireworks: { density: 60, explosion: 6, gravity: 1.5, opacity: 0.6, flickering: 50, acceleration: 1.05, friction: 0.97, traceLength: 3, traceSpeed: 10, intensity: 35, lineStyle: "round", mode: "around", spreadRadius: 200, delayMin: 80, delayMax: 300, brightnessMin: 50, brightnessMax: 80, decayMin: 0.015, decayMax: 0.03, hueMin: 0, hueMax: 30 } },
+      { id: newId("fx"), type: "fireworks-js", startTime: 0.5, duration: 3.5, easing: "linear", targets: {}, fireworks: { density: 60, explosion: 6, gravity: 1.5, opacity: 0.6, flickering: 50, acceleration: 1.05, friction: 0.97, traceLength: 3, traceSpeed: 10, intensity: 35, lineStyle: "round", area: { x: 200, y: 100, width: 800, height: 400 }, delayMin: 80, delayMax: 300, brightnessMin: 50, brightnessMax: 80, decayMin: 0.015, decayMax: 0.03, hueMin: 0, hueMax: 30 } },
     ],
   }],
 );

@@ -6,6 +6,7 @@ import type {
   Component,
   ComponentStyle,
   Effect,
+  EffectArea,
   Project,
 } from "../types/project";
 import { adjustRanges } from "../engine/ranges";
@@ -18,6 +19,24 @@ import { loadFromStorage } from "../persistence/localStorage";
 
 function initialProject(): Project {
   return loadFromStorage() ?? makeSampleProject();
+}
+
+/**
+ * Default rectangle for a freshly-added particle/fireworks effect — a
+ * sensibly-sized box centered on the project canvas.
+ */
+function defaultEffectArea(
+  canvas: { width: number; height: number },
+  padding = 0,
+): EffectArea {
+  const w = Math.min(canvas.width - 80, 480 + padding * 2);
+  const h = Math.min(canvas.height - 80, 240 + padding * 2);
+  return {
+    x: Math.round((canvas.width - w) / 2),
+    y: Math.round((canvas.height - h) / 2),
+    width: w,
+    height: h,
+  };
 }
 
 export interface ProjectState {
@@ -407,8 +426,8 @@ export const useProjectStore = create<ProjectState>()(
                         preset: "gold" as const,
                         shape: "star" as const,
                         type: "standard" as const,
-                        mode: "component" as const,
-                        rangePx: 20,
+                        mode: "area" as const,
+                        area: defaultEffectArea(state.project.canvas),
                         spawnRadiusPx: 30,
                         lifespanSec: 0.6,
                         sizeJitter: 0.4,
@@ -437,9 +456,7 @@ export const useProjectStore = create<ProjectState>()(
                         traceSpeed: 10,
                         intensity: 30,
                         lineStyle: "round" as const,
-                        rocketsSpread: 80,
-                        mode: "component" as const,
-                        spreadRadius: 100,
+                        area: defaultEffectArea(state.project.canvas, 100),
                         delayMin: 10,
                         delayMax: 60,
                         brightnessMin: 50,

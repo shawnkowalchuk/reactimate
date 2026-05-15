@@ -38,6 +38,49 @@ describe("validateProject", () => {
     (p as { duration: number }).duration = Number.POSITIVE_INFINITY;
     expect(validateProject(p)).toBeNull();
   });
+
+  it("migrates old particle mode 'around'+rangePx to 'area'+area rectangle", () => {
+    const p = makeSampleProject() as unknown as { layer: { components: unknown[] } };
+    const c = (p.layer.components as Array<{ effects: Array<Record<string, unknown>> }>)[0];
+    c.effects.push({
+      id: "fx_old",
+      type: "particle",
+      startTime: 0,
+      duration: 1,
+      easing: "linear",
+      targets: {},
+      particle: { density: 10, size: 12, color: "#fff", preset: "gold", mode: "around", rangePx: 40 },
+    });
+    const v = validateProject(p);
+    expect(v).not.toBeNull();
+    const migrated = (v as unknown as { layer: { components: Array<{ effects: Array<Record<string, unknown>> }> } })
+      .layer.components[0].effects.find((e) => (e as { id: string }).id === "fx_old");
+    const part = (migrated as { particle: { mode: string; area: object; rangePx?: number } }).particle;
+    expect(part.mode).toBe("area");
+    expect(part.area).toBeDefined();
+    expect(part.rangePx).toBeUndefined();
+  });
+
+  it("migrates old fireworks mode/spreadRadius to 'area' rectangle", () => {
+    const p = makeSampleProject() as unknown as { layer: { components: unknown[] } };
+    const c = (p.layer.components as Array<{ effects: Array<Record<string, unknown>> }>)[0];
+    c.effects.push({
+      id: "fx_fw_old",
+      type: "fireworks-js",
+      startTime: 0,
+      duration: 1,
+      easing: "linear",
+      targets: {},
+      fireworks: { density: 50, explosion: 5, mode: "around", spreadRadius: 200 },
+    });
+    const v = validateProject(p);
+    const migrated = (v as unknown as { layer: { components: Array<{ effects: Array<Record<string, unknown>> }> } })
+      .layer.components[0].effects.find((e) => (e as { id: string }).id === "fx_fw_old");
+    const fw = (migrated as { fireworks: { area: object; mode?: string; spreadRadius?: number } }).fireworks;
+    expect(fw.area).toBeDefined();
+    expect(fw.mode).toBeUndefined();
+    expect(fw.spreadRadius).toBeUndefined();
+  });
 });
 
 describe("localStorage round-trip", () => {

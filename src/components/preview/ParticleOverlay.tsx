@@ -155,15 +155,21 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
             return { ...s, x: px, y: py };
           }),
       );
-      const overBbox =
-        m != null &&
-        m.x >= bbox.ox &&
-        m.x <= bbox.ox + bbox.w &&
-        m.y >= bbox.oy &&
-        m.y <= bbox.oy + bbox.h;
       for (const e of candidatesRef.current) {
         const cfg = e.particle!;
-        const allowed = cfg.mode === "follow" ? m != null : overBbox;
+        // For "hover" mode the cursor must be inside the effect's `area`
+        // (canvas-design coords). Mouse `m` is also in canvas-design coords
+        // (per spotlightStore), so no offset translation needed.
+        let allowed = false;
+        if (cfg.mode === "follow") {
+          allowed = m != null;
+        } else if (cfg.mode === "hover" && cfg.area && m != null) {
+          allowed =
+            m.x >= cfg.area.x &&
+            m.x <= cfg.area.x + cfg.area.width &&
+            m.y >= cfg.area.y &&
+            m.y <= cfg.area.y + cfg.area.height;
+        }
         if (!allowed) continue;
         const intervalMs = 1000 / Math.max(0.1, cfg.density);
         const last = lastSpawn[e.id] ?? 0;
@@ -206,7 +212,10 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasCandidates, liveCandidates.map((e) => e.id).join(",")]);
 
-  // Build deterministic particles for "component" + "around" modes.
+  // Build deterministic particles for area mode (default). Particles spawn
+  // within `cfg.area` (canvas-design coords). The overlay is mounted as a
+  // child of the component wrapper; we subtract the wrapper's offset
+  // (sizeRef.ox/oy) at render-time so x/y resolve to wrapper-local pixels.
   const detParticles: Array<{
     key: string;
     x: number;
@@ -218,6 +227,7 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
     shape: ParticleShape;
     scale: number;
   }> = [];
+  const renderOffset = sizeRef.current; // { ox, oy } subtract for wrapper-local coords
   for (const e of effects) {
     if (e.type !== "particle" || !e.particle) continue;
     const cfg = e.particle;
@@ -226,7 +236,13 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
     if (time < e.startTime) continue;
     if (!cfg.continueAfter && time > end) continue;
     const lifespan = cfg.lifespanSec ?? 0.6;
-    const padding = cfg.mode === "around" ? cfg.rangePx ?? 20 : 0;
+    // Spawn inside `area` if defined; otherwise fall back to wrapper bbox.
+    const area = cfg.area;
+    const areaW = area ? area.width : useW;
+    const areaH = area ? area.height : useH;
+    const areaOX = area ? area.x - renderOffset.ox : 0;
+    const areaOY = area ? area.y - renderOffset.oy : 0;
+    const padding = 0;
     const particleType: NonNullable<NonNullable<Effect["particle"]>["type"]> =
       cfg.type ?? "standard";
     const shape = cfg.shape ?? "star";
@@ -250,10 +266,10 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
           const age = time - spawnT;
           if (age < 0 || age > lifespan) continue;
           const seed = hash(`${e.id}_cont_${i}_c${cycle}${particleType === "standard" ? "_" + Math.floor(time * 20) : ""}`);
-          const path = particlePath(particleType, seed, useW, useH, padding, age, lifespan);
+          const path = particlePath(particleType, seed, areaW, areaH, padding, age, lifespan);
           if (!path) continue;
-          const px = path.x + gwX;
-          const py = path.y + gwY;
+          const px = path.x + gwX + areaOX;
+          const py = path.y + gwY + areaOY;
           const baseRot = pseudo(seed, 3) * 360;
           const rotation = baseRot + rotSpeed * age;
           const sizeMul = 1 + (pseudo(seed, 4) - 0.5) * 2 * sizeJitter;

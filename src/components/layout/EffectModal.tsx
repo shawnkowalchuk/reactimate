@@ -7,13 +7,33 @@ import { EFFECT_DEFAULTS, EFFECT_LABELS } from "../../constants/effects";
 import type {
   AnimatableProp,
   AnimatableTargets,
+  EffectArea,
   EffectType,
+  Project,
 } from "../../types/project";
 import { Modal } from "./Modal";
 import { EasingPicker } from "./EasingPicker";
 import { ParticleTypePicker, type ParticleType } from "./ParticleTypePicker";
 import { ColorPicker } from "../ui/ColorPicker";
 import { PRESET_COLOR_FNS, PARTICLE_SHAPES, particlePath, hash, pseudo } from "../preview/particleUtils";
+
+/**
+ * Default rectangle for a freshly-added particle/fireworks effect — a
+ * sensibly-sized box centered on the project canvas. `padding` widens the
+ * rectangle for fireworks where rockets can reasonably target a larger area.
+ */
+function defaultEffectArea(project: Project, padding = 0): EffectArea {
+  const cw = project.canvas.width;
+  const ch = project.canvas.height;
+  const w = Math.min(cw - 80, 480 + padding * 2);
+  const h = Math.min(ch - 80, 240 + padding * 2);
+  return {
+    x: Math.round((cw - w) / 2),
+    y: Math.round((ch - h) / 2),
+    width: w,
+    height: h,
+  };
+}
 
 const numberInput =
   "w-20 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
@@ -112,7 +132,8 @@ export function EffectModal() {
         preset: "gold",
         shape: "star" as const,
         type: "standard",
-        mode: "component",
+        mode: "area",
+        area: defaultEffectArea(project),
         continueAfter: false,
       };
     }
@@ -133,9 +154,7 @@ export function EffectModal() {
         traceSpeed: 10,
         intensity: 30,
         lineStyle: "round",
-        rocketsSpread: 80,
-        mode: "component",
-        spreadRadius: 100,
+        area: defaultEffectArea(project, 100),
         delayMin: 10,
         delayMax: 60,
         brightnessMin: 50,
@@ -210,9 +229,7 @@ export function EffectModal() {
       traceSpeed: 10,
       intensity: 30,
       lineStyle: "round",
-      rocketsSpread: 80,
-      mode: "component",
-      spreadRadius: 100,
+      area: defaultEffectArea(project, 100),
       delayMin: 10,
       delayMax: 60,
       brightnessMin: 50,
@@ -463,9 +480,7 @@ export function EffectModal() {
                 traceSpeed: 10,
                 intensity: 30,
                 lineStyle: "round",
-                rocketsSpread: 80,
-                mode: "component",
-                spreadRadius: 100,
+                area: defaultEffectArea(project, 100),
                 delayMin: 50,
                 delayMax: 200,
                 brightnessMin: 50,
@@ -738,8 +753,8 @@ interface ParticleConfig {
   preset: "gold" | "silver" | "rainbow" | "fire" | "custom";
   shape?: "star" | "circle" | "diamond" | "square";
   type?: ParticleType;
-  mode?: "component" | "around" | "follow" | "hover";
-  rangePx?: number;
+  mode?: "area" | "follow" | "hover";
+  area?: EffectArea;
   spawnRadiusPx?: number;
   lifespanSec?: number;
   sizeJitter?: number;
@@ -895,33 +910,22 @@ function ParticlePanel({ particle, onChange }: ParticlePanelProps) {
         <label className="flex flex-col gap-1">
           <span className="text-xs text-neutral-500">Where</span>
           <select
-            value={particle.mode ?? "component"}
+            value={particle.mode ?? "area"}
             onChange={(e) =>
               onChange({ mode: e.target.value as NonNullable<ParticleConfig["mode"]> })
             }
             className="rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
           >
-            <option value="component">On the text</option>
-            <option value="around">Around the text</option>
+            <option value="area">In the area box</option>
             <option value="follow">Follow the cursor</option>
-            <option value="hover">Hover the text</option>
+            <option value="hover">Hover the area</option>
           </select>
         </label>
 
-        {(particle.mode === "component" || particle.mode === "around") && (
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-neutral-500">Spread (px)</span>
-            <input
-              type="number"
-              min={0}
-              step={5}
-              value={particle.rangePx ?? (particle.mode === "around" ? 20 : 0)}
-              onChange={(e) =>
-                onChange({ rangePx: Math.max(0, parseInt(e.target.value, 10) || 0) })
-              }
-              className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
-            />
-          </label>
+        {particle.area && (particle.mode === "area" || particle.mode === "hover") && (
+          <div className="col-span-2 -mt-1 text-[11px] text-neutral-500">
+            Area: {particle.area.width} × {particle.area.height} @ ({particle.area.x}, {particle.area.y}) — drag the box on the preview to reposition.
+          </div>
         )}
 
         <label className="flex flex-col gap-1">
@@ -1066,9 +1070,7 @@ interface FireworksPanelProps {
     intensity?: number;
     lineStyle?: "round" | "square";
     followMouse?: boolean;
-    rocketsSpread?: number;
-    mode?: "component" | "around";
-    spreadRadius?: number;
+    area?: EffectArea;
     delayMin?: number;
     delayMax?: number;
     brightnessMin?: number;
@@ -1171,22 +1173,12 @@ function FireworksPanel({ fireworks, onChange }: FireworksPanelProps) {
         <SliderField title="Length of particle trail behind" label="Trace len" value={fireworks.traceLength ?? 3} min={1} max={10} step={1} onChange={(v) => onChange({ traceLength: v })} />
         <SliderField title="How quickly the trail fades out" label="Trace speed" value={fireworks.traceSpeed ?? 10} min={1} max={20} step={1} onChange={(v) => onChange({ traceSpeed: v })} />
         <SliderField title="Rocket launch power / height" label="Intensity" value={fireworks.intensity ?? 30} min={10} max={100} step={5} onChange={(v) => onChange({ intensity: v })} />
-        <SliderField title="Horizontal launch spread as % of width" label="Spread %" value={fireworks.rocketsSpread ?? 80} min={10} max={100} step={5} onChange={(v) => onChange({ rocketsSpread: v })} />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-neutral-500">Where</span>
-          <select
-            value={fireworks.mode ?? "component"}
-            onChange={(e) => onChange({ mode: e.target.value as "component" | "around" })}
-            className="rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
-          >
-            <option value="component">On the text</option>
-            <option value="around">Around the text</option>
-          </select>
-        </label>
-        <SliderField label="Spread radius (px)" value={fireworks.spreadRadius ?? 100} min={0} max={500} step={10} onChange={(v) => onChange({ spreadRadius: v })} />
-      </div>
+      {fireworks.area && (
+        <div className="text-[11px] text-neutral-500">
+          Explosion area: {fireworks.area.width} × {fireworks.area.height} @ ({fireworks.area.x}, {fireworks.area.y}) — drag the box on the preview to reposition.
+        </div>
+      )}
       <DualSlider title="Milliseconds between rocket launches (randomized in range)" label="Delay (ms)" min={10} max={2000} step={10}
         minVal={fireworks.delayMin ?? 50} maxVal={fireworks.delayMax ?? 200}
         onChange={(min, max) => onChange({ delayMin: min, delayMax: Math.max(min, max) })} />
@@ -1209,14 +1201,17 @@ function FireworksPanel({ fireworks, onChange }: FireworksPanelProps) {
         minVal={fireworks.lineWidthTraceMin ?? 1} maxVal={fireworks.lineWidthTraceMax ?? 2}
         onChange={(min, max) => onChange({ lineWidthTraceMin: min, lineWidthTraceMax: Math.max(min, max) })} />
       <div className="flex items-center gap-4">
-        <label className="flex items-center gap-2 text-xs">
+        <label
+          className="flex items-center gap-2 text-xs"
+          title="Click anywhere on the preview canvas to spawn a firework at that point."
+        >
           <input
             type="checkbox"
             checked={Boolean(fireworks.followMouse)}
             onChange={(e) => onChange({ followMouse: e.target.checked })}
             className="h-3.5 w-3.5 cursor-pointer"
           />
-          <span className="text-neutral-700 dark:text-neutral-300">Follow mouse</span>
+          <span className="text-neutral-700 dark:text-neutral-300">Click to launch</span>
         </label>
         <label className="flex items-center gap-2 text-xs">
           <span className="text-neutral-500">Line style</span>

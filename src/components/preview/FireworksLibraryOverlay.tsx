@@ -1,12 +1,37 @@
 import { useEffect, useRef, type RefObject } from "react";
 import { Fireworks } from "fireworks-js";
-import type { Effect } from "../../types/project";
+import type { Effect, EffectArea } from "../../types/project";
 import { usePlaybackStore } from "../../store/playbackStore";
 
 interface Props {
   effects: Effect[];
   time: number;
   frameRef: RefObject<HTMLDivElement | null>;
+}
+
+/**
+ * Translate an `EffectArea` (canvas-design coords) into the `boundaries`
+ * shape fireworks-js expects. The library's rocket-target math is:
+ *   dx = random(boundaries.x, boundaries.width - boundaries.x*2)
+ *   dy = random(boundaries.y, boundaries.height/2)
+ * So to get dx in [area.x, area.right] and dy in [area.y, area.bottom]:
+ *   boundaries.x      = area.x
+ *   boundaries.width  = area.right + area.x
+ *   boundaries.y      = area.y
+ *   boundaries.height = 2 * area.bottom
+ * Rockets land within `area`; the explosion particles fly outward beyond it
+ * (per design — the area indicates landing target, not a hard clip).
+ */
+function areaToBoundaries(area: EffectArea) {
+  const right = area.x + area.width;
+  const bottom = area.y + area.height;
+  return {
+    x: area.x,
+    y: area.y,
+    width: right + area.x,
+    height: bottom * 2,
+    debug: false,
+  };
 }
 
 export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
@@ -45,18 +70,15 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
     const f = frame.getBoundingClientRect();
     if (!r.width || !r.height || !f.width || !f.height) return;
 
+    // The canvas covers the entire preview frame in DESIGN coordinates;
+    // boundaries (set per-effect from cfg.area) constrain where rockets
+    // explode within that canvas. CSS scales it via the parent transform.
     const designWidth = parseFloat(frame.style.width || "0") || f.width;
-    const scale = designWidth > 0 ? f.width / designWidth : 1;
-    const safeScale = Math.max(0.0001, scale);
+    const designHeight = parseFloat(frame.style.height || "0") || f.height;
+    canvas.width = designWidth;
+    canvas.height = designHeight;
 
-    const isAround = cfg.mode === "around";
-    const radius = isAround ? (cfg.spreadRadius ?? 100) * safeScale : 0;
-    const groundBuffer = 150 * safeScale;
-    const useW = Math.max(r.width, f.width * 0.15);
-    const useH = Math.max(r.height, 40);
-
-    canvas.width = (useW + radius * 2) / safeScale;
-    canvas.height = (useH + groundBuffer) / safeScale;
+    const boundaries = cfg.area ? areaToBoundaries(cfg.area) : undefined;
 
     const fw = new Fireworks(canvas, {
       autoresize: false,
@@ -82,6 +104,7 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       decay: { min: cfg.decayMin ?? 0.015, max: cfg.decayMax ?? 0.03 },
       mouse: { click: cfg.followMouse ?? false, move: false, max: 1 },
       sound: { enabled: false },
+      ...(boundaries ? { boundaries } : {}),
     });
 
     fwRef.current = fw;
@@ -92,17 +115,12 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
     }
 
     const ro = new ResizeObserver(() => {
-      const r2 = parent.getBoundingClientRect();
       const f2 = frame.getBoundingClientRect();
-      if (!r2.width || !f2.width) return;
-      const s2 = designWidth > 0 ? f2.width / designWidth : 1;
-      const ss2 = Math.max(0.0001, s2);
-      const rad2 = isAround ? (cfg.spreadRadius ?? 100) * ss2 : 0;
-      const gb = 150 * ss2;
-      const w2 = Math.max(r2.width, f2.width * 0.15);
-      const h2 = Math.max(r2.height, 40);
-      canvas.width = (w2 + rad2 * 2) / ss2;
-      canvas.height = (h2 + gb) / ss2;
+      if (!f2.width) return;
+      const dw = parseFloat(frame.style.width || "0") || f2.width;
+      const dh = parseFloat(frame.style.height || "0") || f2.height;
+      canvas.width = dw;
+      canvas.height = dh;
       fw.updateSize({ width: canvas.width, height: canvas.height });
     });
     ro.observe(parent);
@@ -146,6 +164,9 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       decay: { min: cfg.decayMin ?? 0.015, max: cfg.decayMax ?? 0.03 },
       mouse: { click: cfg.followMouse ?? false, move: false, max: 1 },
     });
+    if (cfg.area) {
+      fw.updateBoundaries(areaToBoundaries(cfg.area));
+    }
   }, [cfgKey]);
 
   // Start / stop based on shouldRun.

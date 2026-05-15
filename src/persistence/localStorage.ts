@@ -36,6 +36,49 @@ function migrateSparkleToParticle(value: unknown): unknown {
 }
 
 /**
+ * Translate the old particle/fireworks `mode: "component" | "around"` schema
+ * into the new bbox-based `mode: "area"` + `area` rectangle. Old projects
+ * had no explicit area — they tracked the text bbox at render-time.
+ * Without DOM access at load-time we substitute a sensible default
+ * rectangle centered on the project canvas (with extra padding for
+ * "around"/`spreadRadius` to roughly preserve the visual extent).
+ */
+function migrateAreaSchema(project: Project): Project {
+  const cw = project.canvas?.width ?? 1200;
+  const ch = project.canvas?.height ?? 675;
+  const defaultArea = (padding = 0) => {
+    const w = Math.min(cw - 80, 480 + padding * 2);
+    const h = Math.min(ch - 80, 240 + padding * 2);
+    return {
+      x: Math.round((cw - w) / 2),
+      y: Math.round((ch - h) / 2),
+      width: w,
+      height: h,
+    };
+  };
+  for (const c of project.layer?.components ?? []) {
+    for (const e of c.effects ?? []) {
+      const p = (e as { particle?: Record<string, unknown> }).particle;
+      if (p && (p.mode === "component" || p.mode === "around")) {
+        const padding = p.mode === "around" ? Number(p.rangePx ?? 20) : 0;
+        p.mode = "area";
+        if (!p.area) p.area = defaultArea(padding);
+        delete p.rangePx;
+      }
+      const fw = (e as { fireworks?: Record<string, unknown> }).fireworks;
+      if (fw && !fw.area) {
+        const padding = Number(fw.spreadRadius ?? 0);
+        fw.area = defaultArea(padding);
+        delete fw.mode;
+        delete fw.spreadRadius;
+        delete fw.rocketsSpread;
+      }
+    }
+  }
+  return project;
+}
+
+/**
  * Validate a parsed value as a Project. Returns the project on success
  * or null on any failure (missing keys, wrong types, etc.).
  */
@@ -57,7 +100,7 @@ export function validateProject(value: unknown): Project | null {
     if (!c.style || typeof c.style !== "object") return null;
     if (!Array.isArray(c.effects)) return null;
   }
-  return p as Project;
+  return migrateAreaSchema(p as Project);
 }
 
 /** Always loads from localStorage (sync — instant on app start). */
