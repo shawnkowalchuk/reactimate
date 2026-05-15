@@ -24,7 +24,7 @@ export function Modal({ open, onClose, title, children, maxWidth = "max-w-lg" }:
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-white/90 p-4 pt-12 dark:bg-neutral-950/95"
+      className="fixed left-0 top-0 z-50 h-full w-1/2 flex items-start justify-center bg-white/95 p-4 pt-12 dark:bg-neutral-950/95"
       onMouseDown={onClose}
     >
       <div
