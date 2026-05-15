@@ -246,7 +246,7 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
           const spawnT = anchor + (i / total) * lifespan;
           const age = time - spawnT;
           if (age < 0 || age > lifespan) continue;
-          const seed = hash(`${e.id}_cont_${i}_c${cycle}${particleType === "standard" ? "_" + Math.floor(time * 20) : ""}`);
+          const seed = hash(`${e.id}_cont_${i}_c${cycle}_${Math.floor(time * (particleType === "standard" ? 20 : particleType === "volcano" ? 2 : particleType === "fireworks" ? 3 : 5))}`);
           const path = particlePath(particleType, seed, useW, useH, padding, age, lifespan);
           if (!path) continue;
           const baseRot = pseudo(seed, 3) * 360;
@@ -273,7 +273,7 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
       for (let i = 0; i < total; i++) {
         // For standard particles, mix time into seed for gentle drift.
         // For fireworks/volcano/dropping, keep seed stable so animation is smooth.
-        const seed = hash(`${e.id}_${i}${particleType === "standard" ? "_" + Math.floor(time * 20) : ""}`);
+        const seed = hash(`${e.id}_${i}_${Math.floor(time * (particleType === "standard" ? 20 : particleType === "volcano" ? 2 : particleType === "fireworks" ? 3 : 5))}`);
         const spawnT = e.startTime + (i / total) * e.duration;
         const age = time - spawnT;
         if (age < 0 || age > lifespan) continue;
