@@ -36,14 +36,12 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
     if (!editor || !overlay) return;
 
     const compute = () => {
+      requestAnimationFrame(() => {
       const textNode = findTextNode(editor);
       if (!textNode) {
         setGroups([]);
         return;
       }
-      // Position rects relative to the overlay's own origin — the overlay
-      // is `absolute inset-0` of the padded outer container, so its top-left
-      // sits inside the border but OUTSIDE the editor's padding offset.
       const overlayRect = overlay.getBoundingClientRect();
       const textLen = textNode.textContent?.length ?? 0;
 
@@ -74,6 +72,7 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
       });
 
       setGroups(next);
+      });
     };
 
     compute();
@@ -96,11 +95,8 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 z-0"
     >
-      {groups.flatMap((g, gi) => {
-        // Skip highlight box for duplicates — only the first component
-        // in an overlapping stack gets a box; others show only a dot.
-        if (stackIndexFor(g, gi, groups) > 0) return [];
-        return g.rects.map((r, i) => {
+      {groups.flatMap((g, gi) =>
+        g.rects.map((r, i) => {
           const offset = stackOffsetFor(g, gi, groups);
           return (
             <div
@@ -116,8 +112,8 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
               }}
             />
           );
-        });
-      })}
+        }),
+      )}
       {/* Selection circle on the top-right corner of the LARGEST rect of
           each component. The largest rect skips tiny leading-whitespace
           rects that can sit on a previous wrap-line. pointer-events-auto
