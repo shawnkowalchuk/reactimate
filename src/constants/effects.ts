@@ -26,12 +26,6 @@ export const EFFECT_DEFAULTS: Record<EffectType, EffectDefaults> = {
     from: { x: -100, y: 0 },
     targets: { x: 0, y: 0 },
   },
-  scale: {
-    duration: 0.5,
-    easing: "spring",
-    from: { scale: 0.6 },
-    targets: { scale: 1.2 },
-  },
   rotate: {
     duration: 0.6,
     easing: "ease-in-out",
@@ -91,7 +85,6 @@ export const EFFECT_DEFAULTS: Record<EffectType, EffectDefaults> = {
 export const EFFECT_LABELS: Record<EffectType, string> = {
   fade: "Fade",
   slide: "Slide",
-  scale: "Scale",
   rotate: "Rotate",
   "color-shift": "Color shift",
   spotlight: "Spotlight",

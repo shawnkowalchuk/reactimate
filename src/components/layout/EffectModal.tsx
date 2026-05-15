@@ -26,7 +26,6 @@ const TYPE_OPTIONS: EffectType[] = [
   "custom",
   "fade",
   "slide",
-  "scale",
   "rotate",
   "zoom",
   "color-shift",

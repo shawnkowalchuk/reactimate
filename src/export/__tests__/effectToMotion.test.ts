@@ -149,7 +149,7 @@ describe("buildComponentMotion", () => {
           fade(0.1, 0.6, 1, "ease-out"),
           {
             id: "scale",
-            type: "scale",
+            type: "zoom",
             startTime: 1,
             duration: 0.4,
             easing: "spring",

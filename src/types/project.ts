@@ -4,7 +4,6 @@ export type Alignment = "left" | "center" | "right";
 export type EffectType =
   | "fade"
   | "slide"
-  | "scale"
   | "rotate"
   | "color-shift"
   | "spotlight"

@@ -87,7 +87,7 @@ describe("computeComponentStyle", () => {
         { ...fade(0, 1), targets: { opacity: 1 } },
         {
           id: "e_scale",
-          type: "scale",
+          type: "zoom",
           startTime: 1,
           duration: 1,
           easing: "linear",
