@@ -109,13 +109,34 @@ function makeWordComponents(
     });
   }
   for (const a of animated) {
+    // Compute the latest end-time across this component's effects so we
+    // can bridge any gap between the last animated effect and the project
+    // end with a "(no effect)" placeholder. Without this, the gap-hide
+    // rule in compose.ts forces the text to opacity=0 the moment the
+    // animated effect finishes — leaving the user wondering why their
+    // headline disappears mid-frame.
+    const latestEnd = a.effects.reduce(
+      (acc, e) => Math.max(acc, e.startTime + e.duration),
+      0,
+    );
+    const effects = [...a.effects];
+    if (latestEnd < projectDuration) {
+      effects.push({
+        id: newId("fx"),
+        type: "custom",
+        startTime: latestEnd,
+        duration: projectDuration - latestEnd,
+        easing: "linear",
+        targets: {},
+      });
+    }
     out.push({
       id: newId("comp"),
       startIndex: a.range[0],
       endIndex: a.range[1],
       color: a.color,
       style: { ...defaultStyle, ...a.styleOverride },
-      effects: a.effects,
+      effects,
     });
   }
   out.sort((a, b) => a.startIndex - b.startIndex);
