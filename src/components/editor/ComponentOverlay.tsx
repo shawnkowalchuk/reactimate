@@ -96,11 +96,11 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 z-0"
     >
-      {groups.flatMap((g, gi) =>
-        g.rects.map((r, i) => {
-          // Stagger overlapping component boxes so the user can see both.
-          // The order in `groups` matches `components`, so newer components
-          // (later in the array) get nudged further down/right.
+      {groups.flatMap((g, gi) => {
+        // Skip highlight box for duplicates — only the first component
+        // in an overlapping stack gets a box; others show only a dot.
+        if (stackIndexFor(g, gi, groups) > 0) return [];
+        return g.rects.map((r, i) => {
           const offset = stackOffsetFor(g, gi, groups);
           return (
             <div
@@ -116,8 +116,8 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
               }}
             />
           );
-        }),
-      )}
+        });
+      })}
       {/* Selection circle on the top-right corner of the LARGEST rect of
           each component. The largest rect skips tiny leading-whitespace
           rects that can sit on a previous wrap-line. pointer-events-auto
@@ -125,19 +125,17 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
           everywhere else. */}
       {groups.map((g, gi) => {
         if (g.rects.length === 0) return null;
-        const r = largestRect(g.rects);
-        // The selection circle anchors at the top-right of the box's
-        // RENDERED position (the original rect plus the box's diagonal
-        // offset for overlapping groups). For duplicates, each dot is
-        // additionally placed in a horizontal row beside the previous.
+        // Use the FULL bounding box so the dot sits at the top-right
+        // corner of the component's entire text area, not just the
+        // largest line rect.
+        const bb = boundingBox(g.rects);
         const stackIdx = stackIndexFor(g, gi, groups);
         const boxOffset = stackIdx * 4;
         const dot = 14;
-        const hit = 32; // larger transparent hit-target around the visible dot
+        const hit = 32;
         const dotGap = 4;
-        const cx =
-          r.left + boxOffset + r.width + stackIdx * (dot + dotGap);
-        const cy = r.top + boxOffset;
+        const cx = bb.left + boxOffset + bb.width + stackIdx * (dot + dotGap);
+        const cy = bb.top + boxOffset;
         const isSelected = g.id === selectedComponentId;
         return (
           <button
@@ -177,29 +175,7 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
   );
 }
 
-/** Pick the rect with the largest area — skips tiny leading/trailing whitespace rects. */
-function largestRect(
-  rects: Array<{ top: number; left: number; width: number; height: number }>,
-): { top: number; left: number; width: number; height: number } {
-  let best = rects[0];
-  for (const r of rects) {
-    if (r.width * r.height > best.width * best.height) best = r;
-  }
-  return best;
-}
-
-/**
- * If 2+ components share text rect area, offset later ones diagonally so
- * they're visually distinguishable. Returns the pixel offset for `g` based
- * on how many earlier groups in `groups` overlap with it.
- */
-/**
- * How many earlier groups overlap this one's bounding box. Used as the
- * x-offset multiplier for the SELECTION DOT row (so duplicates' dots
- * sit beside the original at top-right, not stacked diagonally).
- */
-/**
- * Two rects "substantially overlap" only if their intersection area is
+/** Two rects "substantially overlap" only if their intersection area is
  * at least half of the smaller rect's area. This excludes line-adjacent
  * boxes that only share a 1-pixel y-edge — those are not duplicates.
  */
