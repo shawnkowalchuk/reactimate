@@ -15,6 +15,12 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
   const runningRef = useRef(false);
   const isPlaying = usePlaybackStore((s) => s.isPlaying);
 
+  // Extract active fireworks-js config and build a stable key so the
+  // init effect re-runs (destroying + recreating) when settings change.
+  const activeEffect = effects.find((e) => e.type === "fireworks-js" && e.fireworks);
+  const cfg = activeEffect?.fireworks;
+  const cfgKey = cfg ? JSON.stringify(cfg) : "";
+
   // When should the fireworks run?
   let shouldRun = false;
   for (const e of effects) {
@@ -26,16 +32,22 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
     if (e.fireworks.continueAfter && time > e.startTime) { shouldRun = true; break; }
   }
 
-  // Initialize fireworks instance. Runs once on mount, cleans up on unmount.
+  // Initialize/recreate fireworks instance when config or frame changes.
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !cfg) return;
     const frame = frameRef.current;
     if (!frame) return;
-
-    // Wait for parent dimensions.
     const parent = canvas.parentElement;
     if (!parent) return;
+
+    // Clean up any previous instance.
+    if (fwRef.current) {
+      fwRef.current.stop(true);
+      fwRef.current = null;
+      runningRef.current = false;
+    }
+
     const r = parent.getBoundingClientRect();
     const f = frame.getBoundingClientRect();
     if (!r.width || !r.height || !f.width || !f.height) return;
@@ -44,10 +56,8 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
     const scale = designWidth > 0 ? f.width / designWidth : 1;
     const safeScale = Math.max(0.0001, scale);
 
-    const active = effects.find((e) => e.type === "fireworks-js" && e.fireworks);
-    const cfg = active?.fireworks;
-    const isAround = cfg?.mode === "around";
-    const radius = isAround ? (cfg?.spreadRadius ?? 100) * safeScale : 0;
+    const isAround = cfg.mode === "around";
+    const radius = isAround ? (cfg.spreadRadius ?? 100) * safeScale : 0;
     const groundBuffer = 150 * safeScale;
     const useW = Math.max(r.width, f.width * 0.15);
     const useH = Math.max(r.height, 40);
@@ -57,47 +67,44 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
 
     const fw = new Fireworks(canvas, {
       autoresize: false,
-      opacity: cfg?.opacity ?? 0.5,
-      acceleration: cfg?.acceleration ?? 1.05,
-      friction: cfg?.friction ?? 0.97,
-      gravity: cfg?.gravity ?? 1.5,
-      particles: cfg?.density ?? 50,
-      traceLength: cfg?.traceLength ?? 3,
-      traceSpeed: cfg?.traceSpeed ?? 10,
-      explosion: cfg?.explosion ?? 5,
-      intensity: cfg?.intensity ?? 30,
-      flickering: cfg?.flickering ?? 50,
-      lineStyle: (cfg?.lineStyle as "round" | "square") ?? "round",
-      hue: { min: cfg?.hueMin ?? 0, max: cfg?.hueMax ?? 360 },
-      delay: { min: cfg?.delayMin ?? 10, max: cfg?.delayMax ?? 60 },
-      rocketsPoint: { min: cfg?.rocketsPointMin ?? 30, max: cfg?.rocketsPointMax ?? 70 },
+      opacity: cfg.opacity ?? 0.5,
+      acceleration: cfg.acceleration ?? 1.05,
+      friction: cfg.friction ?? 0.97,
+      gravity: cfg.gravity ?? 1.5,
+      particles: cfg.density ?? 50,
+      traceLength: cfg.traceLength ?? 3,
+      traceSpeed: cfg.traceSpeed ?? 10,
+      explosion: cfg.explosion ?? 5,
+      intensity: cfg.intensity ?? 30,
+      flickering: cfg.flickering ?? 50,
+      lineStyle: (cfg.lineStyle as "round" | "square") ?? "round",
+      hue: { min: cfg.hueMin ?? 0, max: cfg.hueMax ?? 360 },
+      delay: { min: cfg.delayMin ?? 10, max: cfg.delayMax ?? 60 },
+      rocketsPoint: { min: cfg.rocketsPointMin ?? 30, max: cfg.rocketsPointMax ?? 70 },
       lineWidth: {
-        explosion: { min: cfg?.lineWidthExpMin ?? 1, max: cfg?.lineWidthExpMax ?? 3 },
-        trace: { min: cfg?.lineWidthTraceMin ?? 1, max: cfg?.lineWidthTraceMax ?? 2 },
+        explosion: { min: cfg.lineWidthExpMin ?? 1, max: cfg.lineWidthExpMax ?? 3 },
+        trace: { min: cfg.lineWidthTraceMin ?? 1, max: cfg.lineWidthTraceMax ?? 2 },
       },
-      brightness: { min: cfg?.brightnessMin ?? 50, max: cfg?.brightnessMax ?? 80 },
-      decay: { min: cfg?.decayMin ?? 0.015, max: cfg?.decayMax ?? 0.03 },
-      mouse: { click: cfg?.followMouse ?? false, move: false, max: 1 },
+      brightness: { min: cfg.brightnessMin ?? 50, max: cfg.brightnessMax ?? 80 },
+      decay: { min: cfg.decayMin ?? 0.015, max: cfg.decayMax ?? 0.03 },
+      mouse: { click: cfg.followMouse ?? false, move: false, max: 1 },
       sound: { enabled: false },
     });
 
     fwRef.current = fw;
-    console.log("[FWO] init — particles:", cfg?.density, "delay:", cfg?.delayMin, "size:", canvas.width, "x", canvas.height);
 
-    // Start if should run.
     if (shouldRun) {
       fw.start();
       runningRef.current = true;
     }
 
-    // ResizeObserver.
     const ro = new ResizeObserver(() => {
       const r2 = parent.getBoundingClientRect();
       const f2 = frame.getBoundingClientRect();
       if (!r2.width || !f2.width) return;
       const s2 = designWidth > 0 ? f2.width / designWidth : 1;
       const ss2 = Math.max(0.0001, s2);
-      const rad2 = isAround ? (cfg?.spreadRadius ?? 100) * ss2 : 0;
+      const rad2 = isAround ? (cfg.spreadRadius ?? 100) * ss2 : 0;
       const gb = 150 * ss2;
       const w2 = Math.max(r2.width, f2.width * 0.15);
       const h2 = Math.max(r2.height, 40);
@@ -115,7 +122,7 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       runningRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [cfgKey, frameRef]);
 
   // Start / stop based on shouldRun.
   useEffect(() => {
