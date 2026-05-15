@@ -24,7 +24,7 @@ export function EditorPage() {
   const [previewTab, setPreviewTab] = useState<PreviewTab>("preview");
 
   return (
-    <div className="grid h-screen grid-rows-[auto_auto_1fr_minmax(0,auto)] bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+    <div className="grid h-screen grid-rows-[auto_auto_minmax(0,1fr)_2fr] bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       <Toolbar />
       <InspectorBar />
 
@@ -49,15 +49,12 @@ export function EditorPage() {
             </TabButton>
           </div>
           <div className="flex-1 min-h-0">
-            {/* Keep PreviewCanvas mounted so the animation engine refs stay registered. */}
             <div className={previewTab === "preview" ? "h-full" : "hidden"}>
               <PreviewCanvas project={project} registerElement={registerElement} />
             </div>
-            {previewTab === "code" && (
-              <div className="h-full">
-                <CodeView project={project} />
-              </div>
-            )}
+            <div className={previewTab === "code" ? "h-full" : "hidden"}>
+              <CodeView project={project} />
+            </div>
           </div>
         </section>
       </main>
