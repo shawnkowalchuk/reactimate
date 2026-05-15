@@ -110,7 +110,10 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
 
     return () => {
       ro.disconnect();
-      fw.stop(true);
+      // Use stop(false) — passing true calls canvas.remove() from the DOM,
+      // and on a strict-mode re-mount the next createCanvas call sees
+      // canvas.isConnected === false and re-attaches it to document.body.
+      fw.stop(false);
       fwRef.current = null;
       runningRef.current = false;
     };
