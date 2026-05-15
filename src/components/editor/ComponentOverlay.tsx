@@ -5,25 +5,25 @@ import type { Component } from "../../types/project";
 interface OverlayProps {
   editorRef: RefObject<HTMLDivElement | null>;
   components: Component[];
-  /** Pass the current text so the overlay recomputes when it changes. */
   text: string;
 }
 
-interface RectGroup {
+interface CompBox {
   id: string;
   color: string;
-  rects: Array<{ top: number; left: number; width: number; height: number }>;
+  top: number;
+  left: number;
+  width: number;
+  height: number;
 }
 
 /**
- * Draws colored highlight boxes on top of componentized character
- * ranges inside the contenteditable. Uses DOM Range + getClientRects()
- * so the highlights track word-wrap correctly.
- *
- * Recomputes on resize and whenever components or text change.
+ * Renders colored highlight boxes and selection dots on top of
+ * componentized text in the editor. Uses Range.getBoundingClientRect()
+ * (single rect per component) for reliable positioning.
  */
 export function ComponentOverlay({ editorRef, components, text }: OverlayProps) {
-  const [groups, setGroups] = useState<RectGroup[]>([]);
+  const [boxes, setBoxes] = useState<CompBox[]>([]);
   const overlayRef = useRef<HTMLDivElement>(null);
   const selectComponent = useSelectionStore((s) => s.selectComponent);
   const selectedComponentId = useSelectionStore((s) =>
@@ -35,56 +35,49 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
     const overlay = overlayRef.current;
     if (!editor || !overlay) return;
 
-    let rafId = 0;
     const compute = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
       const textNode = findTextNode(editor);
       if (!textNode) {
-        setGroups([]);
+        setBoxes([]);
         return;
       }
       const overlayRect = overlay.getBoundingClientRect();
       const textLen = textNode.textContent?.length ?? 0;
 
-      // Preserve selection so Range ops don't interfere with caret.
       const sel = window.getSelection();
-      const savedRanges = sel ? Array.from({ length: sel.rangeCount }, (_, i) => sel.getRangeAt(i).cloneRange()) : [];
+      const savedRanges = sel
+        ? Array.from({ length: sel.rangeCount }, (_, i) => sel.getRangeAt(i).cloneRange())
+        : [];
 
-      const next: RectGroup[] = components.map((c) => {
-        const start = clamp(c.startIndex, 0, textLen);
-        const end = clamp(c.endIndex, 0, textLen);
-        if (end <= start) {
-          return { id: c.id, color: c.color, rects: [] };
-        }
+      const next: CompBox[] = [];
+      for (const c of components) {
+        const start = Math.max(0, Math.min(c.startIndex, textLen));
+        const end = Math.max(start, Math.min(c.endIndex, textLen));
+        if (end <= start) continue;
         const range = document.createRange();
         try {
           range.setStart(textNode, start);
           range.setEnd(textNode, end);
         } catch {
-          return { id: c.id, color: c.color, rects: [] };
+          continue;
         }
-        const clientRects = Array.from(range.getClientRects());
-        return {
+        const r = range.getBoundingClientRect();
+        next.push({
           id: c.id,
           color: c.color,
-          rects: clientRects.map((r) => ({
-            top: r.top - overlayRect.top,
-            left: r.left - overlayRect.left,
-            width: r.width,
-            height: r.height,
-          })),
-        };
-      });
-
-      // Restore selection.
-      if (sel) {
-        sel.removeAllRanges();
-        savedRanges.forEach(r => sel.addRange(r));
+          top: r.top - overlayRect.top,
+          left: r.left - overlayRect.left,
+          width: r.width,
+          height: r.height,
+        });
       }
 
-      setGroups(next);
-      });
+      if (sel) {
+        sel.removeAllRanges();
+        savedRanges.forEach((r) => sel.addRange(r));
+      }
+
+      setBoxes(next);
     };
 
     compute();
@@ -95,11 +88,14 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
       document.fonts.ready.then(compute).catch(() => undefined);
     }
     return () => {
-      cancelAnimationFrame(rafId);
       ro.disconnect();
       window.removeEventListener("resize", compute);
     };
   }, [editorRef, components, text]);
+
+  const dot = 14;
+  const hit = 32;
+  const dotGap = 4;
 
   return (
     <div
@@ -107,159 +103,80 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 z-0"
     >
-      {groups.flatMap((g, gi) => {
-        // Only the first component in an overlapping stack renders boxes;
-        // duplicates just get a dot at the top-right corner.
-        if (stackIndexFor(g, gi, groups) > 0) return [];
-        return g.rects.map((r, i) => {
-          const offset = stackOffsetFor(g, gi, groups);
-          return (
-            <div
-              key={`${g.id}_${i}`}
-              className="absolute rounded-sm"
-              style={{
-                top: r.top + offset,
-                left: r.left + offset,
-                width: r.width,
-                height: r.height,
-                background: "transparent",
-                boxShadow: `inset 0 0 0 3px ${g.color}`,
-              }}
-            />
-          );
-        });
-      })}
-      {/* Selection circle on the top-right corner of the LARGEST rect of
-          each component. The largest rect skips tiny leading-whitespace
-          rects that can sit on a previous wrap-line. pointer-events-auto
-          opts back into clickability so the overlay stays transparent
-          everywhere else. */}
-      {groups.map((g, gi) => {
-        if (g.rects.length === 0) return null;
-        const r = largestRect(g.rects);
-        const stackIdx = stackIndexFor(g, gi, groups);
-        const boxOffset = stackIdx * 4;
-        const dot = 14;
-        const hit = 32;
-        const dotGap = 4;
-        const cx = r.left + boxOffset + r.width + stackIdx * (dot + dotGap);
-        const cy = r.top + boxOffset;
-        const isSelected = g.id === selectedComponentId;
+      {boxes.map((b, idx) => {
+        // Count how many earlier boxes share the same text range
+        // (same position + size), so duplicates get only a dot.
+        let dupIdx = 0;
+        for (let i = 0; i < idx; i++) {
+          const prev = boxes[i];
+          if (
+            Math.abs(prev.left - b.left) < 2 &&
+            Math.abs(prev.top - b.top) < 2 &&
+            Math.abs(prev.width - b.width) < 2 &&
+            Math.abs(prev.height - b.height) < 2
+          ) {
+            dupIdx++;
+          }
+        }
+        const isDup = dupIdx > 0;
+        const isSelected = b.id === selectedComponentId;
+
         return (
-          <button
-            key={`${g.id}_dot`}
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => selectComponent(g.id)}
-            title="Select component"
-            aria-label="Select component"
-            className="pointer-events-auto absolute flex items-center justify-center"
-            style={{
-              top: cy - hit / 2,
-              left: cx - hit / 2,
-              width: hit,
-              height: hit,
-              background: "transparent",
-              border: 0,
-              padding: 0,
-              cursor: "pointer",
-            }}
-          >
-            <span
-              className="block rounded-full ring-2 ring-white/80 transition-transform hover:scale-125 dark:ring-neutral-950/80"
+          <div key={b.id}>
+            {/* Only the first occurrence of a text range gets a box */}
+            {!isDup && (
+              <div
+                className="absolute rounded-sm"
+                style={{
+                  top: b.top - 2,
+                  left: b.left - 2,
+                  width: b.width + 4,
+                  height: b.height + 4,
+                  boxShadow: `inset 0 0 0 3px ${b.color}`,
+                }}
+              />
+            )}
+            {/* Dot at top-right corner of the FIRST occurrence's box */}
+            {/* For duplicates, dots line up horizontally beside the first dot */}
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => selectComponent(b.id)}
+              title="Select component"
+              className="pointer-events-auto absolute flex items-center justify-center"
               style={{
-                width: dot,
-                height: dot,
-                background: g.color,
-                boxShadow: isSelected
-                  ? `0 0 0 2px ${g.color}, 0 0 0 4px rgba(255,255,255,0.5)`
-                  : undefined,
+                top: b.top - hit / 2 - 2,
+                left: b.left + b.width + dupIdx * (dot + dotGap) - hit / 2 + 2,
+                width: hit,
+                height: hit,
+                background: "transparent",
+                border: 0,
+                padding: 0,
+                cursor: "pointer",
               }}
-            />
-          </button>
+            >
+              <span
+                className="block rounded-full ring-2 ring-white/80 transition-transform hover:scale-125 dark:ring-neutral-950/80"
+                style={{
+                  width: dot,
+                  height: dot,
+                  background: b.color,
+                  boxShadow: isSelected
+                    ? `0 0 0 2px ${b.color}, 0 0 0 4px rgba(255,255,255,0.5)`
+                    : undefined,
+                }}
+              />
+            </button>
+          </div>
         );
       })}
+      {boxes.length === 0 && components.length > 0 && (
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-neutral-400">
+          (editor out of sync — type something)
+        </div>
+      )}
     </div>
   );
-}
-
-/** Pick the rect with the largest area — skips tiny leading/trailing whitespace rects. */
-function largestRect(
-  rects: Array<{ top: number; left: number; width: number; height: number }>,
-): { top: number; left: number; width: number; height: number } {
-  let best = rects[0];
-  for (const r of rects) {
-    if (r.width * r.height > best.width * best.height) best = r;
-  }
-  return best;
-}
-
-/** Two rects "substantially overlap" only if their intersection area is
- * at least half of the smaller rect's area. This excludes line-adjacent
- * boxes that only share a 1-pixel y-edge — those are not duplicates.
- */
-function substantialOverlap(
-  a: { left: number; top: number; width: number; height: number },
-  b: { left: number; top: number; width: number; height: number },
-): boolean {
-  const ix = Math.max(
-    0,
-    Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left),
-  );
-  const iy = Math.max(
-    0,
-    Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top),
-  );
-  const inter = ix * iy;
-  const aArea = a.width * a.height;
-  const bArea = b.width * b.height;
-  const smaller = Math.min(aArea, bArea);
-  return smaller > 0 && inter >= 0.5 * smaller;
-}
-
-function stackIndexFor(
-  g: RectGroup,
-  index: number,
-  all: RectGroup[],
-): number {
-  if (g.rects.length === 0) return 0;
-  const aBox = boundingBox(g.rects);
-  let count = 0;
-  for (let i = 0; i < index; i++) {
-    const other = all[i];
-    if (other.rects.length === 0) continue;
-    if (substantialOverlap(aBox, boundingBox(other.rects))) count++;
-  }
-  return count;
-}
-
-function stackOffsetFor(
-  g: RectGroup,
-  index: number,
-  all: RectGroup[],
-): number {
-  if (g.rects.length === 0) return 0;
-  const aBox = boundingBox(g.rects);
-  let stackedAbove = 0;
-  for (let i = 0; i < index; i++) {
-    const other = all[i];
-    if (other.rects.length === 0) continue;
-    if (substantialOverlap(aBox, boundingBox(other.rects))) stackedAbove++;
-  }
-  return stackedAbove * 4;
-}
-
-function boundingBox(
-  rects: Array<{ top: number; left: number; width: number; height: number }>,
-): { top: number; left: number; width: number; height: number } {
-  let minL = Infinity, minT = Infinity, maxR = -Infinity, maxB = -Infinity;
-  for (const r of rects) {
-    if (r.left < minL) minL = r.left;
-    if (r.top < minT) minT = r.top;
-    if (r.left + r.width > maxR) maxR = r.left + r.width;
-    if (r.top + r.height > maxB) maxB = r.top + r.height;
-  }
-  return { left: minL, top: minT, width: maxR - minL, height: maxB - minT };
 }
 
 function findTextNode(host: HTMLElement): Text | null {
@@ -268,8 +185,3 @@ function findTextNode(host: HTMLElement): Text | null {
   }
   return null;
 }
-
-function clamp(v: number, lo: number, hi: number): number {
-  return Math.max(lo, Math.min(hi, v));
-}
-
