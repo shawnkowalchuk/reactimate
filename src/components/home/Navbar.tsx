@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Github, MessageSquare, Moon, Settings, Shield, Sun } from "lucide-react";
 import { useThemeStore } from "../../store/themeStore";
@@ -13,6 +13,14 @@ export function Navbar() {
   const { user } = useAuth();
   const isAdmin = useIsAdmin();
   const [signInOpen, setSignInOpen] = useState(false);
+
+  // Close the sign-in modal once auth succeeds. Without this the SignInScreen
+  // sits mounted with its spinner spinning forever after a successful sign-in
+  // (the screen's own contract assumes AuthGate will unmount it on the /app
+  // route, which doesn't apply when it's hosted in a modal).
+  useEffect(() => {
+    if (user && signInOpen) setSignInOpen(false);
+  }, [user, signInOpen]);
 
   return (
     <>

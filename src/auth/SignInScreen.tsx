@@ -102,7 +102,12 @@ export function SignInScreen() {
         password: s.password,
       });
       if (error) throw error;
-      // onAuthStateChange will swap the gate to the app.
+      // Defensive: clear `pending` on success. When this screen is rendered
+      // by AuthGate on /app, the gate unmounts us once onAuthStateChange
+      // delivers the new user — but when we're rendered inside a modal
+      // (e.g. Navbar's "Sign in" button) the modal's host owns mount/unmount,
+      // so the spinner would otherwise spin forever post-success.
+      setPending(false);
     } catch (err) {
       setMessage({
         kind: "error",
