@@ -200,3 +200,42 @@ drop policy if exists "users delete own presets" on public.presets;
 create policy "users delete own presets"
   on public.presets for delete
   using (auth.uid() = user_id);
+
+-- =============================================================================
+-- projects: one row per user (the current editor project). Upserted on
+-- every autosave when Supabase is configured; falls back to localStorage
+-- otherwise.
+-- =============================================================================
+create table if not exists public.projects (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique references auth.users(id) on delete cascade,
+  name text not null default '',
+  data jsonb not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists projects_user_id_idx on public.projects(user_id);
+
+alter table public.projects enable row level security;
+
+drop policy if exists "users select own project" on public.projects;
+create policy "users select own project"
+  on public.projects for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "users insert own project" on public.projects;
+create policy "users insert own project"
+  on public.projects for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "users update own project" on public.projects;
+create policy "users update own project"
+  on public.projects for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "users delete own project" on public.projects;
+create policy "users delete own project"
+  on public.projects for delete
+  using (auth.uid() = user_id);

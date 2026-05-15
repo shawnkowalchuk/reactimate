@@ -4,6 +4,7 @@ import { useProjectStore } from "../store/projectStore";
 import { useAnimationEngine } from "../playback/useAnimationEngine";
 import { useKeyboardShortcuts } from "../playback/useKeyboardShortcuts";
 import { useAutosave } from "../persistence/useAutosave";
+import { useCloudSync } from "../persistence/useCloudSync";
 import { Toolbar } from "../components/layout/Toolbar";
 import { InspectorBar } from "../components/layout/InspectorBar";
 import { TextEditor } from "../components/editor/TextEditor";
@@ -18,6 +19,7 @@ export function EditorPage() {
   const { registerElement } = useAnimationEngine();
   useKeyboardShortcuts();
   useAutosave();
+  useCloudSync();
 
   const [previewTab, setPreviewTab] = useState<PreviewTab>("preview");
 

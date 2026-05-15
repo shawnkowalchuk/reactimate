@@ -1,4 +1,6 @@
 import type { Project } from "../types/project";
+import { isAuthEnabled } from "../auth/supabase";
+import { saveProjectToDB, loadProjectFromDB } from "../api/projectApi";
 
 const STORAGE_KEY = "reactimate.project.v1";
 const SCHEMA_VERSION = 1;
@@ -35,8 +37,7 @@ function migrateSparkleToParticle(value: unknown): unknown {
 
 /**
  * Validate a parsed value as a Project. Returns the project on success
- * or null on any failure (missing keys, wrong types, etc.). We trust
- * the rest of our code only after this gate.
+ * or null on any failure (missing keys, wrong types, etc.).
  */
 export function validateProject(value: unknown): Project | null {
   if (!value || typeof value !== "object") return null;
@@ -59,6 +60,7 @@ export function validateProject(value: unknown): Project | null {
   return p as Project;
 }
 
+/** Always loads from localStorage (sync — instant on app start). */
 export function loadFromStorage(): Project | null {
   if (typeof window === "undefined") return null;
   try {
@@ -75,17 +77,24 @@ export function loadFromStorage(): Project | null {
   }
 }
 
+/** Always saves to localStorage. Also fires an async DB save if auth is enabled. */
 export function saveToStorage(project: Project): void {
-  if (typeof window === "undefined") return;
-  try {
-    const payload: SavedState = {
-      schemaVersion: SCHEMA_VERSION,
-      savedAt: new Date().toISOString(),
-      project,
-    };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  } catch {
-    // Quota exceeded, private browsing, etc. — silently skip.
+  // LocalStorage (sync, always works).
+  if (typeof window !== "undefined") {
+    try {
+      const payload: SavedState = {
+        schemaVersion: SCHEMA_VERSION,
+        savedAt: new Date().toISOString(),
+        project,
+      };
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      // Quota exceeded, private browsing, etc.
+    }
+  }
+  // DB (async, fire-and-forget).
+  if (isAuthEnabled) {
+    saveProjectToDB(project).catch(() => undefined);
   }
 }
 
@@ -96,4 +105,26 @@ export function clearStorage(): void {
   } catch {
     // ignore
   }
+}
+
+/**
+ * Called once after auth is resolved. If the DB has a project, returns it.
+ * If not but localStorage does, migrates localStorage → DB and returns that.
+ * Returns null if nothing is available.
+ */
+export async function loadFromCloudOrMigrate(): Promise<Project | null> {
+  if (!isAuthEnabled) return null;
+  try {
+    const dbProject = await loadProjectFromDB();
+    if (dbProject) return validateProject(dbProject);
+  } catch {
+    // DB unavailable — fall through to migrate.
+  }
+  // No DB project — migrate localStorage if present.
+  const local = loadFromStorage();
+  if (local) {
+    saveProjectToDB(local).catch(() => undefined);
+    return local;
+  }
+  return null;
 }
