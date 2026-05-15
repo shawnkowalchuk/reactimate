@@ -200,7 +200,7 @@ export function TextEditor() {
               autoCorrect="off"
               autoCapitalize="off"
               onInput={onInput}
-              className="relative z-10 whitespace-pre-wrap break-words text-center outline-none caret-sky-400"
+              className="relative z-10 whitespace-pre-wrap text-center outline-none caret-sky-400"
               style={{
                 // Match RenderedText's text-cap so editor and preview
                 // wrap the same way.

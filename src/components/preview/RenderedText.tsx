@@ -95,7 +95,7 @@ export function RenderedText({
         fontWeight: defaultTextStyle.fontWeight,
         color: defaultTextStyle.color,
         whiteSpace: "pre-wrap",
-        wordBreak: "break-word",
+        wordBreak: "normal",
         textAlign: layer.alignment,
         width: "100%",
         // Cap text width so long phrases naturally wrap to multiple
