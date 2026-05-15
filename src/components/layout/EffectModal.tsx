@@ -28,12 +28,13 @@ const TYPE_OPTIONS: EffectType[] = [
   "slide",
   "scale",
   "rotate",
+  "zoom",
   "color-shift",
   "spotlight",
   "particle",
   "typewriter",
-  "fireworks-js",
   "blur",
+  "fireworks-js",
 ];
 
 const PROP_LABELS: Record<AnimatableProp, string> = {
@@ -1087,13 +1088,13 @@ interface FireworksPanelProps {
   onChange: (update: Partial<FireworksPanelProps["fireworks"]>) => void;
 }
 
-function DualSlider({ label, min, max, step, minVal, maxVal, onChange, unit }: {
-  label: string; min: number; max: number; step: number;
+function DualSlider({ label, title, min, max, step, minVal, maxVal, onChange, unit }: {
+  label: string; title?: string; min: number; max: number; step: number;
   minVal: number; maxVal: number; unit?: string;
   onChange: (min: number, max: number) => void;
 }) {
   return (
-    <label className="flex flex-col gap-1">
+    <label className="flex flex-col gap-1" title={title}>
       <div className="flex items-center justify-between">
         <span className="text-xs text-neutral-500">{label}</span>
         <span className="text-[10px] tabular-nums text-neutral-400">
@@ -1120,12 +1121,12 @@ function DualSlider({ label, min, max, step, minVal, maxVal, onChange, unit }: {
   );
 }
 
-function SliderField({ label, value, min, max, step, onChange }: {
-  label: string; value: number; min: number; max: number; step: number;
+function SliderField({ label, title, value, min, max, step, onChange }: {
+  label: string; title?: string; value: number; min: number; max: number; step: number;
   onChange: (v: number) => void;
 }) {
   return (
-    <label className="flex flex-col gap-1">
+    <label className="flex flex-col gap-1" title={title}>
       <span className="text-xs text-neutral-500">{label}</span>
       <div className="flex items-center gap-2">
         <input
@@ -1160,17 +1161,17 @@ function FireworksPanel({ fireworks, onChange }: FireworksPanelProps) {
         </p>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <SliderField label="Particles" value={fireworks.density} min={1} max={200} step={5} onChange={(v) => onChange({ density: v })} />
-        <SliderField label="Explosion" value={fireworks.explosion} min={1} max={20} step={1} onChange={(v) => onChange({ explosion: v })} />
-        <SliderField label="Gravity" value={fireworks.gravity ?? 1.5} min={0.1} max={5} step={0.1} onChange={(v) => onChange({ gravity: v })} />
-        <SliderField label="Opacity" value={fireworks.opacity ?? 0.5} min={0.1} max={1} step={0.05} onChange={(v) => onChange({ opacity: v })} />
-        <SliderField label="Flickering" value={fireworks.flickering ?? 50} min={0} max={100} step={5} onChange={(v) => onChange({ flickering: v })} />
-        <SliderField label="Acceleration" value={fireworks.acceleration ?? 1.05} min={1} max={1.1} step={0.01} onChange={(v) => onChange({ acceleration: v })} />
-        <SliderField label="Friction" value={fireworks.friction ?? 0.97} min={0.9} max={1} step={0.01} onChange={(v) => onChange({ friction: v })} />
-        <SliderField label="Trace len" value={fireworks.traceLength ?? 3} min={1} max={10} step={1} onChange={(v) => onChange({ traceLength: v })} />
-        <SliderField label="Trace speed" value={fireworks.traceSpeed ?? 10} min={1} max={20} step={1} onChange={(v) => onChange({ traceSpeed: v })} />
-        <SliderField label="Intensity" value={fireworks.intensity ?? 30} min={10} max={100} step={5} onChange={(v) => onChange({ intensity: v })} />
-        <SliderField label="Spread %" value={fireworks.rocketsSpread ?? 80} min={10} max={100} step={5} onChange={(v) => onChange({ rocketsSpread: v })} />
+        <SliderField title="Total particles per rocket explosion" label="Particles" value={fireworks.density} min={1} max={200} step={5} onChange={(v) => onChange({ density: v })} />
+        <SliderField title="Number of sub-explosions per rocket" label="Explosion" value={fireworks.explosion} min={1} max={20} step={1} onChange={(v) => onChange({ explosion: v })} />
+        <SliderField title="Downward gravity pull on particles" label="Gravity" value={fireworks.gravity ?? 1.5} min={0.1} max={5} step={0.1} onChange={(v) => onChange({ gravity: v })} />
+        <SliderField title="Particle transparency level" label="Opacity" value={fireworks.opacity ?? 0.5} min={0.1} max={1} step={0.05} onChange={(v) => onChange({ opacity: v })} />
+        <SliderField title="Random flicker intensity percentage" label="Flickering" value={fireworks.flickering ?? 50} min={0} max={100} step={5} onChange={(v) => onChange({ flickering: v })} />
+        <SliderField title="Particle speed increase over time" label="Acceleration" value={fireworks.acceleration ?? 1.05} min={1} max={1.1} step={0.01} onChange={(v) => onChange({ acceleration: v })} />
+        <SliderField title="Air resistance slowing particles" label="Friction" value={fireworks.friction ?? 0.97} min={0.9} max={1} step={0.01} onChange={(v) => onChange({ friction: v })} />
+        <SliderField title="Length of particle trail behind" label="Trace len" value={fireworks.traceLength ?? 3} min={1} max={10} step={1} onChange={(v) => onChange({ traceLength: v })} />
+        <SliderField title="How quickly the trail fades out" label="Trace speed" value={fireworks.traceSpeed ?? 10} min={1} max={20} step={1} onChange={(v) => onChange({ traceSpeed: v })} />
+        <SliderField title="Rocket launch power / height" label="Intensity" value={fireworks.intensity ?? 30} min={10} max={100} step={5} onChange={(v) => onChange({ intensity: v })} />
+        <SliderField title="Horizontal launch spread as % of width" label="Spread %" value={fireworks.rocketsSpread ?? 80} min={10} max={100} step={5} onChange={(v) => onChange({ rocketsSpread: v })} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1">
@@ -1186,25 +1187,25 @@ function FireworksPanel({ fireworks, onChange }: FireworksPanelProps) {
         </label>
         <SliderField label="Spread radius (px)" value={fireworks.spreadRadius ?? 100} min={0} max={500} step={10} onChange={(v) => onChange({ spreadRadius: v })} />
       </div>
-      <DualSlider label="Delay (ms)" min={10} max={2000} step={10}
+      <DualSlider title="Milliseconds between rocket launches (randomized in range)" label="Delay (ms)" min={10} max={2000} step={10}
         minVal={fireworks.delayMin ?? 50} maxVal={fireworks.delayMax ?? 200}
         onChange={(min, max) => onChange({ delayMin: min, delayMax: Math.max(min, max) })} />
-      <DualSlider label="Brightness" min={0} max={100} step={5}
+      <DualSlider title="Particle brightness range" label="Brightness" min={0} max={100} step={5}
         minVal={fireworks.brightnessMin ?? 50} maxVal={fireworks.brightnessMax ?? 80}
         onChange={(min, max) => onChange({ brightnessMin: min, brightnessMax: Math.max(min, max) })} />
-      <DualSlider label="Decay" min={0.005} max={0.05} step={0.005}
+      <DualSlider title="Particle fade-out speed range" label="Decay" min={0.005} max={0.05} step={0.005}
         minVal={fireworks.decayMin ?? 0.015} maxVal={fireworks.decayMax ?? 0.03}
         onChange={(min, max) => onChange({ decayMin: min, decayMax: Math.max(min, max) })} />
-      <DualSlider label="Hue" min={0} max={360} step={5}
+      <DualSlider title="Color hue range (0=red, 120=green, 240=blue, 360=red again)" label="Hue" min={0} max={360} step={5}
         minVal={fireworks.hueMin ?? 0} maxVal={fireworks.hueMax ?? 360}
         onChange={(min, max) => onChange({ hueMin: min, hueMax: Math.max(min, max) })} />
-      <DualSlider label="Rockets point %" min={0} max={100} step={5}
+      <DualSlider title="Launch position along bottom edge as % (50=center)" label="Rockets point %" min={0} max={100} step={5}
         minVal={fireworks.rocketsPointMin ?? 30} maxVal={fireworks.rocketsPointMax ?? 70}
         onChange={(min, max) => onChange({ rocketsPointMin: min, rocketsPointMax: Math.max(min, max) })} />
-      <DualSlider label="Line width (explosion)" min={1} max={10} step={1}
+      <DualSlider title="Line thickness for explosion particles" label="Line width (explosion)" min={1} max={10} step={1}
         minVal={fireworks.lineWidthExpMin ?? 1} maxVal={fireworks.lineWidthExpMax ?? 3}
         onChange={(min, max) => onChange({ lineWidthExpMin: min, lineWidthExpMax: Math.max(min, max) })} />
-      <DualSlider label="Line width (trace)" min={1} max={5} step={1}
+      <DualSlider title="Line thickness for trail particles" label="Line width (trace)" min={1} max={5} step={1}
         minVal={fireworks.lineWidthTraceMin ?? 1} maxVal={fireworks.lineWidthTraceMax ?? 2}
         onChange={(min, max) => onChange({ lineWidthTraceMin: min, lineWidthTraceMax: Math.max(min, max) })} />
       <div className="flex items-center gap-4">

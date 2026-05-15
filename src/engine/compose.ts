@@ -127,7 +127,7 @@ export function computeComponentStyle(
   const isActive =
     sorted.length > 0 &&
     sorted.some(({ effect, startTime, endTime }) => {
-      if (effect.type === "typewriter" || effect.type === "rotate" || effect.type === "blur") {
+      if (effect.type === "typewriter" || effect.type === "rotate" || effect.type === "blur" || effect.type === "zoom") {
         return time >= startTime;
       }
       if (effect.type === "particle" && effect.particle?.continueAfter) {

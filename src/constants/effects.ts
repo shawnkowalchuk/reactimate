@@ -74,6 +74,12 @@ export const EFFECT_DEFAULTS: Record<EffectType, EffectDefaults> = {
     from: { blur: 0 },
     targets: { blur: 8 },
   },
+  zoom: {
+    duration: 0.6,
+    easing: "ease-out",
+    from: { scale: 0.5, opacity: 0, x: 0, y: 20 },
+    targets: { scale: 1, opacity: 1, x: 0, y: 0 },
+  },
   custom: {
     duration: 0.5,
     easing: "ease-in-out",
@@ -93,6 +99,7 @@ export const EFFECT_LABELS: Record<EffectType, string> = {
   typewriter: "Typewriter",
   "fireworks-js": "Fireworks (lib)",
   blur: "Blur",
+  zoom: "Zoom",
   // "custom" is the placeholder for a blank effect — no animated props.
   // Used as the default when the user adds an effect via "+" before
   // picking a type in the modal.

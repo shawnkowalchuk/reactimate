@@ -10,8 +10,9 @@ export type EffectType =
   | "spotlight"
   | "particle"
   | "typewriter"
-  | "fireworks-js"
   | "blur"
+  | "zoom"
+  | "fireworks-js"
   | "custom";
 
 export type EasingType =
