@@ -97,8 +97,11 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 z-0"
     >
-      {groups.flatMap((g, gi) =>
-        g.rects.map((r, i) => {
+      {groups.flatMap((g, gi) => {
+        // Only the first component in an overlapping stack renders boxes;
+        // duplicates just get a dot at the top-right corner.
+        if (stackIndexFor(g, gi, groups) > 0) return [];
+        return g.rects.map((r, i) => {
           const offset = stackOffsetFor(g, gi, groups);
           return (
             <div
@@ -114,8 +117,8 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
               }}
             />
           );
-        }),
-      )}
+        });
+      })}
       {/* Selection circle on the top-right corner of the LARGEST rect of
           each component. The largest rect skips tiny leading-whitespace
           rects that can sit on a previous wrap-line. pointer-events-auto
@@ -123,17 +126,14 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
           everywhere else. */}
       {groups.map((g, gi) => {
         if (g.rects.length === 0) return null;
-        // Use the FULL bounding box so the dot sits at the top-right
-        // corner of the component's entire text area, not just the
-        // largest line rect.
-        const bb = boundingBox(g.rects);
+        const r = largestRect(g.rects);
         const stackIdx = stackIndexFor(g, gi, groups);
         const boxOffset = stackIdx * 4;
         const dot = 14;
         const hit = 32;
         const dotGap = 4;
-        const cx = bb.left + boxOffset + bb.width + stackIdx * (dot + dotGap);
-        const cy = bb.top + boxOffset;
+        const cx = r.left + boxOffset + r.width + stackIdx * (dot + dotGap);
+        const cy = r.top + boxOffset;
         const isSelected = g.id === selectedComponentId;
         return (
           <button
@@ -171,6 +171,17 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
       })}
     </div>
   );
+}
+
+/** Pick the rect with the largest area — skips tiny leading/trailing whitespace rects. */
+function largestRect(
+  rects: Array<{ top: number; left: number; width: number; height: number }>,
+): { top: number; left: number; width: number; height: number } {
+  let best = rects[0];
+  for (const r of rects) {
+    if (r.width * r.height > best.width * best.height) best = r;
+  }
+  return best;
 }
 
 /** Two rects "substantially overlap" only if their intersection area is
