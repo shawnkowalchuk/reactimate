@@ -315,7 +315,7 @@ export function EffectModal() {
           </label>
         </div>
 
-        {effect.type !== "fireworks-js" && (
+        {effect.type !== "fireworks-js" && effect.type !== "particle" && (
         <div className="flex flex-col gap-1.5">
           <span className="text-xs text-neutral-500">Easing</span>
           <EasingPicker

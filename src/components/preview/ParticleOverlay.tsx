@@ -246,9 +246,15 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
           const spawnT = anchor + (i / total) * lifespan;
           const age = time - spawnT;
           if (age < 0 || age > lifespan) continue;
-          const seed = hash(`${e.id}_cont_${i}_c${cycle}_${Math.floor(time * (particleType === "standard" ? 20 : particleType === "volcano" ? 2 : particleType === "fireworks" ? 3 : 5))}`);
+          const seed = hash(`${e.id}_cont_${i}_c${cycle}${particleType === "standard" ? "_" + Math.floor(time * 20) : ""}`);
           const path = particlePath(particleType, seed, useW, useH, padding, age, lifespan);
           if (!path) continue;
+          const px = particleType !== "standard" 
+            ? path.x + Math.sin(time * 0.7 + pseudo(seed, 10) * 100) * 18 + Math.cos(time * 1.1 + pseudo(seed, 11) * 80) * 14
+            : path.x;
+          const py = particleType !== "standard"
+            ? path.y + Math.cos(time * 0.6 + pseudo(seed, 12) * 120) * 14 + Math.sin(time * 0.9 + pseudo(seed, 13) * 90) * 12
+            : path.y;
           const baseRot = pseudo(seed, 3) * 360;
           const rotation = baseRot + rotSpeed * age;
           const sizeMul = 1 + (pseudo(seed, 4) - 0.5) * 2 * sizeJitter;
@@ -256,8 +262,8 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
           const color = PRESET_COLOR_FNS[cfg.preset]?.(i, cfg.color) ?? cfg.color;
           detParticles.push({
             key: `${e.id}_cont_${cycle}_${i}`,
-            x: path.x,
-            y: path.y,
+            x: px,
+            y: py,
             size,
             color,
             opacity: path.opacity,
@@ -273,12 +279,18 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
       for (let i = 0; i < total; i++) {
         // For standard particles, mix time into seed for gentle drift.
         // For fireworks/volcano/dropping, keep seed stable so animation is smooth.
-        const seed = hash(`${e.id}_${i}_${Math.floor(time * (particleType === "standard" ? 20 : particleType === "volcano" ? 2 : particleType === "fireworks" ? 3 : 5))}`);
+        const seed = hash(`${e.id}_${i}${particleType === "standard" ? "_" + Math.floor(time * 20) : ""}`);
         const spawnT = e.startTime + (i / total) * e.duration;
         const age = time - spawnT;
         if (age < 0 || age > lifespan) continue;
         const path = particlePath(particleType, seed, useW, useH, padding, age, lifespan);
         if (!path) continue;
+        const px = particleType !== "standard" 
+          ? path.x + Math.sin(time * 0.7 + pseudo(seed, 10) * 100) * 18 + Math.cos(time * 1.1 + pseudo(seed, 11) * 80) * 14
+          : path.x;
+        const py = particleType !== "standard"
+          ? path.y + Math.cos(time * 0.6 + pseudo(seed, 12) * 120) * 14 + Math.sin(time * 0.9 + pseudo(seed, 13) * 90) * 12
+          : path.y;
         const baseRot = pseudo(seed, 3) * 360;
         const rotation = baseRot + rotSpeed * age;
         const sizeMul = 1 + (pseudo(seed, 4) - 0.5) * 2 * sizeJitter;
@@ -286,8 +298,8 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
         const color = PRESET_COLOR_FNS[cfg.preset]?.(i, cfg.color) ?? cfg.color;
         detParticles.push({
           key: `${e.id}_${i}`,
-          x: path.x,
-          y: path.y,
+          x: px,
+          y: py,
           size,
           color,
           opacity: path.opacity,
