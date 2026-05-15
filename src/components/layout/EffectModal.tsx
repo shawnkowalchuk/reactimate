@@ -1291,25 +1291,42 @@ function TypewriterPanel({ typewriter, textColor, onChange }: TypewriterPanelPro
       <div className="text-xs uppercase tracking-wider text-neutral-500">
         Typewriter
       </div>
-      <label className="flex flex-col gap-1 text-xs">
-        <span className="text-neutral-500">Reveal style</span>
-        <div className="flex gap-1">
-          <ShapeBtn
-            active={typewriter.mode === "snap"}
-            onClick={() => onChange({ mode: "snap" })}
-            label="Snap"
-          />
-          <ShapeBtn
-            active={typewriter.mode === "fade"}
-            onClick={() => onChange({ mode: "fade" })}
-            label="Fade"
-          />
-        </div>
-        <span className="mt-1 text-neutral-500">
-          Each letter appears across the effect duration. Snap = instant
-          per letter, Fade = each letter eases in.
-        </span>
+      <label
+        className="flex items-center gap-2 text-xs"
+        title="When off, each letter snaps in instantly at its scheduled time. When on, each letter eases in over a small per-letter window."
+      >
+        <input
+          type="checkbox"
+          checked={typewriter.mode === "fade"}
+          onChange={(e) => onChange({ mode: e.target.checked ? "fade" : "snap" })}
+          className="h-3.5 w-3.5 cursor-pointer"
+        />
+        <span className="text-neutral-700 dark:text-neutral-300">Fade in each letter</span>
+        <span className="text-neutral-500">(off = snap)</span>
       </label>
+
+      <div className="grid grid-cols-2 gap-3 text-xs">
+        <label className="flex flex-col gap-1" title="Static X shift in design px applied to all rendered letters. Useful when stacking duplicate components for a layered shadow look.">
+          <span className="text-neutral-500">Offset X (px)</span>
+          <input
+            type="number"
+            step={1}
+            value={typewriter.offsetX ?? 0}
+            onChange={(e) => onChange({ offsetX: parseFloat(e.target.value) || 0 })}
+            className="w-20 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          />
+        </label>
+        <label className="flex flex-col gap-1" title="Static Y shift in design px applied to all rendered letters.">
+          <span className="text-neutral-500">Offset Y (px)</span>
+          <input
+            type="number"
+            step={1}
+            value={typewriter.offsetY ?? 0}
+            onChange={(e) => onChange({ offsetY: parseFloat(e.target.value) || 0 })}
+            className="w-20 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          />
+        </label>
+      </div>
 
       <div className="flex flex-col gap-1.5 text-xs">
         <span className="text-neutral-500">Per-letter shape</span>

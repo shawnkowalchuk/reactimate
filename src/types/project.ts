@@ -233,10 +233,16 @@ export interface Effect {
    * `shape` (optional) renders a per-letter square or circle that
    * animates Size / Blur / Fade over the same per-letter window,
    * either behind or in front of the letter glyph.
+   * `offsetX` / `offsetY` shift ALL the rendered letters by a static
+   * px translate (in canvas-design coords) — useful for stacking
+   * duplicate components offset from each other to create a layered
+   * shadow / outline look.
    */
   typewriter?: {
     mode: "snap" | "fade";
     shape?: TypewriterShape;
+    offsetX?: number;
+    offsetY?: number;
   };
 }
 

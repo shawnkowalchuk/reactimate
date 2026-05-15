@@ -79,6 +79,17 @@ function shapeOf(c: Component): TypewriterShape | undefined {
   return undefined;
 }
 
+/** Find the typewriter X/Y offset on a component, if any. */
+function offsetOf(c: Component): { x: number; y: number } | null {
+  for (const e of c.effects) {
+    if (e.type !== "typewriter" || !e.typewriter) continue;
+    const x = e.typewriter.offsetX ?? 0;
+    const y = e.typewriter.offsetY ?? 0;
+    if (x !== 0 || y !== 0) return { x, y };
+  }
+  return null;
+}
+
 /** Inline styles for a per-letter shape span (size/blur/opacity set by engine). */
 function shapeSpanStyle(shape: TypewriterShape): React.CSSProperties {
   return {
@@ -215,8 +226,15 @@ export function RenderedText({
         );
 
         const compShape = shapeOf(c);
+        const compOffset = offsetOf(c);
+        const staggerWrapStyle: React.CSSProperties = compOffset
+          ? {
+              display: "inline-block",
+              transform: `translate(${compOffset.x}px, ${compOffset.y}px)`,
+            }
+          : { display: "inline-block" };
         const baseSpan = stagger ? (
-          <span style={{ display: "inline-block" }}>
+          <span style={staggerWrapStyle}>
             {Array.from(seg.text).map((ch, i) => {
               const letter = (
                 <span
@@ -282,8 +300,15 @@ export function RenderedText({
             willChange: "transform, opacity",
           };
           const oShape = shapeOf(oc);
+          const oOffset = offsetOf(oc);
+          const oWrapStyle: React.CSSProperties = oOffset
+            ? {
+                display: "inline-block",
+                transform: `translate(${oOffset.x}px, ${oOffset.y}px)`,
+              }
+            : { display: "inline-block" };
           const oSpan = oStagger ? (
-            <span style={{ display: "inline-block" }}>
+            <span style={oWrapStyle}>
               {Array.from(o.text).map((ch, i) => {
                 const letter = (
                   <span
@@ -321,7 +346,7 @@ export function RenderedText({
           return (
             <span
               key={o.key}
-              style={{ position: "absolute", inset: 0 }}
+              style={{ gridArea: "1 / 1", display: "inline-block" }}
             >
               {oSpan}
             </span>
@@ -330,8 +355,15 @@ export function RenderedText({
 
         const needsOverlayWrapper = overlays.length > 0;
         const innerWithOverlays = needsOverlayWrapper ? (
-          <span style={{ position: "relative", display: "inline-block" }}>
-            {inner}
+          // inline-grid stacks the inner + every overlay into the SAME cell
+          // so they all share identical layout metrics. With the previous
+          // position:absolute pattern, the absolute children were top-aligned
+          // while the inner flowed at the inline baseline — duplicates ended
+          // up offset by a few pixels because of the baseline gap.
+          <span style={{ display: "inline-grid", gridTemplateColumns: "auto" }}>
+            <span style={{ gridArea: "1 / 1", display: "inline-block" }}>
+              {inner}
+            </span>
             {overlaySpans}
           </span>
         ) : (
