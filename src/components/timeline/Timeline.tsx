@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Copy, Eye, EyeOff } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Eye, EyeOff, Trash2 } from "lucide-react";
 import { useProjectStore } from "../../store/projectStore";
 import { usePlaybackStore } from "../../store/playbackStore";
 import { useSelectionStore } from "../../store/selectionStore";
@@ -14,6 +14,7 @@ const GUTTER_WIDTH = 200;
 export function Timeline() {
   const project = useProjectStore((s) => s.project);
   const duplicateComponent = useProjectStore((s) => s.duplicateComponent);
+  const removeComponent = useProjectStore((s) => s.removeComponent);
   const toggleComponentHidden = useProjectStore((s) => s.toggleComponentHidden);
   const moveComponentUp = useProjectStore((s) => s.moveComponentUp);
   const moveComponentDown = useProjectStore((s) => s.moveComponentDown);
@@ -147,6 +148,14 @@ export function Timeline() {
                   <Copy size={12} />
                 </button>
                 <AddEffectMenu component={c} projectDuration={project.duration} />
+                <button
+                  type="button"
+                  onClick={() => removeComponent(c.id)}
+                  className="rounded p-0.5 text-neutral-400 hover:text-red-600 dark:hover:text-red-400"
+                  title="Delete component"
+                >
+                  <Trash2 size={12} />
+                </button>
               </div>
             );
           })}
