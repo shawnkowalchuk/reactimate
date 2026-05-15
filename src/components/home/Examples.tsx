@@ -183,7 +183,7 @@ function TypewriterHero() {
   const line = "Type it out, character by character.";
   return (
     <h3 className="font-mono text-xl tracking-tight sm:text-2xl">
-      <span style={{ display: "inline-block" }}>
+      <span style={{ display: "inline-block", whiteSpace: "nowrap" }}>
         {Array.from(line).map((ch, i) => (
           <motion.span
             key={i}
@@ -219,7 +219,7 @@ const line = "Type it out, character by character.";
 export function Hero() {
   return (
     <h1 style={{ fontFamily: "ui-monospace, JetBrains Mono, monospace" }}>
-      <span style={{ display: "inline-block" }}>
+      <span style={{ display: "inline-block", whiteSpace: "nowrap" }}>
         {Array.from(line).map((ch, i) => (
           <motion.span
             key={i}
