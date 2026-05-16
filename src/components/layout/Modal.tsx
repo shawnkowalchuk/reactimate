@@ -8,9 +8,21 @@ interface ModalProps {
   children: ReactNode;
   /** Optional max-width Tailwind class (e.g. "max-w-md"). */
   maxWidth?: string;
+  /**
+   * Optional sticky footer (typically Cancel / Save buttons).
+   * Sits below the scrollable content area, always visible.
+   */
+  footer?: ReactNode;
 }
 
-export function Modal({ open, onClose, title, children, maxWidth = "max-w-lg" }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  maxWidth = "max-w-lg",
+  footer,
+}: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -45,6 +57,11 @@ export function Modal({ open, onClose, title, children, maxWidth = "max-w-lg" }:
           </button>
         </div>
         <div className="overflow-y-auto p-4">{children}</div>
+        {footer && (
+          <div className="flex items-center justify-end gap-2 border-t border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

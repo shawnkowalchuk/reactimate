@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Copy, Download, Trash2, Upload } from "lucide-react";
 import { useProjectStore } from "../../store/projectStore";
 import { useUIStore } from "../../store/uiStore";
@@ -7,6 +7,7 @@ import { EFFECT_DEFAULTS, EFFECT_LABELS } from "../../constants/effects";
 import type {
   AnimatableProp,
   AnimatableTargets,
+  Effect,
   EffectArea,
   EffectType,
   Project,
@@ -90,6 +91,53 @@ export function EffectModal() {
     ? component.effects.find((e) => e.id === target!.effectId) ?? null
     : null;
   const open = Boolean(component && effect);
+
+  // Snapshot of the effect at modal-open time, used to revert on Cancel.
+  // Keyed on (componentId, effectId) so switching to a different effect
+  // re-snapshots without leaking state from the previous one. Closing
+  // the modal clears the snapshot. The snapshot must be a deep clone
+  // since nested objects (spotlight / particle / fireworks / typewriter
+  // / targets / from) get mutated via spread in patch* helpers.
+  const snapshotRef = useRef<Effect | null>(null);
+  // committedRef = true when Save was clicked, so the close-handler
+  // skips the revert step.
+  const committedRef = useRef(false);
+  const targetKey = target ? `${target.componentId}:${target.effectId}` : null;
+
+  useEffect(() => {
+    if (!targetKey) {
+      snapshotRef.current = null;
+      committedRef.current = false;
+      return;
+    }
+    // Re-snapshot every time the modal opens on a new (component, effect)
+    // pair. Reads from the store directly to dodge stale-closure issues
+    // (effect prop changes on every keystroke during live editing).
+    const proj = useProjectStore.getState().project;
+    const [compId, effId] = targetKey.split(":");
+    const c = proj.layer.components.find((x) => x.id === compId);
+    const e = c?.effects.find((x) => x.id === effId) ?? null;
+    snapshotRef.current = e ? structuredClone(e) : null;
+    committedRef.current = false;
+  }, [targetKey]);
+
+  const revertAndClose = () => {
+    if (!committedRef.current && snapshotRef.current && target) {
+      // Replace the effect with the snapshot — every typed key in
+      // Effect appears in the snapshot, so this overwrites all in-modal
+      // edits including type switches and seeded config blocks.
+      updateEffect(target.componentId, target.effectId, snapshotRef.current);
+    }
+    committedRef.current = false;
+    snapshotRef.current = null;
+    closeEffectModal();
+  };
+
+  const saveAndClose = () => {
+    committedRef.current = true;
+    snapshotRef.current = null;
+    closeEffectModal();
+  };
 
   if (!open || !component || !effect) return null;
 
@@ -244,6 +292,11 @@ export function EffectModal() {
   };
 
   const onDelete = () => {
+    // Mark as committed first — delete is a deliberate destructive
+    // action, not an in-modal edit, so we don't want the revert path
+    // to fire (it'd no-op against a now-deleted effect anyway).
+    committedRef.current = true;
+    snapshotRef.current = null;
     removeEffect(component.id, effect.id);
     closeEffectModal();
   };
@@ -266,7 +319,29 @@ export function EffectModal() {
   };
 
   return (
-    <Modal open onClose={closeEffectModal} title="Edit effect">
+    <Modal
+      open
+      onClose={revertAndClose}
+      title="Edit effect"
+      footer={
+        <>
+          <button
+            type="button"
+            onClick={revertAndClose}
+            className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-800 hover:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-neutral-500"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={saveAndClose}
+            className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+          >
+            Save
+          </button>
+        </>
+      }
+    >
       <div className="flex flex-col gap-4 text-sm text-neutral-700 dark:text-neutral-300">
         <div className="flex items-center gap-2 text-xs">
           <span
