@@ -1,7 +1,12 @@
+import { useEffect, useState } from "react";
 import {
+  Check,
+  Cloud,
+  CloudOff,
   Download,
   FilePlus,
   FolderOpen,
+  Loader2,
   Moon,
   Pause,
   Play,
@@ -22,6 +27,9 @@ import {
   saveProjectFile,
 } from "../../persistence/importExport";
 import { clearStorage } from "../../persistence/localStorage";
+import { saveProjectToDB } from "../../api/projectApi";
+import { isAuthEnabled } from "../../auth/supabase";
+import { useAuth } from "../../auth/useAuth";
 import { Link } from "react-router-dom";
 import { UserMenu } from "./UserMenu";
 
@@ -38,6 +46,19 @@ export function Toolbar() {
   const setPlaying = usePlaybackStore((s) => s.setPlaying);
   const theme = useThemeStore((s) => s.theme);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
+  const { user } = useAuth();
+  const cloudActive = isAuthEnabled && Boolean(user);
+  // Save button feedback state: "idle" | "saving" | "saved-cloud" | "saved-file".
+  // The transient "saved-*" state flips back to "idle" after 1.5s.
+  const [saveState, setSaveState] = useState<
+    "idle" | "saving" | "saved-cloud" | "saved-file"
+  >("idle");
+  useEffect(() => {
+    if (saveState === "saved-cloud" || saveState === "saved-file") {
+      const id = window.setTimeout(() => setSaveState("idle"), 1500);
+      return () => window.clearTimeout(id);
+    }
+  }, [saveState]);
 
   const onPlay = () => {
     if (!isPlaying && currentTime >= project.duration) {
@@ -67,7 +88,30 @@ export function Toolbar() {
     downloadFile("Hero.tsx", jsx, "text/typescript");
   };
 
-  const onSaveProject = () => saveProjectFile(project);
+  /**
+   * Smart Save:
+   *  - Signed in (cloud available)   → force-sync to Supabase and confirm.
+   *    (Auto-save is already running on every change; this button is the
+   *    "I want a visible confirmation that my work is in the cloud" path.)
+   *  - Signed out / auth not configured → download a .json file of the
+   *    project so the user has a local backup they can re-import.
+   * Holding Shift overrides the smart behavior and always downloads .json,
+   * giving signed-in users an easy escape hatch for a manual backup.
+   */
+  const onSaveProject = async (e?: React.MouseEvent) => {
+    const wantFile = e?.shiftKey === true || !cloudActive;
+    if (wantFile) {
+      saveProjectFile(project);
+      setSaveState("saved-file");
+      return;
+    }
+    setSaveState("saving");
+    const ok = await saveProjectToDB(project);
+    setSaveState(ok ? "saved-cloud" : "saved-file");
+    // If the DB save failed, fall back to a file download so the user
+    // doesn't lose their click.
+    if (!ok) saveProjectFile(project);
+  };
 
   const onLoadProject = async () => {
     const loaded = await openProjectFile();
@@ -201,8 +245,8 @@ export function Toolbar() {
           type="button"
           onClick={onLoadProject}
           className={iconBtn}
-          title="Open a saved project (.json)"
-          aria-label="Open project"
+          title="Import a saved project (.json file)"
+          aria-label="Import project"
         >
           <FolderOpen size={14} />
         </button>
@@ -210,11 +254,41 @@ export function Toolbar() {
           type="button"
           onClick={onSaveProject}
           className={iconBtn}
-          title="Save project as .json"
+          title={
+            cloudActive
+              ? "Save to your account in the cloud (Shift+click to download .json instead)"
+              : "Save project as .json file"
+          }
           aria-label="Save project"
         >
-          <Save size={14} />
+          {saveState === "saving" ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : saveState === "saved-cloud" || saveState === "saved-file" ? (
+            <Check size={14} className="text-emerald-500" />
+          ) : (
+            <Save size={14} />
+          )}
         </button>
+        {/* Live cloud-sync indicator: shows whether your changes are being
+            mirrored to the database. Only renders when Supabase auth is
+            configured in this build. */}
+        {isAuthEnabled && (
+          <span
+            className="ml-1 flex items-center gap-1 text-[10px] text-neutral-500"
+            title={
+              cloudActive
+                ? "Signed in — changes auto-save to your account"
+                : "Sign in to auto-save to the cloud (currently local-only)"
+            }
+          >
+            {cloudActive ? (
+              <Cloud size={12} className="text-sky-500" />
+            ) : (
+              <CloudOff size={12} className="text-neutral-400" />
+            )}
+            {cloudActive ? "Cloud" : "Local"}
+          </span>
+        )}
       </div>
 
       <button
