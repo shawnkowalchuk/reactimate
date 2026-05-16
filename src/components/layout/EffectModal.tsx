@@ -80,7 +80,6 @@ const PROP_UNITS: Partial<Record<AnimatableProp, string>> = {
 export function EffectModal() {
   const project = useProjectStore((s) => s.project);
   const updateEffect = useProjectStore((s) => s.updateEffect);
-  const removeEffect = useProjectStore((s) => s.removeEffect);
   const target = useUIStore((s) => s.effectModal);
   const closeEffectModal = useUIStore((s) => s.closeEffectModal);
 
@@ -289,16 +288,6 @@ export function EffectModal() {
       hueMax: 360,
     };
     updateEffect(component.id, effect.id, { fireworks: { ...current, ...update } });
-  };
-
-  const onDelete = () => {
-    // Mark as committed first — delete is a deliberate destructive
-    // action, not an in-modal edit, so we don't want the revert path
-    // to fire (it'd no-op against a now-deleted effect anyway).
-    committedRef.current = true;
-    snapshotRef.current = null;
-    removeEffect(component.id, effect.id);
-    closeEffectModal();
   };
 
   // The set of animated props is the union of keys in `from` and `targets`.
@@ -663,23 +652,6 @@ export function EffectModal() {
           </div>
         )}
 
-        <div className="flex items-center justify-between border-t border-neutral-200 pt-3 dark:border-neutral-800">
-          <button
-            type="button"
-            onClick={onDelete}
-            className="flex items-center gap-1.5 rounded border border-red-300 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100 dark:border-red-900/60 dark:bg-transparent dark:text-red-300 dark:hover:bg-red-900/30"
-          >
-            <Trash2 size={12} />
-            Delete effect
-          </button>
-          <button
-            type="button"
-            onClick={closeEffectModal}
-            className="rounded border border-neutral-300 bg-white px-3 py-1 text-xs font-medium text-neutral-800 hover:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-          >
-            Done
-          </button>
-        </div>
       </div>
     </Modal>
   );
