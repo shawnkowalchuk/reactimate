@@ -82,6 +82,19 @@ export interface Effect {
   /** For slide effects: mask the text within its original bounding box so it slides in from behind a window. */
   maskBox?: boolean;
   /**
+   * Loop the effect. 0 / undefined = play once (default). N > 0 = play
+   * N+1 times total (matches motion's `repeat` semantics — repeat: 3
+   * means 1 initial play + 3 repeats = 4 total). Number.POSITIVE_INFINITY
+   * = loop forever.
+   *
+   * Skipped for `particle` and `fireworks-js` — those have their own
+   * `continueAfter` flag that loops the SPAWNER continuously, which
+   * does the right thing for particle-style effects.
+   */
+  repeat?: number;
+  /** Seconds between loop cycles when `repeat` is set. 0 = continuous. */
+  repeatDelay?: number;
+  /**
    * For "spotlight" effects: a colored shape rendered behind the text
    * during the effect's [startTime, startTime + duration] window.
    *

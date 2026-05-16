@@ -125,6 +125,46 @@ describe("computeComponentStyle", () => {
     expect(computeComponentStyle(c, 0.5).color).toBe("rgb(128, 128, 128)");
   });
 
+  it("repeat: N replays the effect (N+1 cycles total) within the same window", () => {
+    // Fade from 0→1 over 1s, then repeat 1 more time (2 cycles total).
+    // At t=0.5 first cycle is at midpoint → 0.5.
+    // At t=1.5 second cycle is at midpoint → 0.5.
+    // At t=2.0 second cycle completes → 1 (held).
+    // At t=3 still past totalSpan, stays at 1.
+    const c = baseComponent({
+      effects: [{ ...fade(0, 1), repeat: 1 }],
+    });
+    expect(computeComponentStyle(c, 0.5).opacity).toBeCloseTo(0.5, 4);
+    expect(computeComponentStyle(c, 1.5).opacity).toBeCloseTo(0.5, 4);
+    expect(computeComponentStyle(c, 2.0).opacity).toBe(1);
+  });
+
+  it("repeat with repeatDelay holds at target during the gap between cycles", () => {
+    // Fade 0→1 over 1s, then 0.5s delay, then replay.
+    // At t=1 → first cycle ends, hold at 1.
+    // At t=1.25 → in delay gap, still 1.
+    // At t=1.5 → second cycle starts, back at 0 (snaps to from).
+    // At t=2.0 → second cycle midpoint, 0.5.
+    const c = baseComponent({
+      effects: [{ ...fade(0, 1), repeat: 1, repeatDelay: 0.5 }],
+    });
+    expect(computeComponentStyle(c, 1.0).opacity).toBe(1);
+    expect(computeComponentStyle(c, 1.25).opacity).toBe(1);
+    expect(computeComponentStyle(c, 1.5).opacity).toBeCloseTo(0, 4);
+    expect(computeComponentStyle(c, 2.0).opacity).toBeCloseTo(0.5, 4);
+  });
+
+  it("repeat: Infinity loops forever (component stays active)", () => {
+    // Fade 0→1 over 1s, infinite repeat. At t=10.25 we'd be in cycle 11
+    // at 25% through → 0.25. Component should still be active (not
+    // gap-hidden by the visibility window).
+    const c = baseComponent({
+      effects: [{ ...fade(0, 1), repeat: Number.POSITIVE_INFINITY }],
+    });
+    expect(computeComponentStyle(c, 10.25).opacity).toBeCloseTo(0.25, 4);
+    expect(computeComponentStyle(c, 100).opacity).toBeCloseTo(0, 4);
+  });
+
   it("does not mutate the input component or its effects", () => {
     const eff = fade(1, 1);
     const c = baseComponent({ effects: [eff] });

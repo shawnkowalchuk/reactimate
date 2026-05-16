@@ -88,6 +88,23 @@ export function computeComponentStyle(
     .sort((a, b) => a.startTime - b.startTime);
 
   for (const { effect, startTime, endTime } of sorted) {
+    // Loop math: `repeat` lets the effect cycle. repeat = 0/undefined
+    // plays once (original behavior). repeat = N plays N+1 times total.
+    // repeat = Infinity loops forever. `repeatDelay` pauses between
+    // cycles holding at the target value. Skipped for particle /
+    // fireworks-js — those use `continueAfter` for spawner looping.
+    const baseDur = endTime - startTime;
+    const loopable =
+      effect.type !== "particle" && effect.type !== "fireworks-js";
+    const repeat = loopable ? effect.repeat ?? 0 : 0;
+    const repeatDelay = loopable ? Math.max(0, effect.repeatDelay ?? 0) : 0;
+    const cycleSpan = baseDur + repeatDelay;
+    // How long this effect actively occupies the timeline. For finite
+    // repeats we play (repeat + 1) cycles total; gap-hide kicks in after.
+    const totalSpan = !Number.isFinite(repeat)
+      ? Number.POSITIVE_INFINITY
+      : Math.max(0, (repeat + 1) * cycleSpan - repeatDelay);
+
     for (const key of Object.keys(effect.targets) as AnimatableProp[]) {
       const target = effect.targets[key];
       if (target === undefined) continue;
@@ -97,21 +114,32 @@ export function computeComponentStyle(
       const explicitFrom = effect.from?.[key];
       const from = explicitFrom !== undefined ? explicitFrom : lastValue[key];
 
-      if (time < startTime) {
-        (current as unknown as Record<string, unknown>)[key] =from;
-      } else if (time >= endTime) {
-        (current as unknown as Record<string, unknown>)[key] =target;
+      const sinceStart = time - startTime;
+      if (sinceStart < 0) {
+        (current as unknown as Record<string, unknown>)[key] = from;
+      } else if (Number.isFinite(repeat) && sinceStart >= totalSpan) {
+        // Past the last cycle — hold at target, leak to next effect.
+        // Also handles zero-duration effects (totalSpan = 0 → instant snap).
+        (current as unknown as Record<string, unknown>)[key] = target;
         lastValue[key] = target;
       } else {
-        const dur = endTime - startTime;
-        const raw = dur <= 0 ? 1 : (time - startTime) / dur;
-        const eased = applyEasing(raw, effect.easing);
-        (current as unknown as Record<string, unknown>)[key] =lerpProperty(
-          key,
-          from,
-          target,
-          eased,
-        );
+        // Within an active cycle (or repeatDelay gap between cycles).
+        // For no-repeat, cycleT IS sinceStart. modulo'd otherwise.
+        const cycleT = repeat === 0 || cycleSpan <= 0 ? sinceStart : sinceStart % cycleSpan;
+        if (cycleT >= baseDur) {
+          // We're in the repeatDelay gap → hold at target until next cycle.
+          (current as unknown as Record<string, unknown>)[key] = target;
+        } else {
+          // Guard zero baseDur against divide-by-zero (snap to target).
+          const raw = baseDur <= 0 ? 1 : cycleT / baseDur;
+          const eased = applyEasing(raw, effect.easing);
+          (current as unknown as Record<string, unknown>)[key] = lerpProperty(
+            key,
+            from,
+            target,
+            eased,
+          );
+        }
       }
     }
   }
@@ -146,7 +174,21 @@ export function computeComponentStyle(
       if (effect.type === "particle" && effect.particle?.continueAfter) {
         return time >= startTime;
       }
-      return time >= startTime && time <= endTime;
+      // Loop-aware end: a repeating effect stays "active" for its full
+      // (repeat + 1) cycles. Infinite repeat means active forever past
+      // its start. repeat = 0 / undefined falls back to the single
+      // [start, end] window.
+      const loopable = effect.type !== "particle" && effect.type !== "fireworks-js";
+      const repeat = loopable ? effect.repeat ?? 0 : 0;
+      const baseDur = endTime - startTime;
+      const repeatDelay = Math.max(0, effect.repeatDelay ?? 0);
+      if (!Number.isFinite(repeat)) {
+        return time >= startTime;
+      }
+      const effectiveEnd = repeat > 0
+        ? startTime + (repeat + 1) * (baseDur + repeatDelay) - repeatDelay
+        : endTime;
+      return time >= startTime && time <= effectiveEnd;
     });
   if (!isActive) {
     current.opacity = 0;

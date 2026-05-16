@@ -342,6 +342,72 @@ export function EffectModal() {
         </div>
         )}
 
+        {/* Loop controls — hidden for particle / fireworks-js since those
+            have their own continueAfter checkbox that handles spawner
+            looping (and the two would overlap confusingly if both shown). */}
+        {effect.type !== "fireworks-js" && effect.type !== "particle" && (
+          <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-3">
+            <label className="flex flex-col gap-1">
+              <span
+                className="text-xs text-neutral-500"
+                title="Number of EXTRA cycles after the first play. 0 = play once, 3 = play 4 times total, ∞ = loop forever."
+              >
+                Repeat (extra cycles)
+              </span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={Number.isFinite(effect.repeat ?? 0) ? (effect.repeat ?? 0) : 0}
+                disabled={!Number.isFinite(effect.repeat ?? 0)}
+                onChange={(e) =>
+                  updateEffect(component.id, effect.id, {
+                    repeat: Math.max(0, parseInt(e.target.value, 10) || 0),
+                  })
+                }
+                className={numberInput}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span
+                className="text-xs text-neutral-500"
+                title="Seconds to hold at the end value between cycles before the effect replays. 0 = continuous loop."
+              >
+                Repeat delay (s)
+              </span>
+              <input
+                type="number"
+                min={0}
+                step={0.1}
+                value={effect.repeatDelay ?? 0}
+                disabled={(effect.repeat ?? 0) === 0}
+                onChange={(e) =>
+                  updateEffect(component.id, effect.id, {
+                    repeatDelay: Math.max(0, parseFloat(e.target.value) || 0),
+                  })
+                }
+                className={numberInput}
+              />
+            </label>
+            <label
+              className="flex items-center gap-1.5 pb-1.5 text-xs"
+              title="Loop forever — overrides the repeat-count number."
+            >
+              <input
+                type="checkbox"
+                checked={!Number.isFinite(effect.repeat ?? 0)}
+                onChange={(e) =>
+                  updateEffect(component.id, effect.id, {
+                    repeat: e.target.checked ? Number.POSITIVE_INFINITY : 0,
+                  })
+                }
+                className="h-3.5 w-3.5 cursor-pointer"
+              />
+              <span className="text-neutral-700 dark:text-neutral-300">Loop forever</span>
+            </label>
+          </div>
+        )}
+
         {effect.type === "slide" && (
           <label className="flex items-center gap-2 text-xs">
             <input

@@ -94,15 +94,25 @@ export function buildPropTransition(
 
   if (effects.length === 1) {
     const e = effects[0];
+    const transition: Record<string, unknown> = {
+      delay: e.startTime,
+      duration: e.duration,
+      ease: toMotionEase(e.easing),
+    };
+    // Loop: maps directly to motion's transition.repeat (Number.Infinity
+    // is serialized as `Infinity` in the formatter; finite N gets emitted
+    // as-is). repeatDelay only matters when repeating.
+    if (e.repeat !== undefined && e.repeat !== 0) {
+      transition.repeat = e.repeat;
+      if (e.repeatDelay && e.repeatDelay > 0) {
+        transition.repeatDelay = e.repeatDelay;
+      }
+    }
     return {
       motionProp: PROP_TO_MOTION[prop],
       initial: start,
       animate: e.targets[prop] as PropValue,
-      transition: {
-        delay: e.startTime,
-        duration: e.duration,
-        ease: toMotionEase(e.easing),
-      },
+      transition,
     };
   }
 
