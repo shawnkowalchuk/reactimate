@@ -1960,8 +1960,6 @@ interface PropInputProps {
 }
 
 function PropInput({ prop, componentStyle, value, onChange, unit }: PropInputProps) {
-  const [draft, setDraft] = useState<string | null>(null);
-
   if (prop === "color") {
     // Fallback to the component's actual color so an untouched color
     // row matches the visible text (instead of suggesting an arbitrary
@@ -1981,45 +1979,26 @@ function PropInput({ prop, componentStyle, value, onChange, unit }: PropInputPro
     );
   }
 
-  // Numeric props — fall back to the prop's natural neutral
+  // Numeric props — fall back to the prop's natural neutral.
   // (1 for opacity / scale, 0 for x / y / rotation / blur, the
-  // component's fontSize for fontSize). Display only — typing into
-  // the input still calls onChange and writes the actual number.
+  // component's fontSize for fontSize.)
+  //
+  // Uses the shared NumberInput which keeps an internal text buffer
+  // while focused — so typing decimal values like "0.5" works (the
+  // old PropInput used `parseFloat` on every keystroke and re-rendered
+  // the field, which silently ate the "." and turned "0.5" into "5").
   const fallback = neutralFor(prop, componentStyle) as number;
   const v = typeof value === "number" ? value : fallback;
   const step = prop === "opacity" || prop === "scale" ? 0.05 : 1;
   const decimals = prop === "rotation" ? 0 : 2;
 
-  const display =
-    draft !== null
-      ? draft
-      : Number.isFinite(v)
-        ? +v.toFixed(decimals)
-        : 0;
-
-  const commit = (raw: string) => {
-    const n = parseFloat(raw);
-    if (Number.isFinite(n)) {
-      setDraft(null);
-      onChange(n);
-    } else {
-      setDraft(raw);
-    }
-  };
-
   return (
     <div className="flex items-center gap-1.5">
-      <input
-        type="text"
-        inputMode="decimal"
+      <NumberInput
+        value={v}
+        onChange={onChange}
         step={step}
-        value={display}
-        onChange={(e) => commit(e.target.value)}
-        onBlur={() => {
-          if (draft !== null) {
-            setDraft(null);
-          }
-        }}
+        format={(n) => String(+n.toFixed(decimals))}
         className="w-20 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
       />
       {unit ? (
