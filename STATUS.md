@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-05-13 · commit [`2d5f1e0`](https://github.com/shawnkowalchuk/reactimate/commit/2d5f1e0)
+**Last updated:** 2026-05-15 · commit [`ac78332`](https://github.com/shawnkowalchuk/reactimate/commit/ac78332)
 
 ---
 
@@ -155,14 +155,15 @@
 
 ### EffectModal (uiStore-driven)
 - `store/uiStore.ts` exposes `effectModal: { componentId, effectId } | null`. Decoupled from `selectionStore` so selection ≠ modal-open
-- **Type dropdown** ("(no effect) / Fade / Slide / Scale / Rotate / Color shift / Spotlight / Particle / Typewriter") — switching type seeds the new type's defaults and clears stale type-specific config blocks
+- **Type dropdown** ("(no effect) / Fade / Slide / Rotate / Zoom / Color shift / Spotlight / Particle / Typewriter / Blur / Fireworks (lib)") — switching type seeds the new type's defaults and clears stale type-specific config blocks
 - `Start` and `Duration` number inputs
 - **EasingPicker** — SVG curve graphs in a grid (linear, ease-in, ease-out, ease-in-out, spring, bounce); replaces the easing dropdown
-- **Per-prop Start → End editors** for each animated property (opacity, x, y, scale, rotation, color, fontSize) — explicit `from` + `to`
+- **Per-prop Start → End editors** for each animated property (opacity, x, y, scale, rotation, color, fontSize, blur) — explicit `from` + `to`
 - Type-specific config:
-  - Spotlight: shape (circle/square), size, color, opacity, motion mode, mask + maskMode + feather + backdrop toggle
-  - Particle: density, size, color/preset, particle type (Standard / Fireworks / Volcano / Dropping via **ParticleTypePicker**), mode (component / around / follow / hover), rangePx, spawnRadiusPx, lifespanSec, sizeJitter, rotationSpeed, continueAfter
-  - Typewriter: mode (snap / fade)
+  - **Spotlight:** shape (circle/square), size, color, opacity, motion mode (mouse / sweep-left / sweep-right), maskText + maskMode (tint / reveal) + feather + backdrop toggle, sweepY, **explicit `sweepStart` / `sweepEnd` (x, y)** with reset-to-default
+  - **Particle:** density, size, color/preset (gold / silver / rainbow / fire / custom), shape (star / circle / diamond / square), particle type (Standard / Fireworks / Volcano / Dropping via **ParticleTypePicker**), mode (**area** / follow / hover — area replaces the old component/around modes), spawnRadiusPx, lifespanSec, sizeJitter, rotationSpeed, continueAfter — `area` rectangle is dragged on the preview via `EffectAreaOverlay`
+  - **Fireworks-js:** density, explosion, gravity, opacity, flickering, acceleration, friction, traceLength, traceSpeed, intensity, lineStyle, hue range, delay range, brightness range, decay range, rocketsPoint range, lineWidth ranges, **`area` rectangle (draggable on preview)**, **Click to launch**, **Follow cursor**, continueAfter
+  - **Typewriter:** Snap / Fade letter-reveal toggle, **per-letter shape** (none / square / circle) with Layer (behind/in front) + Color + Size start/end + Blur start/end + Fade start/end + Snap off at end, **Offset X / Y** for stacking duplicate components as drop shadows, staggerDirection forward/reverse
 - **Preset save/load bar** at the top:
   - `store/presetStore.ts` — `PresetStorage` interface with two implementations:
     - `LocalStorageBackend` (key: `reactimate.presets.v1`) — used when Supabase isn't configured OR the user is signed out (so presets still work offline)
@@ -174,39 +175,56 @@
   - Import / Export individual preset as JSON
 
 ### Preview rendering
-- `components/preview/PreviewCanvas.tsx` — frames the design canvas at true dimensions, scales to fit via CSS transform + `canvasScaleStore`; shows live zoom %, dimensions, preset
+- `components/preview/PreviewCanvas.tsx` — frames the design canvas at true dimensions, scales to fit via CSS transform + `canvasScaleStore`; shows live zoom %, dimensions, preset. Mounts the frame-level overlays: `SpotlightOverlay`, `FireworksLibraryOverlay`, `EffectAreaOverlay`
 - `components/preview/RenderedText.tsx`:
   - Splits layer text into plain + componentized segments, sorted by `startIndex`
   - Plain non-whitespace text is **not rendered** in the preview (only componentized text appears) — plain whitespace between components is rendered invisibly to preserve spacing
-  - Per-letter rendering kicks in when any effect on the component has `staggerLetters` or is `typewriter`; each letter is its own registered span keyed `${componentId}|${i}`
-  - Wraps componentized segments in a **TintWrapper** when any active spotlight effect has `maskText`, layering `SpotlightOverlay`, `TintLayer`, and `ParticleOverlay` as needed
-  - Max text width capped at 55% of canvas width for natural wrap
-- `components/preview/SpotlightOverlay.tsx` — colored backdrop shape (circle/square) that follows mouse / sweep-left / sweep-right; soft feather; optional backdrop toggle
-- `components/preview/ParticleOverlay.tsx` — particle engine with four physics modes (Standard, Fireworks, Volcano, Dropping) and four spawn modes (component / around / follow / hover); per-particle lifetime, jitter, rotation
-- `components/preview/TintLayer.tsx` — masks the owning component's text so spotlight `tint` or `reveal` modes recolor only the beam's intersection
+  - Per-letter rendering kicks in when any effect on the component has `staggerLetters` or is `typewriter`; each letter is its own registered span keyed `${componentId}|${i}`. Typewriter letters with a shape config get a sibling shape span behind/in-front
+  - Wraps componentized segments in a **TintWrapper** when any active spotlight effect has `maskText`, layering `TintLayer`/`RevealMaskWrapper` and `ParticleOverlay` as needed
+  - Text width uses the full padded canvas area (the previous 55% cap was removed so multi-line text wraps at the real frame edge)
+  - Duplicate components share a single inline-grid cell with the base so overlay spans align pixel-perfect with the base text (previous `position: absolute; inset: 0` overlay had a baseline-vs-top alignment mismatch)
+- `components/preview/SpotlightOverlay.tsx` — colored backdrop shape (circle/square) that follows mouse / sweep-left / sweep-right; soft feather; optional backdrop toggle; supports explicit `sweepStart`/`sweepEnd` for diagonal/partial sweeps
+- `components/preview/ParticleOverlay.tsx` — particle engine with four physics types (Standard, Fireworks, Volcano, Dropping) and three spawn modes (**area**, follow, hover); per-particle lifetime, jitter, rotation, size, color preset; small `drop-shadow` glow so 4-8px particles read against dark text. Re-measures wrapper offset on every render so a text edit can't leave the area math stale
+- `components/preview/FireworksLibraryOverlay.tsx` — canvas-based fireworks via [fireworks-js](https://github.com/crashmax-dev/fireworks-js). Mounted at frame level so the 1200×675 backing buffer matches design coords. `areaToBoundaries(cfg.area)` is re-applied after every `updateSize` call so the ResizeObserver doesn't silently clobber boundaries. `mouse.click` / `mouse.move` driven by Click-to-launch / Follow-cursor checkboxes
+- `components/preview/EffectAreaOverlay.tsx` — always-on draggable + resizable bbox for every particle/fireworks effect. Color-coded by component, corner handles for resize, snapshotted at pointerdown for 1:1 cursor tracking even mid-drag during React re-renders
+- `components/preview/TintLayer.tsx` + `RevealMaskWrapper` — mask the owning component's text so spotlight `tint` / `reveal` modes recolor or hide the text inside the beam
 - `store/spotlightStore.ts` — mouse position relative to the preview canvas, fed to spotlight `motion: "mouse"` effects
 - `store/canvasScaleStore.ts` — shared scale + position between editor mini-canvas and preview canvas so overlays measure correctly
 
 ### Export to Motion JSX (Phase 8)
-- `export/generateComponent.ts` — `Project` → self-contained `Hero.tsx` string using `motion/react`
-- `export/effectToMotion.ts` — smart per-property motion props
-  - Single-effect: `{ delay, duration, ease }`
-  - Multi-effect on the same property: keyframe array with `times` and per-segment `ease` array
-  - Identical per-prop transitions consolidate into one shared transition
-  - `rotation` → `rotate` rename for Motion
-  - Color is moved out of `style` and into `initial`/`animate` only when it's animated
-- `export/format.ts` — idiomatic JS-source formatter (unquoted identifier keys, double-quoted strings, inline-or-expand by length, 6-decimal float rounding)
-- `export/easingMap.ts` — our `EasingType` → Motion ease names (`spring`/`bounce` approximate to `easeOut`/`backOut`)
-- Toolbar **Export** button downloads `<slug>.jsx`
-- Code tab **Copy** button (clipboard API + select-all fallback)
-- Heads-up: the new effect types (spotlight, particle, typewriter) are visible in the editor preview but the exporter currently only emits the standard CSS-property animations — exporting spotlight/particle/typewriter as real Motion JSX is on the backlog
+
+Toolbar **Export** button downloads **`Hero.tsx`** (always that name; consumer renames if they want). Code tab **Copy** button copies the same source to the clipboard. Output is a single self-contained file using `motion/react` plus optional helpers (see below). React imports for the helpers are consolidated into ONE `import { ... } from "react"` line.
+
+| Source module | What it emits |
+|---|---|
+| `generateComponent.ts` | The outer wrapper + text spans + assembly. Detects which helpers + extra imports are needed |
+| `effectToMotion.ts` | Smart per-property motion props (single → `{delay, duration, ease}`, multi → keyframe arrays with `times`/`ease`; consolidates identical transitions; renames `rotation` → `rotate`; moves animated `color` out of `style` into `initial`/`animate`) |
+| `format.ts` | Idiomatic JS-source formatter (unquoted identifier keys, double-quoted strings, inline-or-expand by length, 6-decimal float rounding) |
+| `easingMap.ts` | `EasingType` → Motion ease names (`spring`/`bounce` approximate to `easeOut`/`backOut`) |
+| `typewriterToMotion.ts` | Per-letter `motion.span` with staggered delay. Snap/fade modes. `staggerDirection: reverse` supported. Optional per-letter shape (square/circle) with size/blur/fade keyframes; `snapOff` overrides opacity to 0 at the end. Newlines emit literal `<br />`. `offsetX`/`offsetY` translate all letters together for shadow stacking |
+| `particleToMotion.ts` | **All four physics types** (standard / fireworks / volcano / dropping) baked into pre-sampled keyframe arrays — 4 samples for standard, 10 for physics types — using the same `particlePath()` the preview uses. **All three modes** (area / follow / hover). Cursor modes use a live `<CursorParticleLayer>` helper with `pointermove` tracking + viewport-to-design coord conversion. Particle shape (star / circle / diamond / square) via inlined SVG paths. Rotation keyframes per particle. Small `drop-shadow` glow for fidelity at small sizes |
+| `fireworksToMotion.ts` | A `<FireworksLayer>` helper that mounts the canvas, instantiates fireworks-js with all 20+ options (density, explosion, gravity, opacity, flickering, hue range, etc.) + area-derived `boundaries`. Click-to-launch / follow-cursor toggle canvas pointer events. Consumer needs `npm install fireworks-js` |
+| `spotlightToMotion.ts` | Backdrop layer (sweep modes via motion's `x`/`y` keyframes, mouse mode via `<MouseSpotlight>` helper with `pointermove`). Soft feather via radial-gradient (matches preview math). Explicit `sweepStart`/`sweepEnd` honored. **`maskText` in both tint and reveal modes** via `<MaskedText>` helper: `useLayoutEffect` measures the text's offset from the canvas-sized ancestor; clip-path `circle()` or `inset()` lerps between start/end (sweep) or follows cursor (mouse); tint mode layers a tinted copy on top of the original, reveal mode clips the original |
+
+**Every editor effect now exports.** What you see in the preview is what lands in `Hero.tsx`.
+
+The `Test-Project/` folder at the repo root is a bare Vite + React 19 + Motion sandbox for drop-in verification: `cd Test-Project && npm install && npm run dev`, then replace `src/Hero.tsx` with your exported file.
 
 ### Persistence (Phase 9)
-- `persistence/localStorage.ts` — schema-versioned save/load with `validateProject` runtime gate
-- `persistence/useAutosave.ts` — 400ms debounced project-store subscription
-- `persistence/importExport.ts` — `.json` save (download) and load (file picker + validate)
-- Toolbar **Reset-to-sample** with confirm dialog (also clears local storage + temporal stack)
+- `persistence/localStorage.ts` — schema-versioned save/load with `validateProject` runtime gate. Auto-migrates old `particle.mode: "component"/"around"` + `rangePx` / `fireworks.mode + spreadRadius` to the new `area` rectangle (defaults centered on canvas, padded for old `spreadRadius`)
+- `persistence/useAutosave.ts` — 400ms debounced project-store subscription. Calls `saveToStorage` which writes localStorage AND fires a Supabase save when auth is enabled
+- `persistence/useCloudSync.ts` — once auth resolves to a signed-in user, pulls the latest project from Supabase. If the DB is empty but localStorage has data, that data is migrated to the DB. Runs once per session
+- `persistence/shadowFlag.ts` — module-level flag set when the editor's project came from an example or imported `.json`. While set, the autosave pipeline still writes localStorage but **skips** the Supabase save, so the user's cloud project isn't silently clobbered. Cleared on first explicit Save-to-cloud (which prompts for overwrite confirmation)
+- `persistence/importExport.ts` — `.json` save (download) and load (file picker + validate). Marks shadow on import when signed in
+- Toolbar **Smart Save** (`Toolbar.tsx`):
+  - **Signed in (cloud active)** → click forces a Supabase sync, flashes a green check on success. **Shift+click** forces a `.json` download instead (escape hatch for local backups)
+  - **Signed out / Supabase unconfigured** → click downloads `.json` (the only persistence path available)
+  - When the project is in shadow mode + signed in, prompts for confirmation before clobbering the cloud project. DB failure fallback: auto-downloads `.json` so the click isn't wasted
+- Toolbar **Import** (file-folder icon) → file picker for `.json`
+- Toolbar **Reset-to-sample** with confirm dialog (also clears local storage + temporal stack). Confirm message beefed up for signed-in users explaining the cloud-overwrite risk
+- Toolbar **Cloud indicator** badge next to Save: ☁ Cloud (sky blue) when signed in, ⊘ Local (grey) when signed out. Only renders when Supabase is configured
 - `store/presetStore.ts` (above) — separate localStorage key, separate from the project blob
+- **Cloud model is intentionally ONE project per account** (`projects` table has `unique` on `user_id`). The guardrails above make this safe; multi-project library is on the backlog if user feedback asks for it
 
 ### Undo / redo
 - `zundo` `temporal` middleware on `projectStore`
@@ -223,31 +241,28 @@
 ### Tooling & quality
 - Vite 6 + React 19 + TypeScript (strict) + Tailwind v3 (`darkMode: 'class'`)
 - **fireworks-js** by crashmax-dev (MIT) — canvas-based fireworks engine for the `"fireworks-js"` particle type
+- **@vercel/analytics** + **@vercel/speed-insights** — production telemetry on the hosted site
 - ESLint flat config + Prettier
-- **96 tests passing** across 10 files: ranges (15), compose (9 — updated for new visibility model), interpolate (11), palette (3), format (10), effectToMotion (7), generateComponent (9), localStorage (11), textDiff (13), projectStore split/merge (8)
+- **104 tests passing** across 10 files: ranges (15), compose (15 — includes 6 new `computeTypewriterShape` cases), interpolate (11), palette (3), format (10), effectToMotion (7), generateComponent (9), localStorage (13 — includes 2 new area-migration cases), textDiff (13), projectStore split/merge (8)
 - GitHub Actions CI: `lint` → `typecheck` → `test` → `build`
 - Conventional commits; commit log is the design record
+
+### Deployment
+- Live at **`https://reactimate.vercel.app`** on Vercel Hobby. Auto-deploys from `main`
+- `vercel.json` with SPA rewrite (`/(.*) → /index.html`) so client-side routes don't 404 on refresh
+- Google Search Console verified via `public/google995357ceb40b715c.html`. Sitemap submitted
+- Hostinger domain `reactimate.cloud` registered but not pointed yet — easy DNS flip when ready
 
 ---
 
 ## Not implemented yet
 
-### Export the new effect types
-**Status:** not started. **Effort:** medium.
-`spotlight`, `particle`, and `typewriter` show up correctly in the editor preview but the `Hero.tsx` exporter only emits the core CSS-property motion props. Real Motion JSX for these probably means:
-- Spotlight → a separate `<motion.div>` sibling with `framer-motion` `useMousePosition` (mouse) or a `transition` keyframe sweep, plus a CSS `mix-blend-mode` or `mask-image` to mask the text
-- Particle → a child `<motion.div>` particle field using `AnimatePresence` + a generator
-- Typewriter → an array of `<motion.span>` per letter with staggered `transition.delay`
-
-### Cloud project storage
-**Status:** not started, **depends on:** Supabase auth being on. **Effort:** ~2–3h.
-Even when signed in, projects stay in `localStorage` per browser. To make projects follow the user across devices:
-- Supabase table `projects` ( `id uuid pk`, `user_id uuid references auth.users`, `name text`, `data jsonb`, `updated_at timestamptz` )
-- RLS policy: `auth.uid() = user_id` for select/insert/update/delete
-- Replace `useAutosave` to upsert to Supabase when auth is enabled and authenticated; fall back to `localStorage` otherwise
-- New-project / "Save as new" / project list picker
-- Initial load: fetch the user's most-recent project, or seed with the sample on first sign-in
-- Presets could optionally migrate from `LocalStorageBackend` to a `PostgresBackend` via the existing `PresetStorage` interface
+### Multi-project cloud library (Option B)
+**Status:** deliberately deferred — the single-project model is shipped with guardrails (shadow flag, save-overwrite confirm, reset warning, Cloud/Local indicator) that make it safe. Revisit if user feedback asks for it. **Effort:** ~15-30 min.
+- Schema: drop `unique` constraint on `projects.user_id`, add `unique (user_id, name)` OR continue keying by the existing `id` UUID
+- API: `listProjects()`, `loadProject(id)`, `saveProject(project)` (insert-or-update by id), `deleteProject(id)`, `renameProject(id, name)`
+- UI: "Projects" dropdown in the toolbar near the project name (or an `/app/projects` route) showing a list; "Save As..." to fork on name conflict
+- Migration: existing one-row-per-user schema stays valid; old projects load fine, new ones can coexist
 
 ### Phase 2 — layout polish
 **Status:** mostly done via the editor/inspector overhaul. Remaining: better empty/error states, breakpoint behavior, a polish pass on spacing/typography. Probably "read-only on mobile" rather than building a real touch editor.
@@ -256,17 +271,18 @@ Even when signed in, projects stay in `localStorage` per browser. To make projec
 **Effort:** small, low priority.
 If the user presses Enter at the very end of the text and then types, the new text lands BEFORE the trailing `\n` (browser-level quirk — `execCommand('insertText')` and native typing both visually treat "after \n at end of node" the same as "at end of previous line"). The text and exported JSX are both fine; only the caret position is unintuitive in that one edge case. Workarounds: don't allow trailing newlines (auto-trim), or replace `\n` with `<br>` elements (bigger refactor, breaks the single-text-node selection model).
 
-### Phase 9 backlog (polish)
-- More effects: `blur`, letter-spacing animation, masked text reveal (other than spotlight), shake, glitch
+### Backlog (polish)
 - Templates / starter projects (curated `Project[]` users can clone — could ship as importable JSON via existing load flow)
 - Keyboard nudge (arrow keys when an effect block is selected: ±50ms move, with Shift = bigger step)
 - Onboarding tooltips for first-time users
 - Cubic-bezier easing curve editor in the EasingPicker (currently 6 named presets)
 - Compact toolbar when narrow
-- Tests for the new effect types (particle / spotlight physics, typewriter timing)
+- Tests for the new effect types (particle physics paths, spotlight masking math, typewriter timing)
+- Bundle splitting — single chunk is ~610 KB (178 KB gzipped); `manualChunks` for `motion` + `fireworks-js` would cut the initial payload
+- Point custom domain (`reactimate.cloud` registered at Hostinger, DNS not yet pointed)
 
 ### Far horizon
-- Multi-line text / multiple stacked layers
+- Multiple stacked layers (multi-line text exists today via `\n`; per-layer animations would let you stack independent text/shape blocks)
 - Image / shape / video layers
 - Export to other formats: Lottie, MP4, GIF
 - Real mobile editor — currently expected to be desktop-only
