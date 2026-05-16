@@ -38,3 +38,37 @@ export async function loadProjectFromDB(): Promise<Project | null> {
   }
   return (data as { data: unknown }).data as Project;
 }
+
+/**
+ * Admin-only: list every cloud project with its full JSONB.
+ *
+ * RLS allows this for any profile with is_admin = true (see the
+ * "admins read all projects" policy in supabase/schema.sql). The
+ * server enforces it; this client function just shapes the result.
+ *
+ * Note: returns full project data per row. With ~hundreds of users
+ * that's still small (each project is typically a few KB of JSON),
+ * but if the user base grows past a few thousand, move the
+ * aggregation server-side (RPC or materialized view).
+ */
+export interface AdminProjectRow {
+  id: string;
+  user_id: string;
+  name: string;
+  data: Project;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function listAllProjectsAdmin(): Promise<AdminProjectRow[]> {
+  if (!supabase || !isAuthEnabled) return [];
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id, user_id, name, data, created_at, updated_at")
+    .order("updated_at", { ascending: false });
+  if (error) {
+    console.warn("listAllProjectsAdmin:", error.message);
+    return [];
+  }
+  return (data ?? []) as AdminProjectRow[];
+}

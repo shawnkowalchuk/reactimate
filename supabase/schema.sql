@@ -224,6 +224,16 @@ create policy "users select own project"
   on public.projects for select
   using (auth.uid() = user_id);
 
+drop policy if exists "admins read all projects" on public.projects;
+create policy "admins read all projects"
+  on public.projects for select
+  using (
+    exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid() and p.is_admin = true
+    )
+  );
+
 drop policy if exists "users insert own project" on public.projects;
 create policy "users insert own project"
   on public.projects for insert
