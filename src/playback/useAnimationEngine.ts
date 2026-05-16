@@ -58,6 +58,16 @@ export function useAnimationEngine() {
         if (!c) continue;
         const clamped = Math.min(time, project.duration);
         const s = computeComponentStyle(c, clamped, letterIndex);
+        // Anchor scale at the bottom of the line box (≈ baseline +
+        // descender). For shrink animations (e.g. scale 5 → 1) the
+        // bottom of the text stays put while the top contracts down
+        // into place — reads as "settling into place" instead of the
+        // default center-anchor's "sliding up while shrinking." Same
+        // works for grow (scale 0.5 → 1): text rises from baseline
+        // into final size. Static for every element — could be set
+        // once at mount, but setting here keeps mount + tick paths
+        // identical and the cost is one string assignment per frame.
+        el.style.transformOrigin = "50% 100%";
         el.style.transform = `translate(${s.x}px, ${s.y}px) scale(${s.scale}) rotate(${s.rotation}deg)`;
         el.style.opacity = String(s.opacity);
         el.style.color = s.color;
@@ -147,6 +157,11 @@ export function useAnimationEngine() {
         if (component) {
           const clamped = Math.min(time, project.duration);
           const s = computeComponentStyle(component, clamped, letterIndex);
+          // See comment in `apply` above — anchor scale at the bottom
+          // of the line box so the baseline stays put during scale
+          // animations. Set on mount so the first paint matches the
+          // tick-loop's later writes.
+          el.style.transformOrigin = "50% 100%";
           el.style.transform = `translate(${s.x}px, ${s.y}px) scale(${s.scale}) rotate(${s.rotation}deg)`;
           el.style.opacity = String(s.opacity);
           el.style.color = s.color;

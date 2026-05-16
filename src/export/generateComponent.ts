@@ -53,6 +53,13 @@ function renderComponentSpan(c: Component, content: string, totalDuration: numbe
     fontWeight: c.style.fontWeight,
     letterSpacing: c.style.letterSpacing,
     display: "inline-block",
+    // Anchor scale animations at the bottom of the line box (≈ baseline).
+    // Shrink animations collapse DOWN into the baseline, grow animations
+    // expand UP from it — matches the editor preview, which sets the same
+    // origin in playback/useAnimationEngine.ts. Emitted unconditionally
+    // (one extra CSS property per span is negligible; conditioning on
+    // "has scale animation" would add code without saving bytes).
+    transformOrigin: "50% 100%",
   };
   // If color isn't animated, bake it into style. If it IS animated,
   // it'll appear in initial/animate and Motion drives it.
@@ -108,6 +115,9 @@ function wrapWithMaskedText(
     letterSpacing: c.style.letterSpacing,
     color: c.style.color,
     display: "inline-block",
+    // See renderComponentSpan above — baseline anchor for parity with the
+    // editor preview's scale behavior.
+    transformOrigin: "50% 100%",
   };
   const se = sweepStartEnd(cfg, canvasWidth, canvasHeight);
   const startProp = se ? `sweepStart={${JSON.stringify(se.start)}}` : "";

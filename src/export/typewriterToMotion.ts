@@ -46,6 +46,11 @@ export function renderTypewriterSpan(
     letterSpacing: c.style.letterSpacing,
     color: c.style.color,
     display: "inline-block",
+    // Anchor scale animations at the baseline so per-letter scale
+    // effects (e.g. typewriter + zoom combo) collapse / expand toward
+    // the line, not the line-box center. Matches the editor's
+    // transformOrigin in playback/useAnimationEngine.ts.
+    transformOrigin: "50% 100%",
   };
 
   const letterParts: string[] = [];
