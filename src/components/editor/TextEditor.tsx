@@ -202,9 +202,9 @@ export function TextEditor() {
               onInput={onInput}
               className="relative z-10 whitespace-pre-wrap text-center outline-none caret-sky-400"
               style={{
-                // Match RenderedText's text-cap so editor and preview
-                // wrap the same way.
-                maxWidth: `${Math.round(canvasW * 0.55)}px`,
+                // No maxWidth cap — the canvas frame's padding gives a
+                // natural margin. RenderedText drops its cap too so the
+                // editor and preview wrap at the same point (frame edge).
                 fontFamily: defaultTextStyle.fontFamily,
                 fontSize: defaultTextStyle.fontSize,
                 lineHeight: 1.1,

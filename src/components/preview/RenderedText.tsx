@@ -137,10 +137,11 @@ export function RenderedText({
         wordBreak: "normal",
         textAlign: layer.alignment,
         width: "100%",
-        // Cap text width so long phrases naturally wrap to multiple
-        // lines (similar to the previous behavior). For explicit line
-        // breaks the user can insert a newline (\n) in the text.
-        maxWidth: `${Math.round(project.canvas.width * 0.55)}px`,
+        // Use the full content area inside the frame's padding. The
+        // previous 55%-of-canvas cap was forcing wraps WAY before the
+        // visible frame edge ("This is how it works/" wrapped at 660px
+        // even though the content area is ~1072px wide). For explicit
+        // line breaks insert a newline (\n) in the text.
         margin: "0 auto",
         cursor: "default",
         userSelect: "none",
