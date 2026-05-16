@@ -1,6 +1,7 @@
 import type { Component, Project } from "../types/project";
 import { buildComponentMotion } from "./effectToMotion";
 import { fmt, jsxTextExpression } from "./format";
+import { buildParticleLayers, hasExportableParticles } from "./particleToMotion";
 
 interface Segment {
   kind: "plain" | "component";
@@ -73,7 +74,15 @@ export function generateReactComponent(project: Project): string {
     })
     .join("\n");
 
-  const wrapperStyle = {
+  // Particles render at canvas-design coordinates absolutely positioned
+  // inside the wrapper — so the wrapper needs position: relative when any
+  // particle layer is being emitted.
+  const hasParticles = hasExportableParticles(project.layer.components);
+  const particleBlocks = project.layer.components.flatMap((c) =>
+    buildParticleLayers(c, project.duration),
+  );
+
+  const wrapperStyle: Record<string, unknown> = {
     width: project.canvas.width,
     height: project.canvas.height,
     background: project.canvas.background,
@@ -85,12 +94,17 @@ export function generateReactComponent(project: Project): string {
     fontSize: project.defaultTextStyle.fontSize,
     fontWeight: project.defaultTextStyle.fontWeight,
   };
+  if (hasParticles) wrapperStyle.position = "relative";
 
   const innerStyle = {
     textAlign: project.layer.alignment,
     lineHeight: project.layer.lineHeight,
     whiteSpace: "pre-wrap",
   };
+
+  const particleSection = particleBlocks.length > 0
+    ? "\n" + indent(particleBlocks.join("\n"), "      ")
+    : "";
 
   return `import { motion } from "motion/react";
 
@@ -99,7 +113,7 @@ export function Hero() {
     <div style={${fmt(wrapperStyle, 3)}}>
       <div style={${fmt(innerStyle, 4)}}>
 ${indent(inner, "        ")}
-      </div>
+      </div>${particleSection}
     </div>
   );
 }
