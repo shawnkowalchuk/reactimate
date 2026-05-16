@@ -36,9 +36,12 @@ export const EFFECT_DEFAULTS: Record<EffectType, EffectDefaults> = {
   slide: {
     duration: 0.6,
     easing: "ease-out",
-    // y: 0 → 0 is not animation, just clutter — left it x-only.
-    from: { x: -100 },
-    targets: { x: 0 },
+    // Y-only slide — text drops down from above into its resting
+    // position. Most hero animations slide vertically, not horizontally;
+    // x is left out so the modal doesn't show a 0 → 0 keyframe row
+    // (users can add x explicitly if they want a diagonal slide).
+    from: { y: -100 },
+    targets: { y: 0 },
   },
   rotate: {
     duration: 0.6,
