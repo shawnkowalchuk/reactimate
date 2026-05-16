@@ -88,6 +88,30 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
     return () => ro.disconnect();
   }, [frameRef]);
 
+  // Recompute on EVERY render (cheap getBoundingClientRect reads) so the
+  // wrapper offset stays current when text edits shift the wrapper position
+  // without changing its dimensions — ResizeObserver wouldn't fire for a
+  // pure position change, and stale offsets would put particles in the
+  // wrong place relative to the user-drawn area bbox.
+  {
+    const self = selfRef.current;
+    const frame = frameRef.current;
+    const wrap = self?.parentElement;
+    if (self && frame && wrap) {
+      const w = wrap.getBoundingClientRect();
+      const f = frame.getBoundingClientRect();
+      const designWidth = parseFloat(frame.style.width || "0") || f.width;
+      const scale = designWidth > 0 ? f.width / designWidth : 1;
+      const safeScale = Math.max(0.0001, scale);
+      sizeRef.current = {
+        w: w.width / safeScale,
+        h: w.height / safeScale,
+        ox: (w.left - f.left) / safeScale,
+        oy: (w.top - f.top) / safeScale,
+      };
+    }
+  }
+
   // Find any particle effect on this component (or overlapping it) that is
   // CURRENTLY in its time window AND uses an interactive (live) mode.
   // We only check time + mode here; per-frame we re-check cursor position
