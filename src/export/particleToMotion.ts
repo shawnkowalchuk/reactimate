@@ -1,5 +1,6 @@
 import type { Component, Effect } from "../types/project";
 import { fmt } from "./format";
+import { particlePath } from "../components/preview/particleUtils";
 
 const PRESET_COLOR_FNS: Record<
   NonNullable<Effect["particle"]>["preset"],
@@ -31,17 +32,21 @@ function pseudo(seed: number, k: number): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
-interface ExportedParticle {
-  /** Canvas-design X (px). */
-  x: number;
-  /** Canvas-design Y (px). */
-  y: number;
+interface ExportedParticleKeyframed {
   /** Diameter in px. */
   size: number;
   /** CSS color. */
   color: string;
   /** Time the particle first appears (seconds). */
   delay: number;
+  /** Canvas-design X keyframes (px) sampled over the lifespan. */
+  x: number[];
+  /** Canvas-design Y keyframes (px) sampled over the lifespan. */
+  y: number[];
+  /** Opacity keyframes 0..1 sampled over the lifespan. */
+  opacity: number[];
+  /** Scale keyframes (used by fireworks for the bright flash). */
+  scale: number[];
 }
 
 /**
@@ -66,12 +71,6 @@ export function buildParticleLayers(
       continue;
     }
     const type = cfg.type ?? "standard";
-    if (type !== "standard") {
-      out.push(
-        `{/* Particle effect ${e.id} type="${type}" — only "standard" type\n    is currently exportable. Physics types (fireworks/volcano/dropping)\n    are previewed in the editor but the exporter just emits a static\n    spread; skipped. */}`,
-      );
-      continue;
-    }
     if (!cfg.area) {
       out.push(`{/* Particle effect ${e.id} has no area — skipped. */}`);
       continue;
@@ -84,46 +83,81 @@ export function buildParticleLayers(
     const colorFn = PRESET_COLOR_FNS[cfg.preset] ?? PRESET_COLOR_FNS.custom;
     const continueAfter = Boolean(cfg.continueAfter);
 
+    // Sample N points along each particle's lifespan and emit them as
+    // motion keyframes. 10 samples is enough for visually-smooth physics
+    // (fireworks burst, volcano arc, dropping fall) without bloating the
+    // file. For standard type the path barely moves so 4 samples suffice.
+    const SAMPLES = type === "standard" ? 4 : 10;
+
     // Deterministically generate `density * duration` particles spread
-    // across the effect window, each at a stable position inside `area`.
-    const total = Math.max(1, Math.round(density * e.duration));
-    const particles: ExportedParticle[] = [];
+    // across the effect window. Fireworks type spawns more visible
+    // particles per burst, so we boost the count to match the preview.
+    const multiplier = type === "fireworks" ? 8 : 1;
+    const total = Math.max(1, Math.round(density * e.duration * multiplier));
+
+    const particles: ExportedParticleKeyframed[] = [];
     for (let i = 0; i < total; i++) {
       const seed = hash(`${e.id}_${i}`);
-      const px = area.x + pseudo(seed, 1) * area.width;
-      const py = area.y + pseudo(seed, 2) * area.height;
       const sizeMul = 1 + (pseudo(seed, 4) - 0.5) * 2 * sizeJitter;
       const size = Math.max(2, sizeBase * sizeMul);
       const color = colorFn(i, cfg.color);
-      // Spread spawn times evenly across the effect window.
       const spawnT = e.startTime + (i / total) * e.duration;
+
+      // Sample the particle's trajectory.
+      const xs: number[] = [];
+      const ys: number[] = [];
+      const opacities: number[] = [];
+      const scales: number[] = [];
+      let ok = false;
+      for (let s = 0; s < SAMPLES; s++) {
+        const t = s / (SAMPLES - 1);
+        const age = t * lifespan;
+        const path = particlePath(type, seed, area.width, area.height, 0, age, lifespan);
+        if (!path) {
+          // Path can return null for trail particles outside their phase.
+          // Fall back to the last successful position with opacity 0.
+          xs.push(xs[xs.length - 1] ?? 0);
+          ys.push(ys[ys.length - 1] ?? 0);
+          opacities.push(0);
+          scales.push(scales[scales.length - 1] ?? 0);
+          continue;
+        }
+        ok = true;
+        xs.push(Math.round((area.x + path.x) * 10) / 10);
+        ys.push(Math.round((area.y + path.y) * 10) / 10);
+        opacities.push(Math.round(path.opacity * 100) / 100);
+        scales.push(Math.round((path.scale ?? 1) * 100) / 100);
+      }
+      if (!ok) continue;
+
       particles.push({
-        x: Math.round(px),
-        y: Math.round(py),
         size: Math.round(size * 10) / 10,
         color,
         delay: Math.round(spawnT * 1000) / 1000,
+        x: xs,
+        y: ys,
+        opacity: opacities,
+        scale: scales,
       });
     }
 
     // Round-trip the particle data through `fmt` so it formats nicely.
     const dataLiteral = fmt(particles as unknown as Record<string, unknown>[], 2);
 
-    // The transition uses a repeat strategy: when continueAfter is set
-    // we repeat forever; otherwise the particle plays once and stays
-    // invisible after its window.
+    // When continueAfter is on we repeat forever after the per-particle
+    // window; otherwise the particle plays once and disappears.
     const repeatExpr = continueAfter
       ? `repeat: Infinity, repeatDelay: ${Math.max(0, totalDuration - e.startTime - lifespan).toFixed(2)}`
       : `repeat: 0`;
 
-    out.push(`{/* Particles for effect ${e.id} (component ${c.id}) */}
+    out.push(`{/* Particles for effect ${e.id} (component ${c.id}, type=${type}) */}
 {${dataLiteral}.map((p, i) => (
   <motion.div
     key={"fx${e.id.replace(/[^a-zA-Z0-9]/g, "")}_" + i}
     style={{
       position: "absolute",
-      left: p.x,
-      top: p.y,
+      left: 0,
+      top: 0,
       width: p.size,
       height: p.size,
       backgroundColor: p.color,
@@ -131,12 +165,12 @@ export function buildParticleLayers(
       transform: "translate(-50%, -50%)",
       pointerEvents: "none",
     }}
-    initial={{ opacity: 0, scale: 0 }}
-    animate={{ opacity: [0, 1, 0], scale: [0, 1, 0.5] }}
+    initial={{ x: p.x[0], y: p.y[0], opacity: 0, scale: 0 }}
+    animate={{ x: p.x, y: p.y, opacity: p.opacity, scale: p.scale }}
     transition={{
       delay: p.delay,
       duration: ${lifespan},
-      ease: "easeOut",
+      ease: "linear",
       ${repeatExpr},
     }}
   />
@@ -158,8 +192,7 @@ export function hasExportableParticles(
       if (
         e.type === "particle" &&
         e.particle?.area &&
-        (e.particle.mode ?? "area") === "area" &&
-        (e.particle.type ?? "standard") === "standard"
+        (e.particle.mode ?? "area") === "area"
       ) {
         return true;
       }

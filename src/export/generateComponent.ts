@@ -2,6 +2,8 @@ import type { Component, Project } from "../types/project";
 import { buildComponentMotion } from "./effectToMotion";
 import { fmt, jsxTextExpression } from "./format";
 import { buildParticleLayers, hasExportableParticles } from "./particleToMotion";
+import { renderTypewriterSpan, typewriterOf } from "./typewriterToMotion";
+import { buildFireworksExport } from "./fireworksToMotion";
 
 interface Segment {
   kind: "plain" | "component";
@@ -70,17 +72,29 @@ export function generateReactComponent(project: Project): string {
   const inner = segments
     .map((seg) => {
       if (seg.kind === "plain") return jsxTextExpression(seg.text);
-      return renderComponentSpan(seg.component!, seg.text, project.duration);
+      const c = seg.component!;
+      // If the component has a typewriter effect, replace the single
+      // motion.span with per-letter spans (staggered reveal, optional
+      // per-letter shape).
+      const tw = typewriterOf(c);
+      if (tw) return renderTypewriterSpan(c, seg.text, tw);
+      return renderComponentSpan(c, seg.text, project.duration);
     })
     .join("\n");
 
-  // Particles render at canvas-design coordinates absolutely positioned
-  // inside the wrapper — so the wrapper needs position: relative when any
-  // particle layer is being emitted.
+  // Particles + fireworks render at canvas-design coordinates absolutely
+  // positioned inside the wrapper — so the wrapper needs position: relative
+  // when any of these layers is being emitted.
   const hasParticles = hasExportableParticles(project.layer.components);
   const particleBlocks = project.layer.components.flatMap((c) =>
     buildParticleLayers(c, project.duration),
   );
+  const fireworks = buildFireworksExport(
+    project.layer.components,
+    project.canvas.width,
+    project.canvas.height,
+  );
+  const hasFireworks = fireworks !== null;
 
   const wrapperStyle: Record<string, unknown> = {
     width: project.canvas.width,
@@ -94,7 +108,7 @@ export function generateReactComponent(project: Project): string {
     fontSize: project.defaultTextStyle.fontSize,
     fontWeight: project.defaultTextStyle.fontWeight,
   };
-  if (hasParticles) wrapperStyle.position = "relative";
+  if (hasParticles || hasFireworks) wrapperStyle.position = "relative";
 
   const innerStyle = {
     textAlign: project.layer.alignment,
@@ -105,15 +119,25 @@ export function generateReactComponent(project: Project): string {
   const particleSection = particleBlocks.length > 0
     ? "\n" + indent(particleBlocks.join("\n"), "      ")
     : "";
+  const fireworksSection = fireworks
+    ? "\n" + indent(fireworks.layerJsx.join("\n"), "      ")
+    : "";
 
-  return `import { motion } from "motion/react";
+  const imports = ['import { motion } from "motion/react";'];
+  if (fireworks) imports.push(...fireworks.extraImports);
+  // De-duplicate (e.g. avoid two `import { useEffect, useRef } from "react"`).
+  const uniqueImports = Array.from(new Set(imports));
 
+  const helpers = fireworks ? "\n" + fireworks.helperComponent + "\n" : "";
+
+  return `${uniqueImports.join("\n")}
+${helpers}
 export function Hero() {
   return (
     <div style={${fmt(wrapperStyle, 3)}}>
       <div style={${fmt(innerStyle, 4)}}>
 ${indent(inner, "        ")}
-      </div>${particleSection}
+      </div>${particleSection}${fireworksSection}
     </div>
   );
 }
