@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, Settings2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { CATEGORY_LABEL, FONTS, type FontOption } from "../../constants/fonts";
+import { useFontPrefsStore } from "../../store/fontPrefsStore";
 
 interface FontPickerProps {
   value: string;
@@ -42,8 +44,18 @@ export function FontPicker({ value, onChange }: FontPickerProps) {
   const current: FontOption =
     FONTS.find((f) => f.family === value) ?? FONTS[0];
 
+  const hiddenFonts = useFontPrefsStore((s) => s.hiddenFonts);
+
+  // Filter out hidden fonts, BUT always include the currently-selected font
+  // so the user can see what they have applied (otherwise the picker would
+  // show "Inter" while the actual value is something else they hid).
+  const visible = useMemo(
+    () => FONTS.filter((f) => !hiddenFonts.has(f.family) || f.family === value),
+    [hiddenFonts, value],
+  );
+
   // Group options by category for visual scanning.
-  const grouped = FONTS.reduce<Record<FontOption["category"], FontOption[]>>(
+  const grouped = visible.reduce<Record<FontOption["category"], FontOption[]>>(
     (acc, f) => {
       (acc[f.category] ??= []).push(f);
       return acc;
@@ -109,6 +121,25 @@ export function FontPicker({ value, onChange }: FontPickerProps) {
               </div>
             );
           })}
+          {/* Footer: jump to Settings to bulk-hide/show fonts. Shows the
+              current hidden count so the user knows how many are filtered. */}
+          <div className="sticky bottom-0 border-t border-neutral-200 bg-white px-3 py-1.5 dark:border-neutral-800 dark:bg-neutral-900">
+            <Link
+              to="/settings#fonts"
+              onClick={() => setOpen(false)}
+              className="flex items-center justify-between text-[11px] text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Settings2 size={11} />
+                Manage fonts
+              </span>
+              {hiddenFonts.size > 0 && (
+                <span className="text-neutral-400 dark:text-neutral-500">
+                  {hiddenFonts.size} hidden
+                </span>
+              )}
+            </Link>
+          </div>
         </div>
       )}
     </div>

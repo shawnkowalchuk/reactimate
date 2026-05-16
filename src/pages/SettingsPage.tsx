@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Apple,
@@ -10,6 +10,7 @@ import {
   LogOut,
   Mail,
   ShieldCheck,
+  Type,
 } from "lucide-react";
 import type { UserIdentity } from "@supabase/supabase-js";
 import { Navbar } from "../components/home/Navbar";
@@ -23,20 +24,39 @@ import {
   updatePassword,
   type LinkableProvider,
 } from "../api/identityApi";
+import {
+  CATEGORY_LABEL,
+  FONTS,
+  type FontOption,
+} from "../constants/fonts";
+import { useFontPrefsStore } from "../store/fontPrefsStore";
 
 export function SettingsPage() {
   useEffect(() => {
     document.title = "Settings · reactimate";
+    // If we arrived via /settings#fonts (e.g. from the FontPicker footer),
+    // scroll the Fonts section into view once it's mounted.
+    if (window.location.hash) {
+      const id = window.location.hash.slice(1);
+      requestAnimationFrame(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
   }, []);
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       <Navbar />
-      <main className="mx-auto max-w-3xl px-6 py-12">
-        <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-          Manage your sign-in methods and account.
-        </p>
+      <main className="mx-auto max-w-3xl px-6 py-12 space-y-6">
+        <header>
+          <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+          <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+            Manage your sign-in methods, account, and editor preferences.
+          </p>
+        </header>
+        {/* Editor preferences (always available — device-local, no auth needed). */}
+        <FontsCard />
+        {/* Auth-gated sections below. */}
         <Body />
       </main>
       <Footer />
@@ -51,10 +71,10 @@ function Body() {
 
 function NotConfigured() {
   return (
-    <div className="mt-8 rounded-lg border border-amber-300/60 bg-amber-50 p-5 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
-      Settings requires Supabase auth. Set <code className="rounded bg-amber-100/80 px-1 dark:bg-amber-900/50">VITE_SUPABASE_URL</code>{" "}
+    <div className="rounded-lg border border-amber-300/60 bg-amber-50 p-5 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+      Account settings require Supabase auth. Set <code className="rounded bg-amber-100/80 px-1 dark:bg-amber-900/50">VITE_SUPABASE_URL</code>{" "}
       and <code className="rounded bg-amber-100/80 px-1 dark:bg-amber-900/50">VITE_SUPABASE_ANON_KEY</code> in <code className="rounded bg-amber-100/80 px-1 dark:bg-amber-900/50">.env.local</code>{" "}
-      and restart the dev server.
+      and restart the dev server. (Font preferences above still work.)
     </div>
   );
 }
@@ -63,7 +83,7 @@ function SignedInOrPrompt() {
   const { isLoading, user } = useAuth();
   if (isLoading) {
     return (
-      <div className="mt-8 flex items-center gap-2 text-sm text-neutral-500">
+      <div className="flex items-center gap-2 text-sm text-neutral-500">
         <Loader2 size={14} className="animate-spin" />
         Loading…
       </div>
@@ -71,7 +91,7 @@ function SignedInOrPrompt() {
   }
   if (!user) {
     return (
-      <div className="mt-8 rounded-lg border border-neutral-200 bg-white p-5 text-sm dark:border-neutral-800 dark:bg-neutral-950">
+      <div className="rounded-lg border border-neutral-200 bg-white p-5 text-sm dark:border-neutral-800 dark:bg-neutral-950">
         <p className="mb-3 text-neutral-700 dark:text-neutral-300">
           You're not signed in.
         </p>
@@ -89,12 +109,154 @@ function SignedInOrPrompt() {
 
 function Cards() {
   return (
-    <div className="mt-8 space-y-6">
+    <div className="space-y-6">
       <ProfileCard />
       <SignInMethodsCard />
       <ChangePasswordCard />
       <AccountCard />
     </div>
+  );
+}
+
+/* ============================================================
+ * Fonts — hide / show fonts from the picker (device-local pref)
+ * ============================================================ */
+
+function FontsCard() {
+  const hiddenFonts = useFontPrefsStore((s) => s.hiddenFonts);
+  const toggleFont = useFontPrefsStore((s) => s.toggleFont);
+  const setHidden = useFontPrefsStore((s) => s.setHidden);
+  const showAll = useFontPrefsStore((s) => s.showAll);
+
+  const grouped = useMemo(() => {
+    const acc: Record<FontOption["category"], FontOption[]> = {
+      sans: [],
+      serif: [],
+      display: [],
+      handwriting: [],
+      mono: [],
+    };
+    for (const f of FONTS) acc[f.category].push(f);
+    return acc;
+  }, []);
+
+  const categoryOrder: FontOption["category"][] = [
+    "sans",
+    "serif",
+    "display",
+    "handwriting",
+    "mono",
+  ];
+
+  const totalShown = FONTS.length - hiddenFonts.size;
+
+  const hideAllInCategory = (cat: FontOption["category"]) => {
+    const next = new Set(hiddenFonts);
+    for (const f of grouped[cat]) next.add(f.family);
+    setHidden(next);
+  };
+
+  const showAllInCategory = (cat: FontOption["category"]) => {
+    const next = new Set(hiddenFonts);
+    for (const f of grouped[cat]) next.delete(f.family);
+    setHidden(next);
+  };
+
+  return (
+    <section
+      id="fonts"
+      className="scroll-mt-20 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950"
+    >
+      <header className="flex items-baseline justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+          <Type size={16} className="text-neutral-500" />
+          Fonts
+        </h2>
+        <span className="text-xs text-neutral-500">
+          {totalShown} of {FONTS.length} shown
+        </span>
+      </header>
+      <p className="mt-1 text-xs text-neutral-500">
+        Hide fonts you don't use so the picker stays short. Saved on this device — doesn't affect other browsers or other people viewing your projects.
+      </p>
+
+      <div className="mt-3 flex items-center justify-end gap-2 text-xs">
+        <button
+          type="button"
+          onClick={showAll}
+          disabled={hiddenFonts.size === 0}
+          className="rounded border border-neutral-300 px-2 py-1 font-medium text-neutral-700 hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:border-neutral-500"
+        >
+          Show all
+        </button>
+      </div>
+
+      <div className="mt-4 space-y-5">
+        {categoryOrder.map((cat) => {
+          const items = grouped[cat];
+          const hiddenInCat = items.filter((f) => hiddenFonts.has(f.family)).length;
+          const allHidden = hiddenInCat === items.length;
+          return (
+            <div key={cat}>
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+                  {CATEGORY_LABEL[cat]}
+                  <span className="ml-2 font-normal normal-case tracking-normal text-neutral-400">
+                    {items.length - hiddenInCat}/{items.length}
+                  </span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() =>
+                    allHidden ? showAllInCategory(cat) : hideAllInCategory(cat)
+                  }
+                  className="text-[11px] text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"
+                >
+                  {allHidden ? "Show all" : "Hide all"}
+                </button>
+              </div>
+              <ul className="grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-3">
+                {items.map((f) => {
+                  const hidden = hiddenFonts.has(f.family);
+                  return (
+                    <li key={f.family}>
+                      <button
+                        type="button"
+                        onClick={() => toggleFont(f.family)}
+                        className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
+                          hidden
+                            ? "text-neutral-400 dark:text-neutral-600"
+                            : "text-neutral-900 dark:text-neutral-100"
+                        }`}
+                        title={hidden ? "Click to show" : "Click to hide"}
+                      >
+                        <span
+                          className="truncate"
+                          style={{ fontFamily: f.family }}
+                        >
+                          {f.label}
+                        </span>
+                        {hidden ? (
+                          <EyeOff
+                            size={13}
+                            className="shrink-0 text-neutral-400"
+                          />
+                        ) : (
+                          <Eye
+                            size={13}
+                            className="shrink-0 text-neutral-400"
+                          />
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
