@@ -1,5 +1,120 @@
 import type { Component, Effect } from "../types/project";
 
+/**
+ * Source for the <MaskedText> helper component. Wraps a text node so a
+ * spotlight beam can recolor or cut it out, matching the editor preview's
+ * tint and reveal modes.
+ *
+ * How positioning works:
+ *  - clip-path: circle(R at X Y) clips a DOM element to a circle whose
+ *    (X, Y) are in the element's OWN box coordinates (CSS px, top-left
+ *    origin). The spotlight position from the editor is in canvas-design
+ *    coordinates.
+ *  - On mount we measure the text's offset from the nearest ancestor that
+ *    has the project's canvas width. Divide by the live canvas-to-viewport
+ *    scale to get the text's design-coord offset within the canvas. Then
+ *    spotlight_local = spotlight_canvas - text_offset_canvas.
+ *  - Mouse mode: pointermove updates the local (X, Y) state directly.
+ *  - Sweep mode: motion animates the clip-path string between the start
+ *    and end design coordinates (also offset-corrected).
+ *
+ * Tint mode renders the original text untouched, then layers a tinted
+ * copy on top with the same clip-path so only the beam area is
+ * recolored. Reveal mode clips the original directly so the text is
+ * visible only inside the beam.
+ */
+const MASKED_TEXT_SOURCE = `function MaskedText({ cfg, canvasWidth, startTime, duration, baseStyle, tintColor, mode, sweepStart, sweepEnd, children }) {
+  const wrapRef = useRef(null);
+  const [offset, setOffset] = useState({ x: 0, y: 0, ready: false });
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    // Walk up to the closest ancestor whose CSS width matches the canvas.
+    let canvas = el.parentElement;
+    while (canvas) {
+      const w = canvas.getBoundingClientRect().width;
+      if (Math.abs(w - canvasWidth) < 0.5 || Math.abs(parseFloat(getComputedStyle(canvas).width) - canvasWidth) < 0.5) break;
+      canvas = canvas.parentElement;
+    }
+    if (!canvas) return;
+    const wRect = canvas.getBoundingClientRect();
+    const tRect = el.getBoundingClientRect();
+    const scale = wRect.width / canvasWidth;
+    setOffset({
+      x: (tRect.left - wRect.left) / Math.max(0.0001, scale),
+      y: (tRect.top - wRect.top) / Math.max(0.0001, scale),
+      ready: true,
+    });
+  }, [canvasWidth, children]);
+
+  useEffect(() => {
+    if (cfg.motion !== "mouse") return;
+    const onMove = (e) => {
+      const el = wrapRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setMousePos({ x: e.clientX - r.left, y: e.clientY - r.top });
+    };
+    window.addEventListener("pointermove", onMove);
+    return () => window.removeEventListener("pointermove", onMove);
+  }, [cfg.motion]);
+
+  const clipFor = (cx, cy) => {
+    if (cfg.shape === "square") {
+      const top = cy - cfg.size;
+      const right = -(cx + cfg.size);
+      const bottom = -(cy + cfg.size);
+      const left = cx - cfg.size;
+      return "inset(" + top + "px " + right + "px " + bottom + "px " + left + "px)";
+    }
+    return "circle(" + cfg.size + "px at " + cx + "px " + cy + "px)";
+  };
+
+  // Mouse mode: clipPath is driven by state (no motion keyframes).
+  const isMouse = cfg.motion === "mouse";
+  const sweepStartLocal = sweepStart && offset.ready
+    ? clipFor(sweepStart.x - offset.x, sweepStart.y - offset.y)
+    : null;
+  const sweepEndLocal = sweepEnd && offset.ready
+    ? clipFor(sweepEnd.x - offset.x, sweepEnd.y - offset.y)
+    : null;
+  const mouseClip = isMouse ? clipFor(mousePos.x, mousePos.y) : null;
+
+  // The masked layer style: clipped + tinted (tint) or just clipped (reveal).
+  const maskedStyle = Object.assign({}, baseStyle, {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    pointerEvents: "none",
+    color: mode === "tint" ? tintColor : baseStyle.color,
+  });
+
+  const sweepTransition = { delay: startTime, duration: duration, ease: "linear" };
+
+  return (
+    <span ref={wrapRef} style={{ position: "relative", display: "inline-block" }}>
+      {mode === "tint" ? children : null}
+      {isMouse ? (
+        <span style={Object.assign({}, maskedStyle, { clipPath: mouseClip, WebkitClipPath: mouseClip })}>
+          {children}
+        </span>
+      ) : (sweepStartLocal && sweepEndLocal) ? (
+        <motion.span
+          style={maskedStyle}
+          initial={{ clipPath: sweepStartLocal, WebkitClipPath: sweepStartLocal }}
+          animate={{ clipPath: sweepEndLocal, WebkitClipPath: sweepEndLocal }}
+          transition={sweepTransition}
+        >
+          {children}
+        </motion.span>
+      ) : null}
+      {mode === "reveal" && !isMouse && !sweepStartLocal ? children : null}
+    </span>
+  );
+}`;
+
 /** Build the spotlight backdrop CSS `background` value (matches the
  *  editor's SpotlightOverlay logic — solid color if feather is 0,
  *  radial-gradient with a fade otherwise). */
@@ -24,6 +139,52 @@ export function spotlightEffectsIn(components: Component[]): Effect[] {
     }
   }
   return out;
+}
+
+/** Find the first maskText spotlight effect on a component, if any. */
+export function maskTextSpotlightOf(c: Component): Effect | undefined {
+  for (const e of c.effects) {
+    if (e.type === "spotlight" && e.spotlight?.maskText) return e;
+  }
+  return undefined;
+}
+
+/** True iff any component has a maskText spotlight. */
+export function hasMaskTextSpotlight(components: Component[]): boolean {
+  for (const c of components) {
+    if (maskTextSpotlightOf(c)) return true;
+  }
+  return false;
+}
+
+/**
+ * Compute the canvas-design coordinates of a sweep spotlight's start /
+ * end positions, falling back to the mode-based defaults when sweepStart
+ * / sweepEnd aren't explicitly set. Returns null when the spotlight uses
+ * mouse motion (which has no static start/end).
+ */
+export function sweepStartEnd(
+  cfg: NonNullable<Effect["spotlight"]>,
+  canvasWidth: number,
+  canvasHeight: number,
+): { start: { x: number; y: number }; end: { x: number; y: number } } | null {
+  if (cfg.motion === "mouse") return null;
+  const isLeft = cfg.motion === "sweep-left";
+  const defaultY = cfg.sweepY ?? canvasHeight / 2;
+  const start = cfg.sweepStart ?? {
+    x: isLeft ? -cfg.size : canvasWidth + cfg.size,
+    y: defaultY,
+  };
+  const end = cfg.sweepEnd ?? {
+    x: isLeft ? canvasWidth + cfg.size : -cfg.size,
+    y: defaultY,
+  };
+  return { start, end };
+}
+
+/** Export the MaskedText component source for inclusion in the file. */
+export function maskedTextHelperSource(): string {
+  return MASKED_TEXT_SOURCE;
 }
 
 /**
@@ -116,11 +277,8 @@ function MouseSpotlight({ cfg, canvasWidth, canvasHeight, background }) {
   const layerJsx: string[] = [];
   for (const e of fxs) {
     const cfg = e.spotlight!;
-    if (cfg.maskText) {
-      layerJsx.push(
-        `{/* Spotlight ${e.id} maskText=${cfg.maskMode ?? "tint"} is not exported yet — only the backdrop is rendered. The text-cutout / tint effect requires a CSS mask helper that's still on the backlog. */}`,
-      );
-    }
+    // maskText is now exported via the <MaskedText> helper wired into
+    // the text spans in generateComponent.ts — no inline comment needed.
     if (cfg.showBackdrop === false) {
       layerJsx.push(`{/* Spotlight ${e.id} backdrop disabled (showBackdrop: false). */}`);
       continue;

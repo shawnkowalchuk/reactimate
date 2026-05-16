@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "motion": "^11.13.5",
+    "motion": "^11.18.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -17,8 +17,8 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "fireworks-js": "^2.10.8",
     "typescript": "^5.7.2",
-    "vite": "^6.0.5",
-    "fireworks-js": "^2.10.8"
+    "vite": "^6.0.5"
   }
 }

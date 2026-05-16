@@ -11,7 +11,13 @@ import {
 } from "./particleToMotion";
 import { renderTypewriterSpan, typewriterOf } from "./typewriterToMotion";
 import { buildFireworksExport } from "./fireworksToMotion";
-import { buildSpotlightExport } from "./spotlightToMotion";
+import {
+  buildSpotlightExport,
+  hasMaskTextSpotlight,
+  maskedTextHelperSource,
+  maskTextSpotlightOf,
+  sweepStartEnd,
+} from "./spotlightToMotion";
 
 interface Segment {
   kind: "plain" | "component";
@@ -74,6 +80,53 @@ function indent(s: string, prefix: string): string {
     .join("\n");
 }
 
+/**
+ * Wrap a component's rendered text JSX with the <MaskedText> helper so a
+ * spotlight beam can recolor it (tint mode) or cut it out (reveal mode).
+ * Passes only what the helper needs — the spotlight cfg, the canvas
+ * width for offset math, and the sweep start/end for non-mouse modes.
+ */
+function wrapWithMaskedText(
+  innerJsx: string,
+  c: import("../types/project").Component,
+  effect: import("../types/project").Effect,
+  canvasWidth: number,
+  canvasHeight: number,
+): string {
+  const cfg = effect.spotlight!;
+  const mode = cfg.maskMode ?? "tint";
+  // Helper only needs the position-relevant fields of the spotlight cfg.
+  const helperCfg = {
+    shape: cfg.shape,
+    size: cfg.size,
+    motion: cfg.motion,
+  };
+  const baseStyle = {
+    fontFamily: c.style.fontFamily,
+    fontSize: c.style.fontSize,
+    fontWeight: c.style.fontWeight,
+    letterSpacing: c.style.letterSpacing,
+    color: c.style.color,
+    display: "inline-block",
+  };
+  const se = sweepStartEnd(cfg, canvasWidth, canvasHeight);
+  const startProp = se ? `sweepStart={${JSON.stringify(se.start)}}` : "";
+  const endProp = se ? `sweepEnd={${JSON.stringify(se.end)}}` : "";
+  return `<MaskedText
+  cfg={${JSON.stringify(helperCfg)}}
+  canvasWidth={${canvasWidth}}
+  startTime={${effect.startTime}}
+  duration={${effect.duration}}
+  baseStyle={${fmt(baseStyle as unknown as Record<string, unknown>, 1)}}
+  tintColor={${JSON.stringify(cfg.color)}}
+  mode={${JSON.stringify(mode)}}
+  ${startProp}
+  ${endProp}
+>
+${indent(innerJsx, "  ")}
+</MaskedText>`;
+}
+
 export function generateReactComponent(project: Project): string {
   const segments = splitTextIntoSegments(project);
 
@@ -85,8 +138,23 @@ export function generateReactComponent(project: Project): string {
       // motion.span with per-letter spans (staggered reveal, optional
       // per-letter shape).
       const tw = typewriterOf(c);
-      if (tw) return renderTypewriterSpan(c, seg.text, tw);
-      return renderComponentSpan(c, seg.text, project.duration);
+      let spanJsx = tw
+        ? renderTypewriterSpan(c, seg.text, tw)
+        : renderComponentSpan(c, seg.text, project.duration);
+      // If a spotlight on this component asks to mask the text, wrap
+      // the rendered span in a <MaskedText> helper that clips it (or
+      // overlays a tinted copy) following the spotlight position.
+      const maskEffect = maskTextSpotlightOf(c);
+      if (maskEffect) {
+        spanJsx = wrapWithMaskedText(
+          spanJsx,
+          c,
+          maskEffect,
+          project.canvas.width,
+          project.canvas.height,
+        );
+      }
+      return spanJsx;
     })
     .join("\n");
 
@@ -110,6 +178,7 @@ export function generateReactComponent(project: Project): string {
     project.canvas.height,
   );
   const hasSpotlight = spotlight !== null;
+  const needsMaskedText = hasMaskTextSpotlight(project.layer.components);
 
   const wrapperStyle: Record<string, unknown> = {
     width: project.canvas.width,
@@ -142,12 +211,33 @@ export function generateReactComponent(project: Project): string {
     : "";
 
   const imports = ['import { motion } from "motion/react";'];
-  if (fireworks) imports.push(...fireworks.extraImports);
-  if (spotlight) imports.push(...spotlight.extraImports);
-  if (needsCursorParticles) {
-    imports.push(`import { useEffect, useRef, useState } from "react";`);
+  // Helper modules each declare what extra imports they need, but the
+  // React imports overlap (fireworks needs useEffect/useRef, spotlight
+  // mouse needs useEffect/useRef/useState, masked text adds
+  // useLayoutEffect). We consolidate every hook into ONE React import
+  // so the exported file never has duplicate import lines.
+  const reactHooks = new Set<string>();
+  if (fireworks) reactHooks.add("useEffect").add("useRef");
+  if (spotlight && spotlight.extraImports.length > 0) {
+    reactHooks.add("useEffect").add("useRef").add("useState");
   }
-  // De-duplicate (e.g. avoid two `import { useEffect, useRef } from "react"`).
+  if (needsCursorParticles) {
+    reactHooks.add("useEffect").add("useRef").add("useState");
+  }
+  if (needsMaskedText) {
+    reactHooks.add("useEffect").add("useLayoutEffect").add("useRef").add("useState");
+  }
+  // Pull non-React extra imports from each helper (e.g. fireworks-js).
+  const extraNonReact: string[] = [];
+  if (fireworks) extraNonReact.push(...fireworks.extraImports.filter((s) => !s.includes(`from "react"`)));
+  if (spotlight) extraNonReact.push(...spotlight.extraImports.filter((s) => !s.includes(`from "react"`)));
+  imports.push(...extraNonReact);
+  if (reactHooks.size > 0) {
+    const ordered = ["useEffect", "useLayoutEffect", "useRef", "useState"].filter(
+      (h) => reactHooks.has(h),
+    );
+    imports.push(`import { ${ordered.join(", ")} } from "react";`);
+  }
   const uniqueImports = Array.from(new Set(imports));
 
   const helperParts: string[] = [];
@@ -165,6 +255,7 @@ export function generateReactComponent(project: Project): string {
   }
   if (fireworks) helperParts.push(fireworks.helperComponent);
   if (spotlight?.helperComponent) helperParts.push(spotlight.helperComponent);
+  if (needsMaskedText) helperParts.push(maskedTextHelperSource());
   const helpers = helperParts.length > 0 ? "\n" + helperParts.join("\n\n") + "\n" : "";
 
   return `${uniqueImports.join("\n")}
