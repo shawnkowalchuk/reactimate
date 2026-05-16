@@ -30,6 +30,11 @@ import { clearStorage } from "../../persistence/localStorage";
 import { saveProjectToDB } from "../../api/projectApi";
 import { isAuthEnabled } from "../../auth/supabase";
 import { useAuth } from "../../auth/useAuth";
+import {
+  clearShadowFlag,
+  isShadowProject,
+  markSkipCloudSync,
+} from "../../persistence/useCloudSync";
 import { Link } from "react-router-dom";
 import { UserMenu } from "./UserMenu";
 
@@ -97,6 +102,11 @@ export function Toolbar() {
    *    project so the user has a local backup they can re-import.
    * Holding Shift overrides the smart behavior and always downloads .json,
    * giving signed-in users an easy escape hatch for a manual backup.
+   *
+   * Shadow-project guardrail: if the user opened an example (or other
+   * external project) WITHOUT explicitly saving over their cloud account
+   * yet, we confirm before clobbering the cloud project. One DB row per
+   * account means a silent save would lose their previous work.
    */
   const onSaveProject = async (e?: React.MouseEvent) => {
     const wantFile = e?.shiftKey === true || !cloudActive;
@@ -104,6 +114,17 @@ export function Toolbar() {
       saveProjectFile(project);
       setSaveState("saved-file");
       return;
+    }
+    if (isShadowProject()) {
+      const ok = window.confirm(
+        "Save this project to your cloud account?\n\n" +
+        "Heads-up: your account only holds ONE editor project, so this " +
+        "will overwrite whatever was previously saved there. " +
+        "Click Cancel and then Shift+click Save to download a .json " +
+        "backup of the current project first if you're not sure.",
+      );
+      if (!ok) return;
+      clearShadowFlag();
     }
     setSaveState("saving");
     const ok = await saveProjectToDB(project);
@@ -115,17 +136,27 @@ export function Toolbar() {
 
   const onLoadProject = async () => {
     const loaded = await openProjectFile();
-    if (loaded) {
-      setProject(loaded);
-      setPlaying(false);
-      setCurrentTime(0);
-    }
+    if (!loaded) return;
+    // Mark as shadow when signed in so the imported .json doesn't
+    // silently auto-save over the user's cloud project. They have to
+    // click Save and confirm the overwrite.
+    if (cloudActive) markSkipCloudSync();
+    setProject(loaded);
+    setPlaying(false);
+    setCurrentTime(0);
   };
 
   const onResetToSample = () => {
-    if (!window.confirm("Reset to the sample project? This discards your current work.")) {
-      return;
-    }
+    // Cloud users get a stronger warning — resetting + auto-save will
+    // overwrite their cloud project on the next change. Reset also marks
+    // the project as shadow so the next manual Save will re-confirm.
+    const msg = cloudActive
+      ? "Reset to the sample project?\n\n" +
+        "Your account only holds ONE editor project, so the next change " +
+        "you make will overwrite your saved cloud project with the " +
+        "sample. Shift+click Save FIRST if you want a .json backup."
+      : "Reset to the sample project? This discards your current work.";
+    if (!window.confirm(msg)) return;
     clearStorage();
     resetToSample();
     setPlaying(false);
@@ -277,7 +308,7 @@ export function Toolbar() {
             className="ml-1 flex items-center gap-1 text-[10px] text-neutral-500"
             title={
               cloudActive
-                ? "Signed in — changes auto-save to your account"
+                ? "Signed in — changes auto-save to your account. Your account holds ONE editor project at a time; Shift+click Save to download a .json backup."
                 : "Sign in to auto-save to the cloud (currently local-only)"
             }
           >

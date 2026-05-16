@@ -1,6 +1,7 @@
 import type { Project } from "../types/project";
 import { isAuthEnabled } from "../auth/supabase";
 import { saveProjectToDB, loadProjectFromDB } from "../api/projectApi";
+import { isShadowProject } from "./shadowFlag";
 
 const STORAGE_KEY = "reactimate.project.v1";
 const SCHEMA_VERSION = 1;
@@ -135,8 +136,10 @@ export function saveToStorage(project: Project): void {
       // Quota exceeded, private browsing, etc.
     }
   }
-  // DB (async, fire-and-forget).
-  if (isAuthEnabled) {
+  // DB (async, fire-and-forget). Skipped while the project is shadowing
+  // an example — otherwise the user's cloud project gets silently
+  // clobbered the moment they open an example in the editor.
+  if (isAuthEnabled && !isShadowProject()) {
     saveProjectToDB(project).catch(() => undefined);
   }
 }
