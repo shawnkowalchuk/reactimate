@@ -433,8 +433,8 @@ export function EffectModal() {
               <NumberInput
                 min={0}
                 step={1}
-                value={Number.isFinite(effect.repeat ?? 0) ? (effect.repeat ?? 0) : 0}
-                disabled={!Number.isFinite(effect.repeat ?? 0)}
+                value={effect.repeat ?? 0}
+                disabled={Boolean(effect.loopForever)}
                 onChange={(v) =>
                   updateEffect(component.id, effect.id, {
                     repeat: Math.max(0, Math.round(v)),
@@ -454,7 +454,7 @@ export function EffectModal() {
                 min={0}
                 step={0.1}
                 value={effect.repeatDelay ?? 0}
-                disabled={(effect.repeat ?? 0) === 0}
+                disabled={!effect.loopForever && (effect.repeat ?? 0) === 0}
                 onChange={(v) =>
                   updateEffect(component.id, effect.id, {
                     repeatDelay: Math.max(0, v),
@@ -469,10 +469,10 @@ export function EffectModal() {
             >
               <input
                 type="checkbox"
-                checked={!Number.isFinite(effect.repeat ?? 0)}
+                checked={Boolean(effect.loopForever)}
                 onChange={(e) =>
                   updateEffect(component.id, effect.id, {
-                    repeat: e.target.checked ? Number.POSITIVE_INFINITY : 0,
+                    loopForever: e.target.checked || undefined,
                   })
                 }
                 className="h-3.5 w-3.5 cursor-pointer"

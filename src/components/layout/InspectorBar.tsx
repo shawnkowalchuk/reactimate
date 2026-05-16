@@ -71,6 +71,8 @@ interface ComponentInspectorProps {
 
 function ComponentInspectorStrip({ component, text }: ComponentInspectorProps) {
   const updateComponentStyle = useProjectStore((s) => s.updateComponentStyle);
+  const setAlignment = useProjectStore((s) => s.setAlignment);
+  const layerAlignment = useProjectStore((s) => s.project.layer.alignment);
   const removeComponent = useProjectStore((s) => s.removeComponent);
   const selectNone = useSelectionStore((s) => s.selectNone);
 
@@ -147,22 +149,28 @@ function ComponentInspectorStrip({ component, text }: ComponentInspectorProps) {
         />
       </label>
 
+      {/* Alignment is a LAYER property in the data model (RenderedText
+          applies textAlign to the single text block — components are
+          inline spans inside it, so per-component align would require
+          breaking each into its own block, changing word flow). Writing
+          to component.style.alignment was a dead field — wire to the
+          layer setter so the buttons actually affect the preview. */}
       <div className="flex items-center gap-0.5 rounded border border-neutral-300 bg-white p-0.5 dark:border-neutral-700 dark:bg-neutral-900">
         <AlignBtn
-          active={component.style.alignment === "left"}
-          onClick={() => patch({ alignment: "left" })}
+          active={layerAlignment === "left"}
+          onClick={() => setAlignment("left")}
           icon={<AlignLeft size={12} />}
           label="Align left"
         />
         <AlignBtn
-          active={component.style.alignment === "center"}
-          onClick={() => patch({ alignment: "center" })}
+          active={layerAlignment === "center"}
+          onClick={() => setAlignment("center")}
           icon={<AlignCenter size={12} />}
           label="Align center"
         />
         <AlignBtn
-          active={component.style.alignment === "right"}
-          onClick={() => patch({ alignment: "right" })}
+          active={layerAlignment === "right"}
+          onClick={() => setAlignment("right")}
           icon={<AlignRight size={12} />}
           label="Align right"
         />

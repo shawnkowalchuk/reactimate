@@ -90,19 +90,28 @@ export function computeComponentStyle(
   for (const { effect, startTime, endTime } of sorted) {
     // Loop math: `repeat` lets the effect cycle. repeat = 0/undefined
     // plays once (original behavior). repeat = N plays N+1 times total.
-    // repeat = Infinity loops forever. `repeatDelay` pauses between
-    // cycles holding at the target value. Skipped for particle /
-    // fireworks-js — those use `continueAfter` for spawner looping.
+    // `loopForever` cycles continuously WITHIN the effect's own window
+    // (the bar on the timeline). `repeatDelay` pauses between cycles
+    // holding at the target value. Skipped for particle / fireworks-js
+    // — those use `continueAfter` for spawner looping.
     const baseDur = endTime - startTime;
     const loopable =
       effect.type !== "particle" && effect.type !== "fireworks-js";
-    const repeat = loopable ? effect.repeat ?? 0 : 0;
+    const loopForever = loopable && Boolean(effect.loopForever);
+    // Back-compat: Infinity stored on `repeat` (from before the
+    // dedicated loopForever field existed) is treated as loopForever.
+    // It won't survive JSON serialization, but in-session it works.
+    const repeatRaw = loopable ? effect.repeat ?? 0 : 0;
+    const repeat = loopForever || !Number.isFinite(repeatRaw) ? 0 : repeatRaw;
+    const isInfinite = loopForever || !Number.isFinite(repeatRaw);
     const repeatDelay = loopable ? Math.max(0, effect.repeatDelay ?? 0) : 0;
     const cycleSpan = baseDur + repeatDelay;
-    // How long this effect actively occupies the timeline. For finite
-    // repeats we play (repeat + 1) cycles total; gap-hide kicks in after.
-    const totalSpan = !Number.isFinite(repeat)
-      ? Number.POSITIVE_INFINITY
+    // How long this effect actively occupies the timeline. For infinite
+    // loops the cycling is bounded by the effect's own window (baseDur);
+    // for finite repeats we play (repeat + 1) cycles total and let
+    // gap-hide kick in after.
+    const totalSpan = isInfinite
+      ? baseDur
       : Math.max(0, (repeat + 1) * cycleSpan - repeatDelay);
 
     for (const key of Object.keys(effect.targets) as AnimatableProp[]) {
@@ -117,15 +126,20 @@ export function computeComponentStyle(
       const sinceStart = time - startTime;
       if (sinceStart < 0) {
         (current as unknown as Record<string, unknown>)[key] = from;
-      } else if (Number.isFinite(repeat) && sinceStart >= totalSpan) {
+      } else if (sinceStart >= totalSpan) {
         // Past the last cycle — hold at target, leak to next effect.
         // Also handles zero-duration effects (totalSpan = 0 → instant snap).
+        // Applies to both finite-repeat (after all cycles) and loopForever
+        // (after window end).
         (current as unknown as Record<string, unknown>)[key] = target;
         lastValue[key] = target;
       } else {
         // Within an active cycle (or repeatDelay gap between cycles).
-        // For no-repeat, cycleT IS sinceStart. modulo'd otherwise.
-        const cycleT = repeat === 0 || cycleSpan <= 0 ? sinceStart : sinceStart % cycleSpan;
+        // No-loop case: cycleT IS sinceStart. Looping case: modulo over
+        // cycleSpan so repeated cycles play back-to-back (with optional
+        // repeatDelay gap that holds at target between them).
+        const cycling = isInfinite || repeat > 0;
+        const cycleT = !cycling || cycleSpan <= 0 ? sinceStart : sinceStart % cycleSpan;
         if (cycleT >= baseDur) {
           // We're in the repeatDelay gap → hold at target until next cycle.
           (current as unknown as Record<string, unknown>)[key] = target;
@@ -175,18 +189,21 @@ export function computeComponentStyle(
         return time >= startTime;
       }
       // Loop-aware end: a repeating effect stays "active" for its full
-      // (repeat + 1) cycles. Infinite repeat means active forever past
-      // its start. repeat = 0 / undefined falls back to the single
-      // [start, end] window.
+      // (repeat + 1) cycles. loopForever cycles WITHIN the effect's own
+      // [start, end] window — past that, gap-hide kicks in normally.
+      // repeat = 0 / undefined falls back to the single [start, end].
       const loopable = effect.type !== "particle" && effect.type !== "fireworks-js";
-      const repeat = loopable ? effect.repeat ?? 0 : 0;
       const baseDur = endTime - startTime;
       const repeatDelay = Math.max(0, effect.repeatDelay ?? 0);
-      if (!Number.isFinite(repeat)) {
-        return time >= startTime;
+      const loopForever = loopable && Boolean(effect.loopForever);
+      const repeatRaw = loopable ? effect.repeat ?? 0 : 0;
+      // Pre-loopForever back-compat: Infinity-as-repeat (won't survive
+      // JSON serialization but in-session works) also bounds to window.
+      if (loopForever || !Number.isFinite(repeatRaw)) {
+        return time >= startTime && time <= endTime;
       }
-      const effectiveEnd = repeat > 0
-        ? startTime + (repeat + 1) * (baseDur + repeatDelay) - repeatDelay
+      const effectiveEnd = repeatRaw > 0
+        ? startTime + (repeatRaw + 1) * (baseDur + repeatDelay) - repeatDelay
         : endTime;
       return time >= startTime && time <= effectiveEnd;
     });

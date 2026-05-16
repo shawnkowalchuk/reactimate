@@ -154,15 +154,23 @@ describe("computeComponentStyle", () => {
     expect(computeComponentStyle(c, 2.0).opacity).toBeCloseTo(0.5, 4);
   });
 
-  it("repeat: Infinity loops forever (component stays active)", () => {
-    // Fade 0→1 over 1s, infinite repeat. At t=10.25 we'd be in cycle 11
-    // at 25% through → 0.25. Component should still be active (not
-    // gap-hidden by the visibility window).
+  it("loopForever cycles continuously WITHIN the effect window only", () => {
+    // Fade 0→1 over 1s, loopForever. The window IS the effect's bar
+    // [0, 1]; even with loop forever, visibility ends when the bar
+    // ends — past it the standard gap-hide rule kicks in (opacity=0).
+    //
+    // (loopForever's only visible effect today is to make the cycling
+    // math active inside the window — for visible REPEATS, the user
+    // sets `repeat` so cycles play back-to-back inside an extended
+    // window. The boolean exists primarily to survive JSON round-trip
+    // — the previous Infinity-on-repeat representation collapsed to
+    // null on reload.)
     const c = baseComponent({
-      effects: [{ ...fade(0, 1), repeat: Number.POSITIVE_INFINITY }],
+      effects: [{ ...fade(0, 1), loopForever: true }],
     });
-    expect(computeComponentStyle(c, 10.25).opacity).toBeCloseTo(0.25, 4);
-    expect(computeComponentStyle(c, 100).opacity).toBeCloseTo(0, 4);
+    expect(computeComponentStyle(c, 0.25).opacity).toBeCloseTo(0.25, 4);
+    expect(computeComponentStyle(c, 0.75).opacity).toBeCloseTo(0.75, 4);
+    expect(computeComponentStyle(c, 10).opacity).toBe(0);
   });
 
   it("does not mutate the input component or its effects", () => {

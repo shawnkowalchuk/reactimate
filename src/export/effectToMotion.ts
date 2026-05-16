@@ -99,10 +99,22 @@ export function buildPropTransition(
       duration: e.duration,
       ease: toMotionEase(e.easing),
     };
-    // Loop: maps directly to motion's transition.repeat (Number.Infinity
-    // is serialized as `Infinity` in the formatter; finite N gets emitted
-    // as-is). repeatDelay only matters when repeating.
-    if (e.repeat !== undefined && e.repeat !== 0) {
+    // Loop: maps to motion's transition.repeat. loopForever computes
+    // how many cycles fit inside the effect's window so the export
+    // matches the editor preview (which bounds loops to the window).
+    // Finite N is emitted as-is. repeatDelay only matters when repeating.
+    const cycleSpan = e.duration + Math.max(0, e.repeatDelay ?? 0);
+    if (e.loopForever && cycleSpan > 0) {
+      // floor(window / cycle) cycles fit cleanly; subtract 1 because
+      // motion's repeat=N plays (N+1) times total.
+      const fits = Math.max(0, Math.floor(e.duration / cycleSpan) - 1);
+      if (fits > 0) {
+        transition.repeat = fits;
+        if (e.repeatDelay && e.repeatDelay > 0) {
+          transition.repeatDelay = e.repeatDelay;
+        }
+      }
+    } else if (e.repeat !== undefined && e.repeat !== 0 && Number.isFinite(e.repeat)) {
       transition.repeat = e.repeat;
       if (e.repeatDelay && e.repeatDelay > 0) {
         transition.repeatDelay = e.repeatDelay;

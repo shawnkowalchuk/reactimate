@@ -84,16 +84,31 @@ export interface Effect {
   /**
    * Loop the effect. 0 / undefined = play once (default). N > 0 = play
    * N+1 times total (matches motion's `repeat` semantics — repeat: 3
-   * means 1 initial play + 3 repeats = 4 total). Number.POSITIVE_INFINITY
-   * = loop forever.
+   * means 1 initial play + 3 repeats = 4 total).
    *
    * Skipped for `particle` and `fireworks-js` — those have their own
-   * `continueAfter` flag that loops the SPAWNER continuously, which
-   * does the right thing for particle-style effects.
+   * `continueAfter` flag that loops the SPAWNER continuously.
+   *
+   * NOTE: do NOT use Number.POSITIVE_INFINITY here — JSON.stringify
+   * turns it into `null` and reloading wipes the setting. Use the
+   * separate `loopForever` boolean instead.
    */
   repeat?: number;
   /** Seconds between loop cycles when `repeat` is set. 0 = continuous. */
   repeatDelay?: number;
+  /**
+   * When true, the effect cycles continuously within its own
+   * [startTime, startTime + duration] window — overrides `repeat`.
+   *
+   * Bounded by the effect window: past the window the effect ends
+   * normally (gap-hide rules apply). This matches the timeline-bar
+   * representation: the bar IS the effect's window, regardless of
+   * how many cycles fit inside.
+   *
+   * Persisted as a real boolean (Infinity-via-repeat does NOT survive
+   * JSON serialization — it round-trips as `null` → loop off).
+   */
+  loopForever?: boolean;
   /**
    * For "spotlight" effects: a colored shape rendered behind the text
    * during the effect's [startTime, startTime + duration] window.
