@@ -11,6 +11,7 @@ import {
 } from "./particleToMotion";
 import { renderTypewriterSpan, typewriterOf } from "./typewriterToMotion";
 import { buildFireworksExport } from "./fireworksToMotion";
+import { buildSpotlightExport } from "./spotlightToMotion";
 
 interface Segment {
   kind: "plain" | "component";
@@ -103,6 +104,12 @@ export function generateReactComponent(project: Project): string {
   );
   const hasFireworks = fireworks !== null;
   const needsCursorParticles = hasCursorParticles(project.layer.components);
+  const spotlight = buildSpotlightExport(
+    project.layer.components,
+    project.canvas.width,
+    project.canvas.height,
+  );
+  const hasSpotlight = spotlight !== null;
 
   const wrapperStyle: Record<string, unknown> = {
     width: project.canvas.width,
@@ -116,7 +123,7 @@ export function generateReactComponent(project: Project): string {
     fontSize: project.defaultTextStyle.fontSize,
     fontWeight: project.defaultTextStyle.fontWeight,
   };
-  if (hasParticles || hasFireworks || needsCursorParticles) wrapperStyle.position = "relative";
+  if (hasParticles || hasFireworks || needsCursorParticles || hasSpotlight) wrapperStyle.position = "relative";
 
   const innerStyle = {
     textAlign: project.layer.alignment,
@@ -130,9 +137,13 @@ export function generateReactComponent(project: Project): string {
   const fireworksSection = fireworks
     ? "\n" + indent(fireworks.layerJsx.join("\n"), "      ")
     : "";
+  const spotlightSection = spotlight
+    ? "\n" + indent(spotlight.layerJsx.join("\n"), "      ")
+    : "";
 
   const imports = ['import { motion } from "motion/react";'];
   if (fireworks) imports.push(...fireworks.extraImports);
+  if (spotlight) imports.push(...spotlight.extraImports);
   if (needsCursorParticles) {
     imports.push(`import { useEffect, useRef, useState } from "react";`);
   }
@@ -153,6 +164,7 @@ export function generateReactComponent(project: Project): string {
     );
   }
   if (fireworks) helperParts.push(fireworks.helperComponent);
+  if (spotlight?.helperComponent) helperParts.push(spotlight.helperComponent);
   const helpers = helperParts.length > 0 ? "\n" + helperParts.join("\n\n") + "\n" : "";
 
   return `${uniqueImports.join("\n")}
@@ -162,7 +174,7 @@ export function Hero() {
     <div style={${fmt(wrapperStyle, 3)}}>
       <div style={${fmt(innerStyle, 4)}}>
 ${indent(inner, "        ")}
-      </div>${particleSection}${fireworksSection}
+      </div>${particleSection}${fireworksSection}${spotlightSection}
     </div>
   );
 }

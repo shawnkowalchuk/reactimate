@@ -393,6 +393,11 @@ function Particle({
 }) {
   const d = (PARTICLE_SHAPES as Record<string, string>)[shape] ?? PARTICLE_SHAPES.star;
   const effectiveSize = size * scale;
+  // Small drop-shadow glow makes particles read at small sizes (a 4px
+  // gold star otherwise looks like a single muddy pixel against dark
+  // text). Glow color = particle color, half-size blur. Negligible perf
+  // cost since SVG filter is GPU-accelerated by the browser.
+  const glowR = Math.max(1, effectiveSize * 0.4);
   return (
     <svg
       width={effectiveSize}
@@ -405,6 +410,7 @@ function Particle({
         opacity,
         transform: `rotate(${rotation}deg)`,
         pointerEvents: "none",
+        filter: `drop-shadow(0 0 ${glowR.toFixed(1)}px ${color})`,
       }}
     >
       <path d={d} fill={color} />

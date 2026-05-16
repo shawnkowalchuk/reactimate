@@ -27,6 +27,8 @@ const PARTICLE_PATHS_SOURCE = `const PARTICLE_PATHS = ${JSON.stringify(PARTICLE_
 const PARTICLE_HELPER_SOURCE = `function Particle({ shape, color, size, x, y, opacity, scale, rotate, delay, duration, repeat, repeatDelay }) {
   const d = PARTICLE_PATHS[shape] || PARTICLE_PATHS.star;
   const half = size / 2;
+  // Soft glow so small particles read against dark text. Matches the editor preview.
+  const glowR = Math.max(1, size * 0.4).toFixed(1);
   return (
     <motion.svg
       width={size}
@@ -38,6 +40,7 @@ const PARTICLE_HELPER_SOURCE = `function Particle({ shape, color, size, x, y, op
         top: -half,
         pointerEvents: "none",
         transformOrigin: "center",
+        filter: "drop-shadow(0 0 " + glowR + "px " + color + ")",
       }}
       initial={{ x: x[0], y: y[0], opacity: 0, scale: 0, rotate: rotate[0] }}
       animate={{ x, y, opacity, scale, rotate }}
@@ -130,6 +133,7 @@ const CURSOR_LAYER_SOURCE = `function CursorParticleLayer({ config, width, heigh
     >
       {particles.map((p) => {
         const half = p.size / 2;
+        const glowR = Math.max(1, p.size * 0.4).toFixed(1);
         return (
           <motion.svg
             key={p.id}
@@ -142,6 +146,7 @@ const CURSOR_LAYER_SOURCE = `function CursorParticleLayer({ config, width, heigh
               top: p.y - half,
               pointerEvents: "none",
               transformOrigin: "center",
+              filter: "drop-shadow(0 0 " + glowR + "px " + p.color + ")",
             }}
             initial={{ opacity: 0, scale: 0, rotate: p.baseRotation }}
             animate={{ opacity: [0, 1, 0], scale: [0, 1, 0.5], rotate: p.baseRotation + 90 }}
