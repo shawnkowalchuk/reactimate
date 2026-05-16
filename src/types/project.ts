@@ -111,8 +111,19 @@ export interface Effect {
     featherPx?: number;
     /** Show the colored backdrop shape. Defaults to true. */
     showBackdrop?: boolean;
-    /** Y position in design px for sweep-left / sweep-right motion. Defaults to canvas height / 2. */
+    /**
+     * Y position in design px for sweep modes when sweepStart/End aren't set.
+     * Defaults to canvas height / 2.
+     */
     sweepY?: number;
+    /**
+     * Explicit start position (design coords) for sweep modes. When set
+     * with sweepEnd, overrides the mode-based off-canvas defaults so
+     * users can sweep diagonally or partially across the canvas.
+     */
+    sweepStart?: { x: number; y: number };
+    /** Explicit end position (design coords) for sweep modes. */
+    sweepEnd?: { x: number; y: number };
   };
   /**
    * For "particle" effects: small star particles spawned within the

@@ -556,6 +556,8 @@ interface SpotlightConfig {
   featherPx?: number;
   showBackdrop?: boolean;
   sweepY?: number;
+  sweepStart?: { x: number; y: number };
+  sweepEnd?: { x: number; y: number };
 }
 
 interface SpotlightPanelProps {
@@ -603,21 +605,10 @@ function SpotlightPanel({ spotlight, onChange }: SpotlightPanelProps) {
         </label>
 
         {(spotlight.motion === "sweep-left" || spotlight.motion === "sweep-right") && (
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-neutral-500">Sweep Y (px)</span>
-            <input
-              type="number"
-              step={5}
-              value={spotlight.sweepY ?? 0}
-              onChange={(e) =>
-                onChange({ sweepY: parseFloat(e.target.value) || 0 })
-              }
-              className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
-            />
-            <span className="text-[10px] text-neutral-400">
-              Leave 0 for center
-            </span>
-          </label>
+          <SweepStartEndInputs
+            spotlight={spotlight}
+            onChange={onChange}
+          />
         )}
 
         <label className="flex flex-col gap-1">
@@ -716,6 +707,101 @@ function SpotlightPanel({ spotlight, onChange }: SpotlightPanelProps) {
           </span>
           <span className="text-neutral-500">render the colored shape behind text</span>
         </label>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Start/End position inputs for spotlight sweep modes — four numeric
+ * fields letting the user set explicit (X, Y) for both ends of the sweep.
+ * Leaving the optional sweepStart / sweepEnd unset falls back to the
+ * default mode-based off-canvas positions (with sweepY for the Y).
+ */
+function SweepStartEndInputs({
+  spotlight,
+  onChange,
+}: {
+  spotlight: SpotlightConfig;
+  onChange: (update: Partial<SpotlightConfig>) => void;
+}) {
+  const start = spotlight.sweepStart;
+  const end = spotlight.sweepEnd;
+  const setStart = (next: { x?: number; y?: number }) => {
+    const prev = start ?? { x: 0, y: spotlight.sweepY ?? 0 };
+    onChange({ sweepStart: { ...prev, ...next } });
+  };
+  const setEnd = (next: { x?: number; y?: number }) => {
+    const prev = end ?? { x: 0, y: spotlight.sweepY ?? 0 };
+    onChange({ sweepEnd: { ...prev, ...next } });
+  };
+  const inputCls =
+    "w-20 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100";
+  return (
+    <div className="col-span-2 flex flex-col gap-1">
+      <span className="text-xs text-neutral-500">Sweep path (px)</span>
+      <div className="grid grid-cols-[max-content_1fr_1fr] items-center gap-x-2 gap-y-1 text-xs">
+        <span className="text-neutral-500">Start</span>
+        <label className="flex items-center gap-1">
+          <span className="text-neutral-400">X</span>
+          <input
+            type="number"
+            step={10}
+            value={start?.x ?? ""}
+            placeholder="auto"
+            onChange={(e) => setStart({ x: parseFloat(e.target.value) || 0 })}
+            className={inputCls}
+          />
+        </label>
+        <label className="flex items-center gap-1">
+          <span className="text-neutral-400">Y</span>
+          <input
+            type="number"
+            step={10}
+            value={start?.y ?? ""}
+            placeholder="auto"
+            onChange={(e) => setStart({ y: parseFloat(e.target.value) || 0 })}
+            className={inputCls}
+          />
+        </label>
+
+        <span className="text-neutral-500">End</span>
+        <label className="flex items-center gap-1">
+          <span className="text-neutral-400">X</span>
+          <input
+            type="number"
+            step={10}
+            value={end?.x ?? ""}
+            placeholder="auto"
+            onChange={(e) => setEnd({ x: parseFloat(e.target.value) || 0 })}
+            className={inputCls}
+          />
+        </label>
+        <label className="flex items-center gap-1">
+          <span className="text-neutral-400">Y</span>
+          <input
+            type="number"
+            step={10}
+            value={end?.y ?? ""}
+            placeholder="auto"
+            onChange={(e) => setEnd({ y: parseFloat(e.target.value) || 0 })}
+            className={inputCls}
+          />
+        </label>
+      </div>
+      <div className="flex items-center gap-3 text-[10px] text-neutral-400">
+        <span>
+          Leave blank to sweep off-canvas (mode default).{" "}
+          {spotlight.sweepStart || spotlight.sweepEnd ? (
+            <button
+              type="button"
+              onClick={() => onChange({ sweepStart: undefined, sweepEnd: undefined })}
+              className="text-sky-500 hover:underline"
+            >
+              Reset to default
+            </button>
+          ) : null}
+        </span>
       </div>
     </div>
   );

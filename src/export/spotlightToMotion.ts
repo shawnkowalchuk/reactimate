@@ -148,23 +148,37 @@ function MouseSpotlight({ cfg, canvasWidth, canvasHeight, background }) {
       continue;
     }
 
-    // Sweep modes — linear horizontal animation across the canvas over
-    // the effect's [startTime, startTime + duration] window. Matches the
-    // preview's t01-based math.
+    // Sweep modes — linear animation across the canvas over the effect's
+    // [startTime, startTime + duration] window. Uses explicit sweepStart
+    // / sweepEnd when set; otherwise falls back to the mode-based
+    // off-canvas defaults (matches the preview's t01 lerp).
     const isLeft = cfg.motion === "sweep-left";
-    const startX = isLeft ? -cfg.size - w / 2 : canvasWidth + cfg.size - w / 2;
-    const endX = isLeft ? canvasWidth + cfg.size - w / 2 : -cfg.size - w / 2;
-    const sweepY = (cfg.sweepY ?? canvasHeight / 2) - h / 2;
+    const defaultY = cfg.sweepY ?? canvasHeight / 2;
+    const start = cfg.sweepStart ?? {
+      x: isLeft ? -cfg.size : canvasWidth + cfg.size,
+      y: defaultY,
+    };
+    const end = cfg.sweepEnd ?? {
+      x: isLeft ? canvasWidth + cfg.size : -cfg.size,
+      y: defaultY,
+    };
+    // motion.div's x/y animate from the inline left/top origin (0, 0).
+    // Subtract half-size so each (x, y) keyframe puts the shape's CENTER
+    // at that design coord.
+    const startX = start.x - w / 2;
+    const startY = start.y - h / 2;
+    const endX = end.x - w / 2;
+    const endY = end.y - h / 2;
 
     layerJsx.push(`{/* Spotlight ${e.id} ${cfg.motion} backdrop */}
 <motion.div
-  initial={{ x: ${startX} }}
-  animate={{ x: ${endX} }}
+  initial={{ x: ${startX}, y: ${startY} }}
+  animate={{ x: ${endX}, y: ${endY} }}
   transition={{ delay: ${e.startTime}, duration: ${e.duration}, ease: "linear" }}
   style={{
     position: "absolute",
     left: 0,
-    top: ${sweepY},
+    top: 0,
     width: ${w},
     height: ${h},
     background: ${JSON.stringify(background)},

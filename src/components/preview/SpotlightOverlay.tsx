@@ -90,14 +90,24 @@ export function SpotlightOverlay({
         if (motion === "mouse") {
           cx = mouse.x;
           cy = mouse.y;
-        } else if (motion === "sweep-left") {
-          // Enter from off-screen left, exit off-screen right.
-          cx = -size + (canvasWidth + size * 2) * t01;
-          cy = cfg.sweepY ?? canvasHeight / 2;
         } else {
-          // sweep-right: enter from off-screen right, exit off-screen left.
-          cx = canvasWidth + size - (canvasWidth + size * 2) * t01;
-          cy = cfg.sweepY ?? canvasHeight / 2;
+          // sweep modes — if sweepStart/End are explicitly set, lerp
+          // between them. Otherwise fall back to the mode-based
+          // off-canvas defaults.
+          const start = cfg.sweepStart ?? {
+            x: motion === "sweep-left"
+              ? -size
+              : canvasWidth + size,
+            y: cfg.sweepY ?? canvasHeight / 2,
+          };
+          const end = cfg.sweepEnd ?? {
+            x: motion === "sweep-left"
+              ? canvasWidth + size
+              : -size,
+            y: cfg.sweepY ?? canvasHeight / 2,
+          };
+          cx = start.x + (end.x - start.x) * t01;
+          cy = start.y + (end.y - start.y) * t01;
         }
         const isCircle = shape === "circle";
         const w = size * 2;
