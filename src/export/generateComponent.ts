@@ -6,6 +6,8 @@ import {
   cursorLayerSource,
   hasCursorParticles,
   hasExportableParticles,
+  particleHelperSource,
+  particleSharedSource,
 } from "./particleToMotion";
 import { renderTypewriterSpan, typewriterOf } from "./typewriterToMotion";
 import { buildFireworksExport } from "./fireworksToMotion";
@@ -138,6 +140,13 @@ export function generateReactComponent(project: Project): string {
   const uniqueImports = Array.from(new Set(imports));
 
   const helperParts: string[] = [];
+  // Shared particle declarations (PARTICLE_PATHS + PRESET_COLOR_FN) come
+  // first if either keyframed or cursor particles are present. Both
+  // helpers reference these at module scope.
+  if (hasParticles || needsCursorParticles) {
+    helperParts.push(particleSharedSource());
+  }
+  if (hasParticles) helperParts.push(particleHelperSource());
   if (needsCursorParticles) {
     helperParts.push(
       cursorLayerSource(project.canvas.width, project.canvas.height),

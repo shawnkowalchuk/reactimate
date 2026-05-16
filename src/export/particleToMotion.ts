@@ -1,6 +1,6 @@
 import type { Component, Effect } from "../types/project";
 import { fmt } from "./format";
-import { particlePath } from "../components/preview/particleUtils";
+import { particlePath, PARTICLE_SHAPES } from "../components/preview/particleUtils";
 
 /** Color preset functions inlined into the export so it has no runtime deps. */
 const PRESET_FN_SOURCE = `const PRESET_COLOR_FN = {
@@ -10,6 +10,46 @@ const PRESET_FN_SOURCE = `const PRESET_COLOR_FN = {
   fire: (i) => ["#fde047", "#fb923c", "#ef4444", "#f97316"][i % 4],
   custom: (_i, c) => c,
 };`;
+
+/** Inlined PARTICLE_SHAPES so the exported file renders the right SVG path. */
+const PARTICLE_PATHS_SOURCE = `const PARTICLE_PATHS = ${JSON.stringify(PARTICLE_SHAPES)};`;
+
+/**
+ * Source for the shared <Particle> helper. Renders a motion.svg with the
+ * shape's SVG path, centered on (x, y) via negative margins so motion's
+ * own transform (x/y/scale/rotate animations) doesn't conflict with the
+ * centering trick. Accepts arrays for x/y/opacity/scale/rotate so the same
+ * helper drives both single-shot and looping particles.
+ *
+ * Note: PARTICLE_PATHS is emitted separately by `particleSharedSource` so
+ * it can be reused by the CursorParticleLayer too.
+ */
+const PARTICLE_HELPER_SOURCE = `function Particle({ shape, color, size, x, y, opacity, scale, rotate, delay, duration, repeat, repeatDelay }) {
+  const d = PARTICLE_PATHS[shape] || PARTICLE_PATHS.star;
+  const half = size / 2;
+  return (
+    <motion.svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      style={{
+        position: "absolute",
+        left: -half,
+        top: -half,
+        pointerEvents: "none",
+        transformOrigin: "center",
+      }}
+      initial={{ x: x[0], y: y[0], opacity: 0, scale: 0, rotate: rotate[0] }}
+      animate={{ x, y, opacity, scale, rotate }}
+      transition={Object.assign(
+        { delay, duration, ease: "linear" },
+        repeat ? { repeat: Infinity, repeatDelay } : {},
+      )}
+    >
+      <path d={d} fill={color} />
+    </motion.svg>
+  );
+}`;
 
 /**
  * Source for the live cursor-driven particle renderer. Used by hover and
@@ -24,9 +64,9 @@ const PRESET_FN_SOURCE = `const PRESET_COLOR_FN = {
  * via the wrapper's getBoundingClientRect ratio, so the spawn position
  * stays correct even if the user's site responsively scales the hero.
  */
-const CURSOR_LAYER_SOURCE = `${PRESET_FN_SOURCE}
-
-function CursorParticleLayer({ config, width, height }) {
+const CURSOR_LAYER_SOURCE = `function CursorParticleLayer({ config, width, height }) {
+  const shape = config.shape || "star";
+  const path = PARTICLE_PATHS[shape] || PARTICLE_PATHS.star;
   const wrapRef = useRef(null);
   const [particles, setParticles] = useState([]);
   const nextIdRef = useRef(1);
@@ -67,6 +107,7 @@ function CursorParticleLayer({ config, width, height }) {
           color,
           size,
           bornAt: now,
+          baseRotation: Math.random() * 360,
         },
       ]);
     };
@@ -87,25 +128,29 @@ function CursorParticleLayer({ config, width, height }) {
       ref={wrapRef}
       style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
     >
-      {particles.map((p) => (
-        <motion.div
-          key={p.id}
-          style={{
-            position: "absolute",
-            left: p.x,
-            top: p.y,
-            width: p.size,
-            height: p.size,
-            backgroundColor: p.color,
-            borderRadius: "50%",
-            transform: "translate(-50%, -50%)",
-            pointerEvents: "none",
-          }}
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: [0, 1, 0], scale: [0, 1, 0.5] }}
-          transition={{ duration: config.lifespanSec ?? 0.6, ease: "easeOut" }}
-        />
-      ))}
+      {particles.map((p) => {
+        const half = p.size / 2;
+        return (
+          <motion.svg
+            key={p.id}
+            width={p.size}
+            height={p.size}
+            viewBox="0 0 24 24"
+            style={{
+              position: "absolute",
+              left: p.x - half,
+              top: p.y - half,
+              pointerEvents: "none",
+              transformOrigin: "center",
+            }}
+            initial={{ opacity: 0, scale: 0, rotate: p.baseRotation }}
+            animate={{ opacity: [0, 1, 0], scale: [0, 1, 0.5], rotate: p.baseRotation + 90 }}
+            transition={{ duration: config.lifespanSec ?? 0.6, ease: "easeOut" }}
+          >
+            <path d={path} fill={p.color} />
+          </motion.svg>
+        );
+      })}
     </div>
   );
 }`;
@@ -141,6 +186,8 @@ function pseudo(seed: number, k: number): number {
 }
 
 interface ExportedParticleKeyframed {
+  /** Particle shape: star / circle / diamond / square. */
+  shape: string;
   /** Diameter in px. */
   size: number;
   /** CSS color. */
@@ -155,6 +202,8 @@ interface ExportedParticleKeyframed {
   opacity: number[];
   /** Scale keyframes (used by fireworks for the bright flash). */
   scale: number[];
+  /** Rotation in degrees over the lifespan. */
+  rotate: number[];
 }
 
 /**
@@ -182,6 +231,7 @@ export function buildParticleLayers(
         size: cfg.size,
         color: cfg.color,
         preset: cfg.preset,
+        shape: cfg.shape ?? "star",
         spawnRadiusPx: cfg.spawnRadiusPx ?? 30,
         lifespanSec: cfg.lifespanSec ?? 0.6,
         sizeJitter: cfg.sizeJitter ?? 0.4,
@@ -203,6 +253,8 @@ export function buildParticleLayers(
     const sizeBase = cfg.size;
     const colorFn = PRESET_COLOR_FNS[cfg.preset] ?? PRESET_COLOR_FNS.custom;
     const continueAfter = Boolean(cfg.continueAfter);
+    const shape = cfg.shape ?? "star";
+    const rotSpeed = cfg.rotationSpeed ?? 0;
 
     // Sample N points along each particle's lifespan and emit them as
     // motion keyframes. 10 samples is enough for visually-smooth physics
@@ -229,6 +281,8 @@ export function buildParticleLayers(
       const ys: number[] = [];
       const opacities: number[] = [];
       const scales: number[] = [];
+      const rotates: number[] = [];
+      const baseRot = pseudo(seed, 3) * 360;
       let ok = false;
       for (let s = 0; s < SAMPLES; s++) {
         const t = s / (SAMPLES - 1);
@@ -241,6 +295,7 @@ export function buildParticleLayers(
           ys.push(ys[ys.length - 1] ?? 0);
           opacities.push(0);
           scales.push(scales[scales.length - 1] ?? 0);
+          rotates.push(rotates[rotates.length - 1] ?? baseRot);
           continue;
         }
         ok = true;
@@ -248,10 +303,13 @@ export function buildParticleLayers(
         ys.push(Math.round((area.y + path.y) * 10) / 10);
         opacities.push(Math.round(path.opacity * 100) / 100);
         scales.push(Math.round((path.scale ?? 1) * 100) / 100);
+        // Per-particle rotation matches the runtime: baseRot + rotSpeed * age.
+        rotates.push(Math.round((baseRot + rotSpeed * age) * 10) / 10);
       }
       if (!ok) continue;
 
       particles.push({
+        shape,
         size: Math.round(size * 10) / 10,
         color,
         delay: Math.round(spawnT * 1000) / 1000,
@@ -259,41 +317,33 @@ export function buildParticleLayers(
         y: ys,
         opacity: opacities,
         scale: scales,
+        rotate: rotates,
       });
     }
 
     // Round-trip the particle data through `fmt` so it formats nicely.
     const dataLiteral = fmt(particles as unknown as Record<string, unknown>[], 2);
 
-    // When continueAfter is on we repeat forever after the per-particle
-    // window; otherwise the particle plays once and disappears.
-    const repeatExpr = continueAfter
-      ? `repeat: Infinity, repeatDelay: ${Math.max(0, totalDuration - e.startTime - lifespan).toFixed(2)}`
-      : `repeat: 0`;
+    const repeatDelaySec = continueAfter
+      ? Math.max(0, totalDuration - e.startTime - lifespan)
+      : 0;
 
-    out.push(`{/* Particles for effect ${e.id} (component ${c.id}, type=${type}) */}
+    out.push(`{/* Particles for effect ${e.id} (component ${c.id}, type=${type}, shape=${shape}) */}
 {${dataLiteral}.map((p, i) => (
-  <motion.div
+  <Particle
     key={"fx${e.id.replace(/[^a-zA-Z0-9]/g, "")}_" + i}
-    style={{
-      position: "absolute",
-      left: 0,
-      top: 0,
-      width: p.size,
-      height: p.size,
-      backgroundColor: p.color,
-      borderRadius: "50%",
-      transform: "translate(-50%, -50%)",
-      pointerEvents: "none",
-    }}
-    initial={{ x: p.x[0], y: p.y[0], opacity: 0, scale: 0 }}
-    animate={{ x: p.x, y: p.y, opacity: p.opacity, scale: p.scale }}
-    transition={{
-      delay: p.delay,
-      duration: ${lifespan},
-      ease: "linear",
-      ${repeatExpr},
-    }}
+    shape={p.shape}
+    color={p.color}
+    size={p.size}
+    x={p.x}
+    y={p.y}
+    opacity={p.opacity}
+    scale={p.scale}
+    rotate={p.rotate}
+    delay={p.delay}
+    duration={${lifespan}}
+    repeat={${continueAfter ? "true" : "false"}}
+    repeatDelay={${repeatDelaySec.toFixed(2)}}
   />
 ))}`);
   }
@@ -336,7 +386,24 @@ export function hasCursorParticles(components: Component[]): boolean {
   return false;
 }
 
-/** The CursorParticleLayer component source + the canvas dim constants. */
+/**
+ * Module-scope declarations shared between Particle and CursorParticleLayer
+ * helpers — PARTICLE_PATHS (the SVG shape paths) and PRESET_COLOR_FN.
+ * Emitted once at the top of the file by generateReactComponent if any
+ * particle effect of any kind is present.
+ */
+export function particleSharedSource(): string {
+  return `${PARTICLE_PATHS_SOURCE}
+
+${PRESET_FN_SOURCE}`;
+}
+
+/** The Particle keyframed helper component. Depends on PARTICLE_PATHS. */
+export function particleHelperSource(): string {
+  return PARTICLE_HELPER_SOURCE;
+}
+
+/** The CursorParticleLayer component + the canvas dim constants. */
 export function cursorLayerSource(
   canvasWidth: number,
   canvasHeight: number,
