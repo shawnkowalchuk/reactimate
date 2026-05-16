@@ -12,6 +12,7 @@ import type {
 import { EffectModal } from "./EffectModal";
 import { FontPicker } from "./FontPicker";
 import { ColorPicker } from "../ui/ColorPicker";
+import { NumberInput } from "../ui/NumberInput";
 
 const numberInput =
   "w-16 rounded border border-neutral-300 bg-white px-1 py-0.5 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100";
@@ -123,19 +124,14 @@ function ComponentInspectorStrip({ component, text }: ComponentInspectorProps) {
 
       <label className="flex items-center gap-1.5">
         <span className="text-neutral-500">Size</span>
-        <input
-          type="number"
+        <NumberInput
           min={8}
           max={400}
           step={2}
           value={component.style.fontSize}
-          onChange={(e) =>
-            patch({
-              fontSize: Math.max(
-                8,
-                Math.min(400, parseInt(e.target.value, 10) || 0),
-              ),
-            })
+          format={(v) => String(Math.round(v))}
+          onChange={(v) =>
+            patch({ fontSize: Math.max(8, Math.min(400, Math.round(v))) })
           }
           className={numberInput}
         />
@@ -288,12 +284,12 @@ function ProjectInspectorStrip({ project }: { project: Project }) {
 
       <label className="flex items-center gap-1.5">
         <span className="text-neutral-500">Dur</span>
-        <input
-          type="number"
+        <NumberInput
           step={0.1}
           min={0.1}
-          value={+project.duration.toFixed(2)}
-          onChange={(e) => setDuration(parseFloat(e.target.value) || 0.1)}
+          value={project.duration}
+          format={(v) => String(+v.toFixed(2))}
+          onChange={(v) => setDuration(Math.max(0.1, v))}
           className={numberInput}
         />
         <span className="text-neutral-400 dark:text-neutral-600">s</span>
@@ -312,12 +308,12 @@ function ProjectInspectorStrip({ project }: { project: Project }) {
             </option>
           ))}
         </select>
-        <input
-          type="number"
+        <NumberInput
           min={1}
           step={1}
           value={project.canvas.width}
-          onChange={(e) => onWidthChange(parseInt(e.target.value, 10))}
+          format={(v) => String(Math.round(v))}
+          onChange={(v) => onWidthChange(Math.max(1, Math.round(v)))}
           className={numberInputWide}
           title={
             isCustom
@@ -326,12 +322,12 @@ function ProjectInspectorStrip({ project }: { project: Project }) {
           }
         />
         <span className="text-neutral-400 dark:text-neutral-600">×</span>
-        <input
-          type="number"
+        <NumberInput
           min={1}
           step={1}
           value={project.canvas.height}
-          onChange={(e) => onHeightChange(parseInt(e.target.value, 10))}
+          format={(v) => String(Math.round(v))}
+          onChange={(v) => onHeightChange(Math.max(1, Math.round(v)))}
           className={numberInputWide}
           title={
             isCustom

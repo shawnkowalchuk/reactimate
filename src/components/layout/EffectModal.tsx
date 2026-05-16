@@ -15,6 +15,7 @@ import { Modal } from "./Modal";
 import { EasingPicker } from "./EasingPicker";
 import { ParticleTypePicker, type ParticleType } from "./ParticleTypePicker";
 import { ColorPicker } from "../ui/ColorPicker";
+import { NumberInput } from "../ui/NumberInput";
 import { PRESET_COLOR_FNS, PARTICLE_SHAPES, particlePath, hash, pseudo } from "../preview/particleUtils";
 
 /**
@@ -304,12 +305,12 @@ export function EffectModal() {
           <label className="flex flex-col gap-1">
             <span className="text-xs text-neutral-500">Start time</span>
             <div className="flex items-center gap-1.5">
-              <input
-                type="number"
+              <NumberInput
                 step={0.05}
                 min={0}
-                value={+effect.startTime.toFixed(2)}
-                onChange={(e) => onStart(parseFloat(e.target.value) || 0)}
+                value={effect.startTime}
+                format={(v) => String(+v.toFixed(2))}
+                onChange={onStart}
                 className={numberInput}
               />
               <span className="text-xs text-neutral-400">s</span>
@@ -319,12 +320,12 @@ export function EffectModal() {
           <label className="flex flex-col gap-1">
             <span className="text-xs text-neutral-500">Duration</span>
             <div className="flex items-center gap-1.5">
-              <input
-                type="number"
+              <NumberInput
                 step={0.05}
                 min={0.05}
-                value={+effect.duration.toFixed(2)}
-                onChange={(e) => onDur(parseFloat(e.target.value) || 0.05)}
+                value={effect.duration}
+                format={(v) => String(+v.toFixed(2))}
+                onChange={onDur}
                 className={numberInput}
               />
               <span className="text-xs text-neutral-400">s</span>
@@ -354,15 +355,14 @@ export function EffectModal() {
               >
                 Repeat (extra cycles)
               </span>
-              <input
-                type="number"
+              <NumberInput
                 min={0}
                 step={1}
                 value={Number.isFinite(effect.repeat ?? 0) ? (effect.repeat ?? 0) : 0}
                 disabled={!Number.isFinite(effect.repeat ?? 0)}
-                onChange={(e) =>
+                onChange={(v) =>
                   updateEffect(component.id, effect.id, {
-                    repeat: Math.max(0, parseInt(e.target.value, 10) || 0),
+                    repeat: Math.max(0, Math.round(v)),
                   })
                 }
                 className={numberInput}
@@ -375,15 +375,14 @@ export function EffectModal() {
               >
                 Repeat delay (s)
               </span>
-              <input
-                type="number"
+              <NumberInput
                 min={0}
                 step={0.1}
                 value={effect.repeatDelay ?? 0}
                 disabled={(effect.repeat ?? 0) === 0}
-                onChange={(e) =>
+                onChange={(v) =>
                   updateEffect(component.id, effect.id, {
-                    repeatDelay: Math.max(0, parseFloat(e.target.value) || 0),
+                    repeatDelay: Math.max(0, v),
                   })
                 }
                 className={numberInput}
@@ -451,14 +450,14 @@ export function EffectModal() {
               <>
                 <label className="flex items-center gap-2 pl-6 text-xs">
                   <span className="text-neutral-500">Delay between letters</span>
-                  <input
-                    type="number"
+                  <NumberInput
                     step={0.01}
                     min={0}
-                    value={+(effect.staggerDelay ?? 0.05).toFixed(2)}
-                    onChange={(e) =>
+                    value={effect.staggerDelay ?? 0.05}
+                    format={(v) => String(+v.toFixed(2))}
+                    onChange={(v) =>
                       updateEffect(component.id, effect.id, {
-                        staggerDelay: Math.max(0, parseFloat(e.target.value) || 0),
+                        staggerDelay: Math.max(0, v),
                       })
                     }
                     className="w-20 rounded border border-neutral-300 bg-white px-2 py-0.5 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
@@ -679,29 +678,25 @@ function SpotlightPanel({ spotlight, onChange }: SpotlightPanelProps) {
 
         <label className="flex flex-col gap-1">
           <span className="text-xs text-neutral-500">Size (px)</span>
-          <input
-            type="number"
+          <NumberInput
             min={10}
             step={10}
             value={spotlight.size}
-            onChange={(e) => onChange({ size: Math.max(10, parseInt(e.target.value, 10) || 10) })}
+            format={(v) => String(Math.round(v))}
+            onChange={(v) => onChange({ size: Math.max(10, Math.round(v)) })}
             className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
           />
         </label>
 
         <label className="flex flex-col gap-1">
           <span className="text-xs text-neutral-500">Opacity <span className="text-[10px] text-neutral-400">0–1</span></span>
-          <input
-            type="number"
+          <NumberInput
             min={0}
             max={1}
             step={0.05}
-            value={+spotlight.opacity.toFixed(2)}
-            onChange={(e) =>
-              onChange({
-                opacity: Math.max(0, Math.min(1, parseFloat(e.target.value) || 0)),
-              })
-            }
+            value={spotlight.opacity}
+            format={(v) => String(+v.toFixed(2))}
+            onChange={(v) => onChange({ opacity: v })}
             className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
           />
         </label>
@@ -718,13 +713,13 @@ function SpotlightPanel({ spotlight, onChange }: SpotlightPanelProps) {
 
         <label className="flex flex-col gap-1">
           <span className="text-xs text-neutral-500">Feather edge (px)</span>
-          <input
-            type="number"
+          <NumberInput
             min={0}
             step={2}
             value={spotlight.featherPx ?? 0}
-            onChange={(e) =>
-              onChange({ featherPx: Math.max(0, parseInt(e.target.value, 10) || 0) })
+            format={(v) => String(Math.round(v))}
+            onChange={(v) =>
+              onChange({ featherPx: Math.max(0, Math.round(v)) })
             }
             className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
           />
@@ -810,23 +805,21 @@ function SweepStartEndInputs({
         <span className="text-neutral-500">Start</span>
         <label className="flex items-center gap-1">
           <span className="text-neutral-400">X</span>
-          <input
-            type="number"
+          <NumberInput
             step={10}
-            value={start?.x ?? ""}
+            value={start?.x}
             placeholder="auto"
-            onChange={(e) => setStart({ x: parseFloat(e.target.value) || 0 })}
+            onChange={(v) => setStart({ x: v })}
             className={inputCls}
           />
         </label>
         <label className="flex items-center gap-1">
           <span className="text-neutral-400">Y</span>
-          <input
-            type="number"
+          <NumberInput
             step={10}
-            value={start?.y ?? ""}
+            value={start?.y}
             placeholder="auto"
-            onChange={(e) => setStart({ y: parseFloat(e.target.value) || 0 })}
+            onChange={(v) => setStart({ y: v })}
             className={inputCls}
           />
         </label>
@@ -834,23 +827,21 @@ function SweepStartEndInputs({
         <span className="text-neutral-500">End</span>
         <label className="flex items-center gap-1">
           <span className="text-neutral-400">X</span>
-          <input
-            type="number"
+          <NumberInput
             step={10}
-            value={end?.x ?? ""}
+            value={end?.x}
             placeholder="auto"
-            onChange={(e) => setEnd({ x: parseFloat(e.target.value) || 0 })}
+            onChange={(v) => setEnd({ x: v })}
             className={inputCls}
           />
         </label>
         <label className="flex items-center gap-1">
           <span className="text-neutral-400">Y</span>
-          <input
-            type="number"
+          <NumberInput
             step={10}
-            value={end?.y ?? ""}
+            value={end?.y}
             placeholder="auto"
-            onChange={(e) => setEnd({ y: parseFloat(e.target.value) || 0 })}
+            onChange={(v) => setEnd({ y: v })}
             className={inputCls}
           />
         </label>
@@ -1082,15 +1073,13 @@ function ParticlePanel({ particle, onChange }: ParticlePanelProps) {
 
         <label className="flex flex-col gap-1">
           <span className="text-xs text-neutral-500">Density (per sec)</span>
-          <input
-            type="number"
+          <NumberInput
             min={1}
             step={1}
             value={particle.density}
-            onChange={(e) =>
-              onChange({
-                density: Math.max(1, parseInt(e.target.value, 10) || 1),
-              })
+            format={(v) => String(Math.round(v))}
+            onChange={(v) =>
+              onChange({ density: Math.max(1, Math.round(v)) })
             }
             className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
           />
@@ -1098,14 +1087,12 @@ function ParticlePanel({ particle, onChange }: ParticlePanelProps) {
 
         <label className="flex flex-col gap-1">
           <span className="text-xs text-neutral-500">Size (px)</span>
-          <input
-            type="number"
+          <NumberInput
             min={4}
             step={2}
             value={particle.size}
-            onChange={(e) =>
-              onChange({ size: Math.max(4, parseInt(e.target.value, 10) || 4) })
-            }
+            format={(v) => String(Math.round(v))}
+            onChange={(v) => onChange({ size: Math.max(4, Math.round(v)) })}
             className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
           />
         </label>
@@ -1125,15 +1112,13 @@ function ParticlePanel({ particle, onChange }: ParticlePanelProps) {
         {(particle.mode === "follow" || particle.mode === "hover") && (
           <label className="flex flex-col gap-1">
             <span className="text-xs text-neutral-500">Cursor jitter (px)</span>
-            <input
-              type="number"
+            <NumberInput
               min={0}
               step={2}
               value={particle.spawnRadiusPx ?? 30}
-              onChange={(e) =>
-                onChange({
-                  spawnRadiusPx: Math.max(0, parseInt(e.target.value, 10) || 0),
-                })
+              format={(v) => String(Math.round(v))}
+              onChange={(v) =>
+                onChange({ spawnRadiusPx: Math.max(0, Math.round(v)) })
               }
               className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
             />
@@ -1142,34 +1127,27 @@ function ParticlePanel({ particle, onChange }: ParticlePanelProps) {
 
         <label className="flex flex-col gap-1">
           <span className="text-xs text-neutral-500">Lifespan (s)</span>
-          <input
-            type="number"
+          <NumberInput
             min={0.1}
             step={0.1}
-            value={+(particle.lifespanSec ?? 0.6).toFixed(2)}
-            onChange={(e) =>
-              onChange({
-                lifespanSec: Math.max(0.1, parseFloat(e.target.value) || 0.1),
-              })
-            }
+            value={particle.lifespanSec ?? 0.6}
+            format={(v) => String(+v.toFixed(2))}
+            onChange={(v) => onChange({ lifespanSec: Math.max(0.1, v) })}
             className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
           />
         </label>
 
         <label className="flex flex-col gap-1">
           <span className="text-xs text-neutral-500">Size jitter (±%)</span>
-          <input
-            type="number"
+          <NumberInput
             min={0}
             max={100}
             step={5}
-            value={Math.round((particle.sizeJitter ?? 0.4) * 100)}
-            onChange={(e) =>
+            value={(particle.sizeJitter ?? 0.4) * 100}
+            format={(v) => String(Math.round(v))}
+            onChange={(v) =>
               onChange({
-                sizeJitter: Math.max(
-                  0,
-                  Math.min(1, (parseInt(e.target.value, 10) || 0) / 100),
-                ),
+                sizeJitter: Math.max(0, Math.min(1, v / 100)),
               })
             }
             className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
@@ -1178,13 +1156,10 @@ function ParticlePanel({ particle, onChange }: ParticlePanelProps) {
 
         <label className="flex flex-col gap-1">
           <span className="text-xs text-neutral-500">Rotation speed (°/s)</span>
-          <input
-            type="number"
+          <NumberInput
             step={15}
             value={particle.rotationSpeed ?? 0}
-            onChange={(e) =>
-              onChange({ rotationSpeed: parseFloat(e.target.value) || 0 })
-            }
+            onChange={(v) => onChange({ rotationSpeed: v })}
             className="w-24 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
           />
         </label>
@@ -1475,21 +1450,19 @@ function TypewriterPanel({ typewriter, textColor, onChange }: TypewriterPanelPro
       <div className="grid grid-cols-2 gap-3 text-xs">
         <label className="flex flex-col gap-1" title="Static X shift in design px applied to all rendered letters. Useful when stacking duplicate components for a layered shadow look.">
           <span className="text-neutral-500">Offset X (px)</span>
-          <input
-            type="number"
+          <NumberInput
             step={1}
             value={typewriter.offsetX ?? 0}
-            onChange={(e) => onChange({ offsetX: parseFloat(e.target.value) || 0 })}
+            onChange={(v) => onChange({ offsetX: v })}
             className="w-20 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
           />
         </label>
         <label className="flex flex-col gap-1" title="Static Y shift in design px applied to all rendered letters.">
           <span className="text-neutral-500">Offset Y (px)</span>
-          <input
-            type="number"
+          <NumberInput
             step={1}
             value={typewriter.offsetY ?? 0}
-            onChange={(e) => onChange({ offsetY: parseFloat(e.target.value) || 0 })}
+            onChange={(v) => onChange({ offsetY: v })}
             className="w-20 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
           />
         </label>
@@ -1630,25 +1603,23 @@ function ShapeRangeRow({
       <span className="text-neutral-500">{label}</span>
       <label className="flex items-center gap-1">
         <span className="text-neutral-500">Start</span>
-        <input
-          type="number"
+        <NumberInput
           min={min}
           max={max}
           step={step}
           value={from}
-          onChange={(e) => onFrom(parseFloat(e.target.value) || 0)}
+          onChange={onFrom}
           className="w-20 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
         />
       </label>
       <label className="flex items-center gap-1">
         <span className="text-neutral-500">End</span>
-        <input
-          type="number"
+        <NumberInput
           min={min}
           max={max}
           step={step}
           value={to}
-          onChange={(e) => onTo(parseFloat(e.target.value) || 0)}
+          onChange={onTo}
           className="w-20 rounded border border-neutral-300 bg-white px-2 py-1 text-neutral-900 tabular-nums focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
         />
       </label>
