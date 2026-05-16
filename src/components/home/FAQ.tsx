@@ -11,7 +11,7 @@ const ITEMS: QA[] = [
     a: (
       <>
         MIT. The editor, the schema, and the exported{" "}
-        <code className="rounded bg-neutral-100 px-1 text-[0.85em] dark:bg-neutral-800">Hero.jsx</code>{" "}
+        <code className="rounded bg-neutral-100 px-1 text-[0.85em] dark:bg-neutral-800">Hero.tsx</code>{" "}
         are all yours to use, modify, and ship in commercial projects with no royalty.
       </>
     ),
@@ -21,7 +21,7 @@ const ITEMS: QA[] = [
     a: (
       <>
         Open the editor, click <strong>Export</strong>, drop the downloaded{" "}
-        <code className="rounded bg-neutral-100 px-1 text-[0.85em] dark:bg-neutral-800">Hero.jsx</code>{" "}
+        <code className="rounded bg-neutral-100 px-1 text-[0.85em] dark:bg-neutral-800">Hero.tsx</code>{" "}
         into your React project's source tree, run{" "}
         <code className="rounded bg-neutral-100 px-1 text-[0.85em] dark:bg-neutral-800">npm install motion fireworks-js</code>
         , then import and render{" "}

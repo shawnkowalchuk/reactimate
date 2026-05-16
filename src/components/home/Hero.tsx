@@ -46,7 +46,7 @@ export function Hero() {
         <p className="mx-auto mt-6 max-w-2xl text-base text-neutral-600 sm:text-lg dark:text-neutral-400">
           A visual editor for the title of your landing page. Type some text, turn words into components,
           pile on fades / slides / spotlights / particles / typewriter — then download a self-contained
-          <code className="mx-1 rounded bg-neutral-100 px-1 py-0.5 text-sm dark:bg-neutral-800">Hero.jsx</code>
+          <code className="mx-1 rounded bg-neutral-100 px-1 py-0.5 text-sm dark:bg-neutral-800">Hero.tsx</code>
           you can drop into any React project.
         </p>
 

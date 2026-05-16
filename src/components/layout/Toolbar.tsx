@@ -58,12 +58,13 @@ export function Toolbar() {
 
   const onExport = () => {
     const jsx = generateReactComponent(project);
-    const safeName =
-      project.name
-        .trim()
-        .replace(/[^A-Za-z0-9_-]+/g, "-")
-        .replace(/^-+|-+$/g, "") || "Hero";
-    downloadFile(`${safeName}.jsx`, jsx, "text/jsx");
+    // Always export as Hero.tsx so the file you download is the exact name
+    // referenced in the Test-Project's App.tsx and in the docs (`import
+    // { Hero } from "./Hero"`). The exported function itself is always
+    // named `Hero` regardless of project name; the file should match.
+    // .tsx is a strict superset of .jsx for typeless code — works in
+    // plain JS/JSX projects and in TypeScript projects alike.
+    downloadFile("Hero.tsx", jsx, "text/typescript");
   };
 
   const onSaveProject = () => saveProjectFile(project);
@@ -220,7 +221,7 @@ export function Toolbar() {
         type="button"
         onClick={onExport}
         className="flex items-center gap-1.5 rounded border border-neutral-300 px-2.5 py-1.5 text-xs font-medium text-neutral-800 hover:border-neutral-500 hover:text-neutral-950 dark:border-neutral-700 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:text-white"
-        title="Export Hero.jsx (Motion)"
+        title="Export Hero.tsx (Motion)"
       >
         <Download size={14} />
         Export

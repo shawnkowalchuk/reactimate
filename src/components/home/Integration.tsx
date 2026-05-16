@@ -8,7 +8,7 @@ const STEPS = [
       <>
         Click <strong>Export</strong> in the toolbar. You'll get a single{" "}
         <code className="rounded bg-neutral-100 px-1 text-[0.85em] dark:bg-neutral-800">
-          Hero.jsx
+          Hero.tsx
         </code>{" "}
         file — no zip, no extras.
       </>
@@ -32,10 +32,10 @@ const STEPS = [
     title: "Drop in the file",
     body: (
       <>
-        Move <code className="rounded bg-neutral-100 px-1 text-[0.85em] dark:bg-neutral-800">Hero.jsx</code>{" "}
+        Move <code className="rounded bg-neutral-100 px-1 text-[0.85em] dark:bg-neutral-800">Hero.tsx</code>{" "}
         anywhere in your source tree (e.g.{" "}
         <code className="rounded bg-neutral-100 px-1 text-[0.85em] dark:bg-neutral-800">
-          src/components/Hero.jsx
+          src/components/Hero.tsx
         </code>
         ).
       </>

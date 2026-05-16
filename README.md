@@ -2,7 +2,7 @@
 
 **Hero Animator** — a browser-based visual tool for building animated hero sections that exports clean, idiomatic React + Motion code you can drop into any React project.
 
-Type some hero text. Select words and turn them into colored "components." Add effects on a timeline (fade, slide, scale, rotate, color-shift). Scrub or play to preview. Click **Export** — out comes a self-contained `Hero.jsx` using `motion/react` that needs nothing from this app to run.
+Type some hero text. Select words and turn them into colored "components." Add effects on a timeline (fade, slide, scale, rotate, color-shift). Scrub or play to preview. Click **Export** — out comes a self-contained `Hero.tsx` using `motion/react` that needs nothing from this app to run.
 
 For the **current implementation status and outstanding work** see [STATUS.md](./STATUS.md).
 
@@ -28,14 +28,14 @@ Open http://localhost:5173. The app autosaves to `localStorage` so your work sur
 3. **Play / Pause** with the toolbar button or **Spacebar**. **Scrub** by dragging the playhead or using the time slider.
 4. **Undo / Redo** with **Ctrl+Z / Ctrl+Shift+Z** (or the arrow buttons in the toolbar).
 5. **Save** the project as a `.json` file, **Load** a saved one, or **Reset** back to the bundled sample.
-6. **Export** downloads a ready-to-use `Hero.jsx`.
+6. **Export** downloads a ready-to-use `Hero.tsx`.
 7. **Preview / Code tabs** — switch the right pane to see the generated code live as you edit.
 
 Phases 2–4 of the build plan (a proper contenteditable text editor with an in-place "Create component" popover) are not yet shipped. For now, layer text and component ranges are defined by the bundled sample project; edit those via the timeline + inspector and re-export.
 
 ---
 
-## Using an exported `Hero.jsx` in your own project
+## Using an exported `Hero.tsx` in your own project
 
 The exported component is self-contained. It uses Motion (formerly Framer Motion) and nothing else. To drop it into any React 18 / 19 project:
 
@@ -43,7 +43,7 @@ The exported component is self-contained. It uses Motion (formerly Framer Motion
 npm install motion
 ```
 
-Move the downloaded `Hero.jsx` into your project (anywhere, e.g. `src/components/Hero.jsx`), then:
+Move the downloaded `Hero.tsx` into your project (anywhere, e.g. `src/components/Hero.tsx`), then:
 
 ```jsx
 import { Hero } from "./components/Hero";
@@ -187,7 +187,7 @@ In v1, the **projects still live in `localStorage`** per browser even when signe
 | 5 — preview | live `RenderedText` + canvas frame | ✓ |
 | 6 — engine | RAF + DOM writes, scrub/play, visibility window | ✓ |
 | 7 — timeline | draggable effect blocks, modal-based editor, duplicate, wheel-dampened scroll | ✓ |
-| 8 — export | `Hero.jsx` generator (core effects) + Copy/Download | ✓ |
+| 8 — export | `Hero.tsx` generator (core effects) + Copy/Download | ✓ |
 | 9 — persistence | localStorage autosave, save/load, undo/redo, effect presets | ✓ |
 | Auth (opt) | Supabase email + Google + Apple, sign-in gate | ✓ |
 | Inspector | Always-on Project + Component InspectorBar at top, EffectModal w/ easing graphs + per-prop start/end | ✓ |

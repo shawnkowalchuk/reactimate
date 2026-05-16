@@ -117,7 +117,7 @@
   - Disabled buttons show a why-not tooltip
 - `components/editor/useTextSelectionMode.ts` — pure hook that reads the live `Selection` and returns one of `{ kind: "componentize" | "split" | "merge", … }` or `null`
 - 26 curated Google Fonts loaded statically from `index.html` (Inter, Manrope, Space Grotesk, Plus Jakarta Sans, Outfit, DM Sans, Fraunces, Playfair Display, Bricolage Grotesque, JetBrains Mono, Anton, Archivo Black, Bebas Neue, Caveat, EB Garamond, Fira Code, Geist, Geist Mono, Karla, Lora, Merriweather, Onest, Oswald, Pacifico, Roboto Slab, Sora) with `display=swap`
-- Exported `Hero.jsx` uses `whiteSpace: "pre-wrap"` on the inner `<div>` so `\n` characters render as visible line breaks
+- Exported `Hero.tsx` uses `whiteSpace: "pre-wrap"` on the inner `<div>` so `\n` characters render as visible line breaks
 
 ### Animation engine (pure logic + tested)
 | Module | Purpose |
@@ -188,7 +188,7 @@
 - `store/canvasScaleStore.ts` — shared scale + position between editor mini-canvas and preview canvas so overlays measure correctly
 
 ### Export to Motion JSX (Phase 8)
-- `export/generateComponent.ts` — `Project` → self-contained `Hero.jsx` string using `motion/react`
+- `export/generateComponent.ts` — `Project` → self-contained `Hero.tsx` string using `motion/react`
 - `export/effectToMotion.ts` — smart per-property motion props
   - Single-effect: `{ delay, duration, ease }`
   - Multi-effect on the same property: keyframe array with `times` and per-segment `ease` array
@@ -234,7 +234,7 @@
 
 ### Export the new effect types
 **Status:** not started. **Effort:** medium.
-`spotlight`, `particle`, and `typewriter` show up correctly in the editor preview but the `Hero.jsx` exporter only emits the core CSS-property motion props. Real Motion JSX for these probably means:
+`spotlight`, `particle`, and `typewriter` show up correctly in the editor preview but the `Hero.tsx` exporter only emits the core CSS-property motion props. Real Motion JSX for these probably means:
 - Spotlight → a separate `<motion.div>` sibling with `framer-motion` `useMousePosition` (mouse) or a `transition` keyframe sweep, plus a CSS `mix-blend-mode` or `mask-image` to mask the text
 - Particle → a child `<motion.div>` particle field using `AnimatePresence` + a generator
 - Typewriter → an array of `<motion.span>` per letter with staggered `transition.delay`

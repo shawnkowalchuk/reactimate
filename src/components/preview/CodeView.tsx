@@ -42,7 +42,7 @@ export function CodeView({ project }: CodeViewProps) {
     <div className="relative flex h-full w-full flex-col overflow-hidden rounded bg-neutral-50 dark:bg-neutral-900">
       <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-1.5 dark:border-neutral-800">
         <span className="text-[11px] tabular-nums text-neutral-500">
-          Hero.jsx · {code.split("\n").length} lines · {(code.length / 1024).toFixed(2)} KB
+          Hero.tsx · {code.split("\n").length} lines · {(code.length / 1024).toFixed(2)} KB
         </span>
         <div className="flex items-center gap-1.5">
           <button

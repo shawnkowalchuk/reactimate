@@ -48,7 +48,7 @@ const FEATURES = [
   {
     icon: FileJson2,
     title: "Self-contained output",
-    body: "Hero.jsx ships with one import (motion/react) and zero hidden runtime — no provider, no global CSS.",
+    body: "Hero.tsx ships with one import (motion/react) and zero hidden runtime — no provider, no global CSS.",
   },
 ];
 

@@ -19,7 +19,7 @@ const STEPS = [
   {
     icon: Download,
     title: "Export",
-    body: "Click Export — download a self-contained Hero.jsx using motion/react. Drop it into your project.",
+    body: "Click Export — download a self-contained Hero.tsx using motion/react. Drop it into your project.",
   },
 ];
 
