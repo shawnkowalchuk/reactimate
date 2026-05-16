@@ -13,6 +13,19 @@ export interface EffectDefaults {
   from: AnimatableTargets;
 }
 
+/*
+ * Convention for new effects: ENTRANCE-style defaults.
+ * - Animation starts in a hidden / off-position state (opacity 0,
+ *   shifted, scaled down, blurred) and ends at the component's
+ *   resting state (opacity 1, in place, scale 1, sharp).
+ * - Only include props that actually animate. A keyframe like
+ *   `y: 0 → 0` is noise — it adds a row to the modal that does
+ *   nothing.
+ * - Don't seed colors. The component's style.color is the natural
+ *   start value (falls through from lastValue); seeding a hardcoded
+ *   color in `from` overrides whatever the user picked and looks
+ *   broken on backgrounds where that color doesn't fit.
+ */
 export const EFFECT_DEFAULTS: Record<EffectType, EffectDefaults> = {
   fade: {
     duration: 0.6,
@@ -23,8 +36,9 @@ export const EFFECT_DEFAULTS: Record<EffectType, EffectDefaults> = {
   slide: {
     duration: 0.6,
     easing: "ease-out",
-    from: { x: -100, y: 0 },
-    targets: { x: 0, y: 0 },
+    // y: 0 → 0 is not animation, just clutter — left it x-only.
+    from: { x: -100 },
+    targets: { x: 0 },
   },
   rotate: {
     duration: 0.6,
@@ -65,8 +79,11 @@ export const EFFECT_DEFAULTS: Record<EffectType, EffectDefaults> = {
   blur: {
     duration: 0.5,
     easing: "ease-out",
-    from: { blur: 0 },
-    targets: { blur: 8 },
+    // Blur-IN entrance: text appears blurred and sharpens into focus.
+    // Previously defaulted blur: 0 → 8 (starts sharp, ends obscured)
+    // which is the opposite of every other entrance default.
+    from: { blur: 8 },
+    targets: { blur: 0 },
   },
   zoom: {
     duration: 0.6,
