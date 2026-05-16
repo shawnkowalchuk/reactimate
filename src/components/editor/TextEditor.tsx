@@ -202,9 +202,12 @@ export function TextEditor() {
               onInput={onInput}
               className="relative z-10 whitespace-pre-wrap text-center outline-none caret-sky-400"
               style={{
-                // No maxWidth cap — the canvas frame's padding gives a
-                // natural margin. RenderedText drops its cap too so the
-                // editor and preview wrap at the same point (frame edge).
+                // width: 100% forces the contenteditable to span the full
+                // padded canvas area instead of shrinking to its content's
+                // min-width (which is what happens by default for a flex
+                // item under justify-content: center). RenderedText already
+                // uses width: 100% so this lines the two wrap points up.
+                width: "100%",
                 fontFamily: defaultTextStyle.fontFamily,
                 fontSize: defaultTextStyle.fontSize,
                 lineHeight: 1.1,
