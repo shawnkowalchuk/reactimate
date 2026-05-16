@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Copy, Download, Trash2, Upload } from "lucide-react";
+import { Copy, Download, Trash2, Upload, X } from "lucide-react";
 import { useProjectStore } from "../../store/projectStore";
 import { useUIStore } from "../../store/uiStore";
 import { usePresetStore, type PresetConfig } from "../../store/presetStore";
@@ -305,6 +305,22 @@ export function EffectModal() {
   const patchTo = (prop: AnimatableProp, value: unknown) => {
     const nextTo: AnimatableTargets = { ...effect.targets, [prop]: value };
     updateEffect(component.id, effect.id, { targets: nextTo });
+  };
+  /**
+   * Remove an animated prop from both `from` and `targets`. Lets the
+   * user prune stale defaults (e.g. the old zoom shipped with
+   * `y: 20 → 0` baked in — once removed via this button the zoom
+   * runs as a pure scale + opacity animation).
+   */
+  const removeProp = (prop: AnimatableProp) => {
+    const nextFrom: AnimatableTargets = { ...(effect.from ?? {}) };
+    const nextTo: AnimatableTargets = { ...(effect.targets ?? {}) };
+    delete (nextFrom as Record<string, unknown>)[prop];
+    delete (nextTo as Record<string, unknown>)[prop];
+    updateEffect(component.id, effect.id, {
+      from: nextFrom,
+      targets: nextTo,
+    });
   };
 
   return (
@@ -634,10 +650,11 @@ export function EffectModal() {
             <div className="text-xs uppercase tracking-wider text-neutral-500">
               Animates
             </div>
-            <div className="grid grid-cols-[max-content_1fr_1fr] items-center gap-x-3 gap-y-2 text-xs">
+            <div className="grid grid-cols-[max-content_1fr_1fr_max-content] items-center gap-x-3 gap-y-2 text-xs">
               <div />
               <div className="text-neutral-500">Start</div>
               <div className="text-neutral-500">End</div>
+              <div />
               {animProps.map((p) => (
                 <PropRow
                   key={p}
@@ -646,6 +663,7 @@ export function EffectModal() {
                   toValue={effect.targets?.[p]}
                   onFromChange={(v) => patchFrom(p, v)}
                   onToChange={(v) => patchTo(p, v)}
+                  onRemove={() => removeProp(p)}
                 />
               ))}
             </div>
@@ -1878,6 +1896,8 @@ interface PropRowProps {
   toValue: unknown;
   onFromChange: (v: unknown) => void;
   onToChange: (v: unknown) => void;
+  /** Remove this prop from both `from` and `targets`. */
+  onRemove: () => void;
 }
 
 function PropRow({
@@ -1886,6 +1906,7 @@ function PropRow({
   toValue,
   onFromChange,
   onToChange,
+  onRemove,
 }: PropRowProps) {
   const unit = PROP_UNITS[prop];
   return (
@@ -1900,6 +1921,15 @@ function PropRow({
         unit={unit}
       />
       <PropInput prop={prop} value={toValue} onChange={onToChange} unit={unit} />
+      <button
+        type="button"
+        onClick={onRemove}
+        title={`Remove ${PROP_LABELS[prop]} from this effect`}
+        className="grid h-5 w-5 place-items-center rounded text-neutral-400 hover:bg-neutral-200 hover:text-rose-600 dark:hover:bg-neutral-800 dark:hover:text-rose-400"
+        aria-label={`Remove ${PROP_LABELS[prop]}`}
+      >
+        <X size={11} />
+      </button>
     </>
   );
 }
