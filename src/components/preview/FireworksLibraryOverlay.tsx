@@ -12,24 +12,26 @@ interface Props {
 /**
  * Translate an `EffectArea` (canvas-design coords) into the `boundaries`
  * shape fireworks-js expects. The library's rocket-target math is:
- *   dx = random(boundaries.x, boundaries.width - boundaries.x*2)
- *   dy = random(boundaries.y, boundaries.height/2)
- * So to get dx in [area.x, area.right] and dy in [area.y, area.bottom]:
+ *   dx = random(boundaries.x, boundaries.width - boundaries.x * 2)
+ *   dy = random(boundaries.y, boundaries.height / 2)
+ *
+ * Solving for dx in [area.x, area.x + area.width]:
  *   boundaries.x      = area.x
- *   boundaries.width  = area.right + area.x
+ *   boundaries.width  = 3 * area.x + area.width   (so width - 2*x = right)
+ *
+ * Solving for dy in [area.y, area.y + area.height]:
  *   boundaries.y      = area.y
- *   boundaries.height = 2 * area.bottom
+ *   boundaries.height = 2 * (area.y + area.height)  (so height/2 = bottom)
+ *
  * Rockets land within `area`; the explosion particles fly outward beyond it
  * (per design — the area indicates landing target, not a hard clip).
  */
 function areaToBoundaries(area: EffectArea) {
-  const right = area.x + area.width;
-  const bottom = area.y + area.height;
   return {
     x: area.x,
     y: area.y,
-    width: right + area.x,
-    height: bottom * 2,
+    width: area.x * 3 + area.width,
+    height: (area.y + area.height) * 2,
     debug: false,
   };
 }
@@ -41,10 +43,15 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
   const isPlaying = usePlaybackStore((s) => s.isPlaying);
 
   // Extract active fireworks-js config and build a stable key so the
-  // init effect re-runs (destroying + recreating) when settings change.
+  // update-options effect re-runs when settings change.
   const activeEffect = effects.find((e) => e.type === "fireworks-js" && e.fireworks);
   const cfg = activeEffect?.fireworks;
   const cfgKey = cfg ? JSON.stringify(cfg) : "";
+  // Mirror the latest cfg so the (empty-dep) init effect's ResizeObserver
+  // can read the current area when the canvas resizes — without this it'd
+  // re-apply the stale initial cfg.area after every updateSize call.
+  const cfgRef = useRef(cfg);
+  cfgRef.current = cfg;
 
   // When should the fireworks run?
   let shouldRun = false;
@@ -109,6 +116,10 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
 
     fwRef.current = fw;
 
+    // updateSize INSIDE the constructor (via createCanvas) clobbers our
+    // boundaries width/height back to canvas size. Re-apply now.
+    if (cfg.area) fw.updateBoundaries(areaToBoundaries(cfg.area));
+
     if (shouldRun) {
       fw.start();
       runningRef.current = true;
@@ -122,6 +133,11 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       canvas.width = dw;
       canvas.height = dh;
       fw.updateSize({ width: canvas.width, height: canvas.height });
+      // updateSize internally calls updateBoundaries with canvas width/height
+      // — restore our area-derived boundaries afterwards (latest cfg, not the
+      // stale closure value).
+      const latest = cfgRef.current;
+      if (latest?.area) fw.updateBoundaries(areaToBoundaries(latest.area));
     });
     ro.observe(parent);
     ro.observe(frame);
