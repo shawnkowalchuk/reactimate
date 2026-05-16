@@ -93,11 +93,11 @@ export const EFFECT_DEFAULTS: Record<EffectType, EffectDefaults> = {
   zoom: {
     duration: 0.6,
     easing: "ease-out",
-    // Pure scale + opacity. The previous default included `y: 20 → 0`
-    // which made every new zoom effect rise from below — confusing
-    // when users expected a centered zoom-in. They can still add
-    // x / y keyframes explicitly via the keyframe rows if they want
-    // a directional pop-in.
+    // Pure scale + opacity. Previously seeded `y: 20 → 0` which made
+    // every new zoom rise from below — confusing for a centered
+    // zoom-in. Users who want a rise-zoom / drop-zoom / diagonal
+    // pop-in can add x or y back via the "+ Add property" dropdown
+    // in the Animates panel.
     from: { scale: 0.5, opacity: 0 },
     targets: { scale: 1, opacity: 1 },
   },
