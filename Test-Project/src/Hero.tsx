@@ -26,24 +26,24 @@ export function Hero() {
             fontWeight: 800,
             letterSpacing: -1,
             display: "inline-block",
-            color: "#fafafa",
+            color: "#f87171",
           }}
-        >{"Sprinkle"}</span>
-        {" "}
-        <motion.span
+        >{"Celebrate!"}</span>
+        {"\n"}
+        <span
           style={{
             fontFamily: "Inter, system-ui, sans-serif",
             fontSize: 72,
-            fontWeight: 800,
-            letterSpacing: -1,
+            fontWeight: 700,
+            letterSpacing: 0,
             display: "inline-block",
-            color: "#fbbf24",
+            color: "#fafafa",
           }}
-          initial={{ opacity: 1, scale: 1 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2, duration: 3, ease: "easeOut" }}
-        >{"magic."}</motion.span>
+        >{"This is how it works/"}</span>
       </div>
+      {/* Particle effect fx_xzUqeTdzSy mode="hover" — only "area" mode is
+          currently exportable. Other modes track the cursor and need a
+          runtime listener; skipped. */}
     </div>
   );
 }

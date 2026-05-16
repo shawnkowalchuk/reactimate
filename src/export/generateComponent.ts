@@ -1,7 +1,12 @@
 import type { Component, Project } from "../types/project";
 import { buildComponentMotion } from "./effectToMotion";
 import { fmt, jsxTextExpression } from "./format";
-import { buildParticleLayers, hasExportableParticles } from "./particleToMotion";
+import {
+  buildParticleLayers,
+  cursorLayerSource,
+  hasCursorParticles,
+  hasExportableParticles,
+} from "./particleToMotion";
 import { renderTypewriterSpan, typewriterOf } from "./typewriterToMotion";
 import { buildFireworksExport } from "./fireworksToMotion";
 
@@ -95,6 +100,7 @@ export function generateReactComponent(project: Project): string {
     project.canvas.height,
   );
   const hasFireworks = fireworks !== null;
+  const needsCursorParticles = hasCursorParticles(project.layer.components);
 
   const wrapperStyle: Record<string, unknown> = {
     width: project.canvas.width,
@@ -108,7 +114,7 @@ export function generateReactComponent(project: Project): string {
     fontSize: project.defaultTextStyle.fontSize,
     fontWeight: project.defaultTextStyle.fontWeight,
   };
-  if (hasParticles || hasFireworks) wrapperStyle.position = "relative";
+  if (hasParticles || hasFireworks || needsCursorParticles) wrapperStyle.position = "relative";
 
   const innerStyle = {
     textAlign: project.layer.alignment,
@@ -125,10 +131,20 @@ export function generateReactComponent(project: Project): string {
 
   const imports = ['import { motion } from "motion/react";'];
   if (fireworks) imports.push(...fireworks.extraImports);
+  if (needsCursorParticles) {
+    imports.push(`import { useEffect, useRef, useState } from "react";`);
+  }
   // De-duplicate (e.g. avoid two `import { useEffect, useRef } from "react"`).
   const uniqueImports = Array.from(new Set(imports));
 
-  const helpers = fireworks ? "\n" + fireworks.helperComponent + "\n" : "";
+  const helperParts: string[] = [];
+  if (needsCursorParticles) {
+    helperParts.push(
+      cursorLayerSource(project.canvas.width, project.canvas.height),
+    );
+  }
+  if (fireworks) helperParts.push(fireworks.helperComponent);
+  const helpers = helperParts.length > 0 ? "\n" + helperParts.join("\n\n") + "\n" : "";
 
   return `${uniqueImports.join("\n")}
 ${helpers}
