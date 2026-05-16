@@ -299,10 +299,10 @@ export function ParticleOverlay({ effects, time, frameRef }: ParticleOverlayProp
         const spawnT = e.startTime + (i / total) * e.duration;
         const age = time - spawnT;
         if (age < 0 || age > lifespan) continue;
-        const path = particlePath(particleType, seed, useW, useH, padding, age, lifespan);
+        const path = particlePath(particleType, seed, areaW, areaH, padding, age, lifespan);
         if (!path) continue;
-        const px = path.x + gwX;
-        const py = path.y + gwY;
+        const px = path.x + gwX + areaOX;
+        const py = path.y + gwY + areaOY;
         const baseRot = pseudo(seed, 3) * 360;
         const rotation = baseRot + rotSpeed * age;
         const sizeMul = 1 + (pseudo(seed, 4) - 0.5) * 2 * sizeJitter;
