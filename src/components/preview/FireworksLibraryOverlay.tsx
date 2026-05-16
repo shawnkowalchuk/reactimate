@@ -109,7 +109,11 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       },
       brightness: { min: cfg.brightnessMin ?? 50, max: cfg.brightnessMax ?? 80 },
       decay: { min: cfg.decayMin ?? 0.015, max: cfg.decayMax ?? 0.03 },
-      mouse: { click: cfg.followMouse ?? false, move: false, max: 1 },
+      mouse: {
+        click: cfg.followMouse ?? false,
+        move: cfg.followCursor ?? false,
+        max: 1,
+      },
       sound: { enabled: false },
       ...(boundaries ? { boundaries } : {}),
     });
@@ -178,7 +182,11 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       },
       brightness: { min: cfg.brightnessMin ?? 50, max: cfg.brightnessMax ?? 80 },
       decay: { min: cfg.decayMin ?? 0.015, max: cfg.decayMax ?? 0.03 },
-      mouse: { click: cfg.followMouse ?? false, move: false, max: 1 },
+      mouse: {
+        click: cfg.followMouse ?? false,
+        move: cfg.followCursor ?? false,
+        max: 1,
+      },
     });
     if (cfg.area) {
       fw.updateBoundaries(areaToBoundaries(cfg.area));
@@ -198,6 +206,12 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
     }
   }, [shouldRun]);
 
+  // Canvas catches pointer events only when click-to-launch or follow-cursor
+  // is on — otherwise the EffectAreaOverlay bbox handles need pointer access
+  // to be draggable, and the canvas would otherwise eat their events.
+  // fireworks-js attaches its own pointer listeners to the canvas; enabling
+  // pointer-events here is what makes click-to-launch actually work.
+  const canvasPointer = cfg?.followMouse || cfg?.followCursor ? "auto" : "none";
   return (
     <span style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "visible" }}>
       <canvas
@@ -205,7 +219,7 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
         style={{
           position: "absolute",
           inset: 0,
-          pointerEvents: "none",
+          pointerEvents: canvasPointer,
         }}
       />
     </span>

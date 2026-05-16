@@ -188,11 +188,15 @@ export interface Effect {
     /** Line cap style: round or square. */
     lineStyle?: "round" | "square";
     /**
-     * "Click to launch" — when true, clicking anywhere on the preview
-     * canvas spawns a firework at the click position. Backed by
-     * fireworks-js's `mouse.click` option.
+     * "Click to launch" — when true, clicking the preview canvas spawns
+     * a firework at the click position. Backed by fireworks-js `mouse.click`.
      */
     followMouse?: boolean;
+    /**
+     * "Follow cursor" — when true, fireworks continuously target the cursor
+     * as it moves over the preview canvas. Backed by fireworks-js `mouse.move`.
+     */
+    followCursor?: boolean;
     /** Rocket explosion target rectangle in canvas DESIGN coords (px). */
     area?: EffectArea;
     /** Inter-burst delay min (ms). */

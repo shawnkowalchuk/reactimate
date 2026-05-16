@@ -1070,6 +1070,7 @@ interface FireworksPanelProps {
     intensity?: number;
     lineStyle?: "round" | "square";
     followMouse?: boolean;
+    followCursor?: boolean;
     area?: EffectArea;
     delayMin?: number;
     delayMax?: number;
@@ -1200,7 +1201,7 @@ function FireworksPanel({ fireworks, onChange }: FireworksPanelProps) {
       <DualSlider title="Line thickness for trail particles" label="Line width (trace)" min={1} max={5} step={1}
         minVal={fireworks.lineWidthTraceMin ?? 1} maxVal={fireworks.lineWidthTraceMax ?? 2}
         onChange={(min, max) => onChange({ lineWidthTraceMin: min, lineWidthTraceMax: Math.max(min, max) })} />
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <label
           className="flex items-center gap-2 text-xs"
           title="Click anywhere on the preview canvas to spawn a firework at that point."
@@ -1212,6 +1213,18 @@ function FireworksPanel({ fireworks, onChange }: FireworksPanelProps) {
             className="h-3.5 w-3.5 cursor-pointer"
           />
           <span className="text-neutral-700 dark:text-neutral-300">Click to launch</span>
+        </label>
+        <label
+          className="flex items-center gap-2 text-xs"
+          title="Fireworks continuously target the cursor as it moves over the preview canvas."
+        >
+          <input
+            type="checkbox"
+            checked={Boolean(fireworks.followCursor)}
+            onChange={(e) => onChange({ followCursor: e.target.checked })}
+            className="h-3.5 w-3.5 cursor-pointer"
+          />
+          <span className="text-neutral-700 dark:text-neutral-300">Follow cursor</span>
         </label>
         <label className="flex items-center gap-2 text-xs">
           <span className="text-neutral-500">Line style</span>
