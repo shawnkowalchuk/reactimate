@@ -5,7 +5,6 @@ import { usePlaybackStore } from "../../store/playbackStore";
 import { useSpotlightStore } from "../../store/spotlightStore";
 import { TintLayer } from "./TintLayer";
 import { ParticleOverlay } from "./ParticleOverlay";
-import { FireworksLibraryOverlay } from "./FireworksLibraryOverlay";
 
 interface Segment {
   kind: "plain" | "component" | "overlay";
@@ -190,7 +189,6 @@ export function RenderedText({
         // via the first one, but their effects still apply on top of it.
         const tintEffects: Effect[] = [];
         const particleEffects: Effect[] = [];
-        const fwLibraryEffects: Effect[] = [];
         for (const other of project.layer.components) {
           if (other.hidden) continue;
           if (
@@ -205,13 +203,6 @@ export function RenderedText({
                   time >= e.startTime &&
                   (e.particle.continueAfter || time <= end);
                 if (active) particleEffects.push(e);
-              }
-              if (e.type === "fireworks-js" && e.fireworks) {
-                const end = e.startTime + e.duration;
-                const active =
-                  time >= e.startTime &&
-                  (e.fireworks.continueAfter || time <= end);
-                if (active) fwLibraryEffects.push(e);
               }
             }
           }
@@ -370,7 +361,7 @@ export function RenderedText({
           inner
         );
 
-        if (tintEffects.length === 0 && particleEffects.length === 0 && fwLibraryEffects.length === 0) {
+        if (tintEffects.length === 0 && particleEffects.length === 0) {
           return (
             <span key={seg.key} style={{ display: "inline-block" }}>
               {innerWithOverlays}
@@ -384,7 +375,6 @@ export function RenderedText({
             text={seg.text}
             tintEffects={tintEffects}
             particleEffects={particleEffects}
-            fwLibraryEffects={fwLibraryEffects}
             spotMouse={spotMouse}
             time={time}
             canvasWidth={project.canvas.width}
@@ -411,7 +401,6 @@ interface TintWrapperProps {
   text: string;
   tintEffects: Effect[];
   particleEffects: Effect[];
-  fwLibraryEffects: Effect[];
   spotMouse: { x: number; y: number };
   time: number;
   canvasWidth: number;
@@ -424,7 +413,6 @@ function TintWrapper({
   text,
   tintEffects,
   particleEffects,
-  fwLibraryEffects,
   spotMouse,
   time,
   canvasWidth,
@@ -461,13 +449,10 @@ function TintWrapper({
           frameRef={frameRef}
         />
       )}
-      {fwLibraryEffects.length > 0 && (
-        <FireworksLibraryOverlay
-          effects={fwLibraryEffects}
-          time={time}
-          frameRef={frameRef}
-        />
-      )}
+      {/* fireworks-js renders at the frame level (see PreviewCanvas)
+          so its canvas buffer == canvas-design coords; mounting it inside
+          the per-component wrapper would squish the buffer into a tiny
+          CSS box and put rockets nowhere near the user's area bbox. */}
       {tints.map((e) => {
         const cfg = e.spotlight!;
         const t01 = e.duration <= 0 ? 1 : (time - e.startTime) / e.duration;

@@ -6,6 +6,8 @@ import { useCanvasScaleStore } from "../../store/canvasScaleStore";
 import { RenderedText } from "./RenderedText";
 import { SpotlightOverlay } from "./SpotlightOverlay";
 import { EffectAreaOverlay } from "./EffectAreaOverlay";
+import { FireworksLibraryOverlay } from "./FireworksLibraryOverlay";
+import { usePlaybackStore } from "../../store/playbackStore";
 
 interface PreviewCanvasProps {
   project: Project;
@@ -51,8 +53,17 @@ export function PreviewCanvas({ project, registerElement, registerShape }: Previ
 
   const scale = localFit * zoomLevel;
   const zoomPct = Math.round(zoomLevel * 100);
+  const time = usePlaybackStore((s) => s.currentTime);
 
   const changeZoom = (delta: number) => setZoom("preview", Math.round((zoomLevel + delta) * 4) / 4);
+
+  // Collect every fireworks-js effect across the project. Mounting the
+  // overlay at the frame level means its canvas buffer (1200×675 by default)
+  // matches the canvas-design coordinate space — so cfg.area in design
+  // coords aligns directly with where rockets land.
+  const fwLibraryEffects = project.layer.components.flatMap((c) =>
+    c.effects.filter((e) => e.type === "fireworks-js" && e.fireworks && !c.hidden),
+  );
 
   return (
     <div
@@ -102,6 +113,15 @@ export function PreviewCanvas({ project, registerElement, registerShape }: Previ
             the rendered text so the bbox handles are clickable, but its
             wrapper has pointer-events: none so it never blocks the editor's
             other interactions. */}
+        {/* Frame-level fireworks canvas — buffer matches design coords so
+            cfg.area aligns directly with the bbox. */}
+        {fwLibraryEffects.length > 0 && (
+          <FireworksLibraryOverlay
+            effects={fwLibraryEffects}
+            time={time}
+            frameRef={frameRef}
+          />
+        )}
         <EffectAreaOverlay project={project} scale={scale} />
       </div>
       <div className="pointer-events-none absolute bottom-2 right-3 flex items-center gap-1 text-[11px] text-neutral-500">

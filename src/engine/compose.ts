@@ -203,11 +203,15 @@ export function computeTypewriterShape(
     };
   }
   if (time >= end || perLetter <= 0) {
+    // Once the per-letter reveal window has finished, hold at the End
+    // values. When `snapOff` is set the shape vanishes instantly (opacity
+    // forced to 0) instead — useful for shapes that reveal a letter and
+    // then get out of the way.
     return {
       size: shape.sizeTo,
       blur: shape.blurTo,
-      opacity: shape.fadeTo,
-      visible: true,
+      opacity: shape.snapOff ? 0 : shape.fadeTo,
+      visible: !shape.snapOff,
     };
   }
   const raw = (time - start) / perLetter;

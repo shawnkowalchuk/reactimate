@@ -284,6 +284,12 @@ export interface TypewriterShape {
   /** Opacity 0..1 at start / end. */
   fadeFrom: number;
   fadeTo: number;
+  /**
+   * When true, the shape snaps to opacity 0 the instant each letter's
+   * reveal window ends (overriding `fadeTo`). Useful for shapes that
+   * fade in during the reveal then vanish, leaving only the letter.
+   */
+  snapOff?: boolean;
 }
 
 export interface Component {
