@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import type { Component, EffectArea, Project } from "../../types/project";
 import { useProjectStore } from "../../store/projectStore";
 import { useDragGesture } from "../../utils/dragGesture";
@@ -84,6 +84,14 @@ export function EffectAreaOverlay({ project, scale }: Props) {
 function AreaBox({ target, scale }: { target: AreaTarget; scale: number }) {
   const updateEffect = useProjectStore((s) => s.updateEffect);
 
+  // Snapshot of the area at pointerdown. All pointermove deltas are applied
+  // relative to THIS snapshot, NOT to target.area — which gets replaced on
+  // every apply() and would otherwise compound each move into runaway speed.
+  const startAreaRef = useRef<EffectArea>(target.area);
+  const captureStart = () => {
+    startAreaRef.current = { ...target.area };
+  };
+
   const apply = (next: EffectArea) => {
     if (target.kind === "particle") {
       const project = useProjectStore.getState().project;
@@ -106,26 +114,30 @@ function AreaBox({ target, scale }: { target: AreaTarget; scale: number }) {
     }
   };
 
-  // Drag the body to MOVE.
+  // Drag the body to MOVE — relative to the snapshot.
   const onMoveDown = useDragGesture({
+    onStart: captureStart,
     onMove: (dx, dy) => {
+      const start = startAreaRef.current;
       apply({
-        ...target.area,
-        x: Math.round(target.area.x + dx / scale),
-        y: Math.round(target.area.y + dy / scale),
+        ...start,
+        x: Math.round(start.x + dx / scale),
+        y: Math.round(start.y + dy / scale),
       });
     },
   });
 
-  // Drag a corner handle to RESIZE. Four hooks (one per corner) so React's
-  // rules-of-hooks are satisfied (always called in the same order).
+  // Drag a corner handle to RESIZE — also relative to the snapshot.
+  // Four hooks (one per corner) so React's rules-of-hooks are satisfied
+  // (always called in the same order).
   const resizeHandler = (corner: "tl" | "tr" | "bl" | "br") => (
     dx: number,
     dy: number,
   ) => {
+    const start = startAreaRef.current;
     const ddx = dx / scale;
     const ddy = dy / scale;
-    let { x, y, width, height } = target.area;
+    let { x, y, width, height } = start;
     if (corner === "tl") {
       x += ddx;
       y += ddy;
@@ -154,10 +166,10 @@ function AreaBox({ target, scale }: { target: AreaTarget; scale: number }) {
     });
   };
 
-  const onTL = useDragGesture({ onMove: resizeHandler("tl") });
-  const onTR = useDragGesture({ onMove: resizeHandler("tr") });
-  const onBL = useDragGesture({ onMove: resizeHandler("bl") });
-  const onBR = useDragGesture({ onMove: resizeHandler("br") });
+  const onTL = useDragGesture({ onStart: captureStart, onMove: resizeHandler("tl") });
+  const onTR = useDragGesture({ onStart: captureStart, onMove: resizeHandler("tr") });
+  const onBL = useDragGesture({ onStart: captureStart, onMove: resizeHandler("bl") });
+  const onBR = useDragGesture({ onStart: captureStart, onMove: resizeHandler("br") });
 
   const handleSize = 12 / scale; // keep handles visually constant under transform
   const borderWidth = 2 / scale;
