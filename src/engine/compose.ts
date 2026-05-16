@@ -121,6 +121,15 @@ export function computeComponentStyle(
       // Per-effect explicit start value (effect.from[key]) takes priority;
       // otherwise fall back to whatever the previous effect left.
       const explicitFrom = effect.from?.[key];
+      // If the user typed the SAME value on both sides of a keyframe row,
+      // treat the prop as "not part of this effect": don't animate, don't
+      // override lastValue. This is what makes "leaving a row at its
+      // neutral value" mean "no animation" in the modal — and it also
+      // lets users zero out a stale default (e.g. the old zoom's
+      // y: 20 → 0) by setting start = end = 0. Skipped only when `from`
+      // is EXPLICITLY set (chaining case where from is undefined still
+      // animates from lastValue → target).
+      if (explicitFrom !== undefined && explicitFrom === target) continue;
       const from = explicitFrom !== undefined ? explicitFrom : lastValue[key];
 
       const sinceStart = time - startTime;

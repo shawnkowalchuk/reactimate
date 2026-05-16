@@ -180,6 +180,46 @@ describe("computeComponentStyle", () => {
     computeComponentStyle(c, 1.5);
     expect(c).toEqual(snapshot);
   });
+
+  it("skips a prop entirely when explicit from === target (no override, chains lastValue)", () => {
+    // effect1: fade opacity 0 → 0.5 over [0, 1]. After it finishes
+    // opacity holds at 0.5 (lastValue).
+    // effect2: rotate over [1, 2] with explicit { from.opacity: 1,
+    // targets.opacity: 1 } — i.e. a keyframe row left at its neutral
+    // value in the modal. The engine should treat this as "opacity
+    // isn't part of this effect" — skip the prop so the previous
+    // effect's lastValue (0.5) chains through unchanged.
+    //
+    // Without this skip, the rotate effect would FORCE opacity back
+    // to 1 during its window, jumping visibly. The skip is what makes
+    // the modal's "leave a row neutral = no animation" UX honest.
+    const c = baseComponent({
+      effects: [
+        {
+          id: "e1",
+          type: "fade",
+          startTime: 0,
+          duration: 1,
+          easing: "linear",
+          targets: { opacity: 0.5 },
+        },
+        {
+          id: "e2",
+          type: "rotate",
+          startTime: 1,
+          duration: 1,
+          easing: "linear",
+          from: { opacity: 1, rotation: 0 },
+          targets: { opacity: 1, rotation: 90 },
+        },
+      ],
+    });
+    // Mid-rotate: opacity should chain at 0.5 (skipped), rotation
+    // should animate normally (0 !== 90 → not skipped).
+    const mid = computeComponentStyle(c, 1.5);
+    expect(mid.opacity).toBeCloseTo(0.5, 4);
+    expect(mid.rotation).toBeCloseTo(45, 4);
+  });
 });
 
 describe("computeTypewriterShape", () => {

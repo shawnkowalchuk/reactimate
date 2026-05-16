@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Copy, Download, Trash2, Upload, X } from "lucide-react";
+import { Copy, Download, Trash2, Upload } from "lucide-react";
 import { useProjectStore } from "../../store/projectStore";
 import { useUIStore } from "../../store/uiStore";
 import { usePresetStore, type PresetConfig } from "../../store/presetStore";
@@ -78,7 +78,12 @@ const PROP_UNITS: Partial<Record<AnimatableProp, string>> = {
   blur: "px",
 };
 
-/** All animatable props — for the "+ Add property" menu. */
+/**
+ * All animatable props — the Animates panel renders one keyframe row
+ * per prop for every effect type that supports the panel. The user
+ * fills in start / end values; rows where start === end don't animate
+ * (the engine's compose loop skips them).
+ */
 const ALL_PROPS: readonly AnimatableProp[] = [
   "opacity",
   "x",
@@ -91,13 +96,15 @@ const ALL_PROPS: readonly AnimatableProp[] = [
 ];
 
 /**
- * Seed value when the user adds an animated prop back via the "+ Add"
- * menu. Both `from` and `targets` get the same seed so the prop
- * appears as a keyframe row but doesn't animate until the user
- * changes one side. Color / fontSize seed from the component's actual
- * style so the start matches what the text already looks like.
+ * "Neutral" display value for a prop when it isn't in the effect's
+ * stored from / targets. Rendered into the input as a placeholder
+ * baseline so users see what the current style looks like and only
+ * have to change values that should animate.
+ *
+ * Color / fontSize use the component's actual style so the row
+ * doesn't suggest a different start than the visible text.
  */
-function defaultSeedFor(prop: AnimatableProp, style: ComponentStyle): unknown {
+function neutralFor(prop: AnimatableProp, style: ComponentStyle): unknown {
   switch (prop) {
     case "opacity": return 1;
     case "x": return 0;
@@ -323,14 +330,6 @@ export function EffectModal() {
     updateEffect(component.id, effect.id, { fireworks: { ...current, ...update } });
   };
 
-  // The set of animated props is the union of keys in `from` and `targets`.
-  const animProps = Array.from(
-    new Set([
-      ...Object.keys(effect.targets ?? {}),
-      ...Object.keys(effect.from ?? {}),
-    ]),
-  ) as AnimatableProp[];
-
   const patchFrom = (prop: AnimatableProp, value: unknown) => {
     const nextFrom: AnimatableTargets = { ...effect.from, [prop]: value };
     updateEffect(component.id, effect.id, { from: nextFrom });
@@ -338,40 +337,6 @@ export function EffectModal() {
   const patchTo = (prop: AnimatableProp, value: unknown) => {
     const nextTo: AnimatableTargets = { ...effect.targets, [prop]: value };
     updateEffect(component.id, effect.id, { targets: nextTo });
-  };
-  /**
-   * Remove an animated prop from both `from` and `targets`. Lets the
-   * user prune stale defaults (e.g. the old zoom shipped with
-   * `y: 20 → 0` baked in — once removed via this button the zoom
-   * runs as a pure scale + opacity animation). Symmetric with addProp.
-   */
-  const removeProp = (prop: AnimatableProp) => {
-    const nextFrom: AnimatableTargets = { ...(effect.from ?? {}) };
-    const nextTo: AnimatableTargets = { ...(effect.targets ?? {}) };
-    delete (nextFrom as Record<string, unknown>)[prop];
-    delete (nextTo as Record<string, unknown>)[prop];
-    updateEffect(component.id, effect.id, {
-      from: nextFrom,
-      targets: nextTo,
-    });
-  };
-  /**
-   * Add an animated prop with sensible "no animation" seed values
-   * (from === to, so the keyframe row appears but doesn't animate
-   * until the user changes one side). The user picks from / to via
-   * the row's inputs. Symmetric with removeProp.
-   *
-   * Color / fontSize seed from the component's current style so the
-   * starting point matches what the text already looks like.
-   */
-  const addProp = (prop: AnimatableProp) => {
-    const seed = defaultSeedFor(prop, component.style);
-    const nextFrom: AnimatableTargets = { ...(effect.from ?? {}), [prop]: seed };
-    const nextTo: AnimatableTargets = { ...(effect.targets ?? {}), [prop]: seed };
-    updateEffect(component.id, effect.id, {
-      from: nextFrom,
-      targets: nextTo,
-    });
   };
 
   return (
@@ -700,29 +665,28 @@ export function EffectModal() {
             <div className="text-xs uppercase tracking-wider text-neutral-500">
               Animates
             </div>
-            {animProps.length > 0 && (
-              <div className="grid grid-cols-[max-content_1fr_1fr_max-content] items-center gap-x-3 gap-y-2 text-xs">
-                <div />
-                <div className="text-neutral-500">Start</div>
-                <div className="text-neutral-500">End</div>
-                <div />
-                {animProps.map((p) => (
-                  <PropRow
-                    key={p}
-                    prop={p}
-                    fromValue={effect.from?.[p]}
-                    toValue={effect.targets?.[p]}
-                    onFromChange={(v) => patchFrom(p, v)}
-                    onToChange={(v) => patchTo(p, v)}
-                    onRemove={() => removeProp(p)}
-                  />
-                ))}
-              </div>
-            )}
-            <AddPropMenu
-              available={ALL_PROPS.filter((p) => !animProps.includes(p))}
-              onAdd={addProp}
-            />
+            {/* All animatable props are rendered always. Rows where Start ===
+                End don't animate — the engine's compose loop skips those.
+                That means users can leave any row untouched and it stays
+                inert, and they can clear a stale value (e.g. an old zoom
+                with y: 20 → 0) by typing the same number on both sides
+                — no add / remove dance needed. */}
+            <div className="grid grid-cols-[max-content_1fr_1fr] items-center gap-x-3 gap-y-2 text-xs">
+              <div />
+              <div className="text-neutral-500">Start</div>
+              <div className="text-neutral-500">End</div>
+              {ALL_PROPS.map((p) => (
+                <PropRow
+                  key={p}
+                  prop={p}
+                  componentStyle={component.style}
+                  fromValue={effect.from?.[p]}
+                  toValue={effect.targets?.[p]}
+                  onFromChange={(v) => patchFrom(p, v)}
+                  onToChange={(v) => patchTo(p, v)}
+                />
+              ))}
+            </div>
           </div>
         )}
 
@@ -1946,71 +1910,22 @@ function PresetBar({ effect, onApply }: PresetBarProps) {
   );
 }
 
-/**
- * "+ Add property" row at the bottom of the Animates panel. Renders
- * disabled when there's nothing left to add (all props already
- * animated). Picking an option from the select calls onAdd with the
- * chosen prop; the parent seeds default values via defaultSeedFor.
- *
- * Kept as a native <select> rather than a custom dropdown for keyboard
- * accessibility and brevity — the picker is rarely used.
- */
-function AddPropMenu({
-  available,
-  onAdd,
-}: {
-  available: readonly AnimatableProp[];
-  onAdd: (prop: AnimatableProp) => void;
-}) {
-  if (available.length === 0) {
-    return (
-      <p className="text-[11px] text-neutral-500">
-        All animatable properties are already on this effect.
-      </p>
-    );
-  }
-  return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className="text-neutral-500">+ Add property</span>
-      <select
-        // Controlled to "" so the user can re-pick the same prop after
-        // a remove → add cycle without the select silently staying on
-        // the previous value.
-        value=""
-        onChange={(e) => {
-          const v = e.target.value as AnimatableProp | "";
-          if (v) onAdd(v);
-        }}
-        className="rounded border border-neutral-300 bg-white px-2 py-0.5 text-neutral-900 focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
-      >
-        <option value="">Choose…</option>
-        {available.map((p) => (
-          <option key={p} value={p}>
-            {PROP_LABELS[p]}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
 interface PropRowProps {
   prop: AnimatableProp;
+  componentStyle: ComponentStyle;
   fromValue: unknown;
   toValue: unknown;
   onFromChange: (v: unknown) => void;
   onToChange: (v: unknown) => void;
-  /** Remove this prop from both `from` and `targets`. */
-  onRemove: () => void;
 }
 
 function PropRow({
   prop,
+  componentStyle,
   fromValue,
   toValue,
   onFromChange,
   onToChange,
-  onRemove,
 }: PropRowProps) {
   const unit = PROP_UNITS[prop];
   return (
@@ -2020,36 +1935,40 @@ function PropRow({
       </span>
       <PropInput
         prop={prop}
+        componentStyle={componentStyle}
         value={fromValue}
         onChange={onFromChange}
         unit={unit}
       />
-      <PropInput prop={prop} value={toValue} onChange={onToChange} unit={unit} />
-      <button
-        type="button"
-        onClick={onRemove}
-        title={`Remove ${PROP_LABELS[prop]} from this effect`}
-        className="grid h-5 w-5 place-items-center rounded text-neutral-400 hover:bg-neutral-200 hover:text-rose-600 dark:hover:bg-neutral-800 dark:hover:text-rose-400"
-        aria-label={`Remove ${PROP_LABELS[prop]}`}
-      >
-        <X size={11} />
-      </button>
+      <PropInput
+        prop={prop}
+        componentStyle={componentStyle}
+        value={toValue}
+        onChange={onToChange}
+        unit={unit}
+      />
     </>
   );
 }
 
 interface PropInputProps {
   prop: AnimatableProp;
+  componentStyle: ComponentStyle;
   value: unknown;
   onChange: (v: unknown) => void;
   unit?: string;
 }
 
-function PropInput({ prop, value, onChange, unit }: PropInputProps) {
+function PropInput({ prop, componentStyle, value, onChange, unit }: PropInputProps) {
   const [draft, setDraft] = useState<string | null>(null);
 
   if (prop === "color") {
-    const v = typeof value === "string" ? value : "#ffffff";
+    // Fallback to the component's actual color so an untouched color
+    // row matches the visible text (instead of suggesting an arbitrary
+    // white start that would flash the text on a dark background if
+    // accidentally committed).
+    const fallback = neutralFor(prop, componentStyle) as string;
+    const v = typeof value === "string" ? value : fallback;
     return (
       <div className="flex items-center gap-1.5">
         <ColorPicker
@@ -2062,7 +1981,12 @@ function PropInput({ prop, value, onChange, unit }: PropInputProps) {
     );
   }
 
-  const v = typeof value === "number" ? value : 0;
+  // Numeric props — fall back to the prop's natural neutral
+  // (1 for opacity / scale, 0 for x / y / rotation / blur, the
+  // component's fontSize for fontSize). Display only — typing into
+  // the input still calls onChange and writes the actual number.
+  const fallback = neutralFor(prop, componentStyle) as number;
+  const v = typeof value === "number" ? value : fallback;
   const step = prop === "opacity" || prop === "scale" ? 0.05 : 1;
   const decimals = prop === "rotation" ? 0 : 2;
 
