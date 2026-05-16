@@ -392,15 +392,11 @@ export function hasCursorParticles(components: Component[]): boolean {
 }
 
 /**
- * Module-scope declarations shared between Particle and CursorParticleLayer
- * helpers — PARTICLE_PATHS (the SVG shape paths) and PRESET_COLOR_FN.
- * Emitted once at the top of the file by generateReactComponent if any
- * particle effect of any kind is present.
+ * PARTICLE_PATHS — needed by BOTH keyframed and cursor helpers. Emitted
+ * once at module scope when any particle effect is present.
  */
 export function particleSharedSource(): string {
-  return `${PARTICLE_PATHS_SOURCE}
-
-${PRESET_FN_SOURCE}`;
+  return PARTICLE_PATHS_SOURCE;
 }
 
 /** The Particle keyframed helper component. Depends on PARTICLE_PATHS. */
@@ -408,13 +404,21 @@ export function particleHelperSource(): string {
   return PARTICLE_HELPER_SOURCE;
 }
 
-/** The CursorParticleLayer component + the canvas dim constants. */
+/**
+ * The CursorParticleLayer component + the canvas dim constants AND the
+ * PRESET_COLOR_FN table (only the cursor layer needs the preset resolver
+ * at runtime — keyframed particles bake their colors at export time, so
+ * including PRESET_COLOR_FN there would trip an unused-var lint error
+ * in TypeScript-strict consumer projects).
+ */
 export function cursorLayerSource(
   canvasWidth: number,
   canvasHeight: number,
 ): string {
   return `const CANVAS_W = ${canvasWidth};
 const CANVAS_H = ${canvasHeight};
+
+${PRESET_FN_SOURCE}
 
 ${CURSOR_LAYER_SOURCE}`;
 }

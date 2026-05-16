@@ -49,10 +49,19 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
         ? Array.from({ length: sel.rangeCount }, (_, i) => sel.getRangeAt(i).cloneRange())
         : [];
 
+      const fullText = textNode.textContent ?? "";
       const next: CompBox[] = [];
       for (const c of components) {
-        const start = Math.max(0, Math.min(c.startIndex, textLen));
-        const end = Math.max(start, Math.min(c.endIndex, textLen));
+        let start = Math.max(0, Math.min(c.startIndex, textLen));
+        let end = Math.max(start, Math.min(c.endIndex, textLen));
+        // Skip leading and trailing whitespace (especially \n) so a
+        // component whose range happens to include the newline separator
+        // before / after it doesn't blow up the bbox across two lines.
+        // Range.getBoundingClientRect() unions every line rect — even an
+        // empty line break contributes a near-zero rect that pulls the
+        // bbox top up to the previous line.
+        while (start < end && /\s/.test(fullText[start] ?? "")) start++;
+        while (end > start && /\s/.test(fullText[end - 1] ?? "")) end--;
         if (end <= start) continue;
         const range = document.createRange();
         try {
@@ -61,7 +70,11 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
         } catch {
           continue;
         }
-        const r = range.getBoundingClientRect();
+        // Pick the LARGEST client rect (skips tiny leading-edge fragments
+        // that some browsers emit for ranges starting at a line boundary)
+        // and fall back to getBoundingClientRect when there are no rects.
+        const rects = Array.from(range.getClientRects());
+        const r = rects.length > 0 ? largestRect(rects) : range.getBoundingClientRect();
         next.push({
           id: c.id,
           color: c.color,
@@ -184,4 +197,17 @@ function findTextNode(host: HTMLElement): Text | null {
     if (n.nodeType === Node.TEXT_NODE) return n as Text;
   }
   return null;
+}
+
+/**
+ * Pick the rect with the largest area — skips tiny line-edge fragments
+ * (those near-zero rects browsers emit when a range starts or ends at a
+ * line break) that would otherwise inflate the bbox across two lines.
+ */
+function largestRect(rects: DOMRect[]): DOMRect {
+  let best = rects[0];
+  for (const r of rects) {
+    if (r.width * r.height > best.width * best.height) best = r;
+  }
+  return best;
 }

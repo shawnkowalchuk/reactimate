@@ -5,7 +5,13 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "coverage"] },
+  {
+    // Test-Project is a user-content sandbox where exported Hero.tsx files
+    // get dropped in for verification — we don't lint it as part of the
+    // main project (its files would constantly fight the export's output
+    // style, and false positives there would block deploys).
+    ignores: ["dist", "node_modules", "coverage", "Test-Project"],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

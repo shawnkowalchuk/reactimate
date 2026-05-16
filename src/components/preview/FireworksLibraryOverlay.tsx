@@ -155,6 +155,11 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       fwRef.current = null;
       runningRef.current = false;
     };
+    // Init effect runs once. Subsequent cfg / shouldRun / frameRef changes
+    // are handled by the [cfgKey] update-options effect below and the
+    // [shouldRun] start/stop effect — including them here would needlessly
+    // tear down and re-create the fireworks-js instance on every change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update live options when config changes without destroying the instance.
@@ -191,6 +196,10 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
     if (cfg.area) {
       fw.updateBoundaries(areaToBoundaries(cfg.area));
     }
+    // cfgKey is the JSON-stringified cfg — re-running on cfgKey covers
+    // every cfg field change. Listing `cfg` directly would re-run on
+    // every parent render (new object identity) even with no value change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfgKey]);
 
   // Start / stop based on shouldRun.
