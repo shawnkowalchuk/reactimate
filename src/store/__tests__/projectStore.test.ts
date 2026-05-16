@@ -112,7 +112,7 @@ describe("projectStore", () => {
       expect(merged.effects).toHaveLength(a.effects.length + b.effects.length);
     });
 
-    it("returns null with fewer than 2 valid components", () => {
+    it("returns null with fewer than 2 valid components (and no range)", () => {
       const before = useProjectStore.getState().project;
       expect(
         useProjectStore.getState().mergeComponents([before.layer.components[0].id]),
@@ -121,6 +121,40 @@ describe("projectStore", () => {
       expect(
         useProjectStore.getState().mergeComponents(["bogus-id-1", "bogus-id-2"]),
       ).toBeNull();
+    });
+
+    it("extends a single component to absorb adjacent plain text when a range is passed", () => {
+      const before = useProjectStore.getState().project;
+      const a = before.layer.components[0]; // [0..7] "Welcome"
+      // Selection: [0..11] — covers "Welcome" + the plain " to "
+      const id = useProjectStore
+        .getState()
+        .mergeComponents([a.id], { start: 0, end: 11 });
+      expect(id).not.toBeNull();
+
+      const after = useProjectStore.getState().project;
+      const extended = after.layer.components.find((c) => c.id === id)!;
+      expect(extended.startIndex).toBe(0);
+      expect(extended.endIndex).toBe(11);
+      // Inherits original color/style/effects
+      expect(extended.color).toBe(a.color);
+      expect(extended.effects).toHaveLength(a.effects.length);
+    });
+
+    it("merges 2+ components AND absorbs surrounding plain text when range is passed", () => {
+      const before = useProjectStore.getState().project;
+      const [a, b] = before.layer.components; // [0..7] and [11..21]
+      // Selection: [0..22] — extends one past the last component into "."
+      const id = useProjectStore
+        .getState()
+        .mergeComponents([a.id, b.id], { start: 0, end: 22 });
+      expect(id).not.toBeNull();
+
+      const after = useProjectStore.getState().project;
+      expect(after.layer.components).toHaveLength(1);
+      const merged = after.layer.components[0];
+      expect(merged.startIndex).toBe(0);
+      expect(merged.endIndex).toBe(22);
     });
 
     it("orders the components list by startIndex after a merge in the middle", () => {

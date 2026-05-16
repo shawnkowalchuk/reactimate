@@ -12,8 +12,10 @@ export type SelectionMode =
  * current text selection allows inside the given editor:
  *  - empty intersection with all components → componentize
  *  - fully inside exactly one component     → split-off
+ *  - fully covers 1 component + extra plain text on either side → merge
+ *    (absorbs the plain text into the component's range)
  *  - fully covers 2+ components             → merge
- *  - partial overlap with a component       → null (would mangle edges)
+ *  - partial overlap with a component (edge straddled) → null
  *  - no selection / outside the editor      → null
  */
 export function useTextSelectionMode(
@@ -68,9 +70,17 @@ function classify(
   }
   if (intersecting.length === 1) {
     const c = intersecting[0];
+    // Selection sits entirely inside the component → split-off.
     if (start >= c.startIndex && end <= c.endIndex) {
       return { kind: "split", component: c, start, end };
     }
+    // Selection fully contains the component AND extends into plain text
+    // on at least one side → "merge" (extends the component's range).
+    if (start <= c.startIndex && end >= c.endIndex) {
+      return { kind: "merge", components: [c], start, end };
+    }
+    // Edge straddle (selection crosses one boundary but not the other)
+    // would mangle the component — disallow.
     return null;
   }
   const allFullyCovered = intersecting.every(

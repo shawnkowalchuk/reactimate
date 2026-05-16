@@ -88,12 +88,21 @@ export interface ProjectState {
     selEnd: number,
   ) => string | null;
   /**
-   * Merge two or more components into one. Takes the first component's
-   * (lowest startIndex) style + color; spans `[firstStart, lastEnd)`;
-   * concatenates effects from every merged component. Returns the new
-   * component id, or null if fewer than 2 valid components were named.
+   * Merge one or more components into one. Takes the first component's
+   * (lowest startIndex) style + color and concatenates effects from
+   * every merged component. The merged component's range is:
+   *   - `[firstStart, lastEnd)` if no explicit range is passed (legacy)
+   *   - `[rangeStart, rangeEnd)` if a range is passed (must cover every
+   *     componentId fully — used when extending a single component to
+   *     absorb adjacent plain text, or merging 2+ components together
+   *     with extra plain text on either side).
+   * Returns the new component id, or null if no valid components were
+   * named (or 1 component was named without an extending range).
    */
-  mergeComponents: (componentIds: string[]) => string | null;
+  mergeComponents: (
+    componentIds: string[],
+    range?: { start: number; end: number },
+  ) => string | null;
 
   // Effects
   addEffect: (
@@ -349,22 +358,30 @@ export const useProjectStore = create<ProjectState>()(
       return middleId;
     },
 
-    mergeComponents: (componentIds) => {
-      if (componentIds.length < 2) return null;
+    mergeComponents: (componentIds, range) => {
+      // Need at least 1 component + a range, OR 2+ components.
+      if (componentIds.length === 0) return null;
+      if (componentIds.length === 1 && !range) return null;
       let mergedId: string | null = null;
       set((state) => {
         const layer = state.project.layer;
         const ids = new Set(componentIds);
         const targets = layer.components.filter((x) => ids.has(x.id));
-        if (targets.length < 2) return state;
+        if (targets.length === 0) return state;
+        if (targets.length === 1 && !range) return state;
         targets.sort((a, b) => a.startIndex - b.startIndex);
         const first = targets[0];
         const last = targets[targets.length - 1];
 
+        // When a range is supplied, it must fully cover every target.
+        // Otherwise fall back to [first.start, last.end).
+        const startIndex = range ? Math.min(range.start, first.startIndex) : first.startIndex;
+        const endIndex = range ? Math.max(range.end, last.endIndex) : last.endIndex;
+
         const merged: Component = {
           id: newId("comp"),
-          startIndex: first.startIndex,
-          endIndex: last.endIndex,
+          startIndex,
+          endIndex,
           color: first.color,
           style: { ...first.style },
           effects: targets.flatMap((c) => c.effects),

@@ -48,7 +48,12 @@ export function EditorActions({ editorRef }: Props) {
   const onMerge = () => {
     if (!isMerge) return;
     const m = mode as Extract<SelectionMode, { kind: "merge" }>;
-    const id = mergeComponents(m.components.map((c) => c.id));
+    // Pass the selection range so the merged component absorbs any plain
+    // text on either side of the covered component(s).
+    const id = mergeComponents(
+      m.components.map((c) => c.id),
+      { start: m.start, end: m.end },
+    );
     if (id) selectComponent(id);
     window.getSelection()?.removeAllRanges();
   };
@@ -84,8 +89,10 @@ export function EditorActions({ editorRef }: Props) {
         label="Merge"
         title={
           isMerge
-            ? `Merge ${(mode as { components: unknown[] }).components.length} components`
-            : "Select text spanning 2+ whole components to enable"
+            ? (mode as { components: unknown[] }).components.length === 1
+              ? "Extend the component to cover the selected plain text"
+              : `Merge ${(mode as { components: unknown[] }).components.length} components`
+            : "Select 2+ whole components, or a component + adjacent plain text"
         }
       />
     </div>
