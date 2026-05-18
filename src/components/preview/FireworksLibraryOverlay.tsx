@@ -272,19 +272,10 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       const rect = canvas.getBoundingClientRect();
       const sx = rect.width > 0 ? canvas.width / rect.width : 1;
       const sy = rect.height > 0 ? canvas.height / rect.height : 1;
-      const out = {
+      return {
         x: (e.clientX - rect.left) * sx,
         y: (e.clientY - rect.top) * sy,
       };
-      // TEMP DEBUG — remove after confirming coords. Open DevTools
-      // Console, click around the canvas, paste the output back.
-      console.log("[fireworks click]", {
-        client: [e.clientX, e.clientY],
-        rect: [rect.left, rect.top, rect.width, rect.height],
-        canvasBuffer: [canvas.width, canvas.height],
-        computed: [out.x, out.y],
-      });
-      return out;
     };
 
     const onPointerDown = (e: PointerEvent) => {
