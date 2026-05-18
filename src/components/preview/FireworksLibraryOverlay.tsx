@@ -109,11 +109,13 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       },
       brightness: { min: cfg.brightnessMin ?? 50, max: cfg.brightnessMax ?? 80 },
       decay: { min: cfg.decayMin ?? 0.015, max: cfg.decayMax ?? 0.03 },
-      mouse: {
-        click: cfg.followMouse ?? false,
-        move: cfg.followCursor ?? false,
-        max: 1,
-      },
+      // fireworks-js's built-in mouse handlers compute click coords via
+      // `pageX - canvas.offsetLeft`, which gives wrong values inside any
+      // CSS-transformed parent (our preview always scales). We disable
+      // the library's mouse handling entirely and run our own listeners
+      // below — they compute correct coords via getBoundingClientRect
+      // and call fw.launch() / poke fw.mouse.x|y directly.
+      mouse: { click: false, move: false, max: 1 },
       sound: { enabled: false },
       ...(boundaries ? { boundaries } : {}),
     });
@@ -187,11 +189,9 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       },
       brightness: { min: cfg.brightnessMin ?? 50, max: cfg.brightnessMax ?? 80 },
       decay: { min: cfg.decayMin ?? 0.015, max: cfg.decayMax ?? 0.03 },
-      mouse: {
-        click: cfg.followMouse ?? false,
-        move: cfg.followCursor ?? false,
-        max: 1,
-      },
+      // See init effect — we keep library mouse handling off and run our
+      // own pointer listeners (in the separate effect below).
+      mouse: { click: false, move: false, max: 1 },
     });
     if (cfg.area) {
       fw.updateBoundaries(areaToBoundaries(cfg.area));
@@ -214,6 +214,82 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       runningRef.current = false;
     }
   }, [shouldRun]);
+
+  // Custom pointer handlers for Click to launch + Follow cursor. We
+  // replace the library's built-in mouse handling (which computes click
+  // coords via `pageX - canvas.offsetLeft` and breaks inside our
+  // transformed canvas) with our own listeners. Coords are computed via
+  // getBoundingClientRect to account for the parent's CSS scale.
+  //
+  // - Click to launch: each pointerdown calls fw.launch(1) which
+  //   spawns one rocket immediately (bypassing the library's mouse.max
+  //   gate that caps simultaneous click-rockets at 1 — that's why
+  //   subsequent clicks did nothing while a previous rocket was still
+  //   in the air).
+  // - Follow cursor: pointermove pokes fw's internal mouse.x/y so the
+  //   normal delay-based spawn (which reads those coords via
+  //   `createTrace`) targets the cursor. We force mouse.move on the
+  //   internal options so createTrace actually uses mouse.x/y as the
+  //   target. mouse.active stays false (no spam-spawn while hovering).
+  const followMouse = Boolean(cfg?.followMouse);
+  const followCursor = Boolean(cfg?.followCursor);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const fw = fwRef.current;
+    if (!canvas || !fw) return;
+    if (!followMouse && !followCursor) return;
+
+    // Reach into private state — necessary because mouse.x/y/active
+    // and the move flag aren't exposed via the public Options API.
+    const fwInternal = fw as unknown as {
+      mouse: { x: number; y: number; active: boolean };
+      opts: { mouse: { click: boolean; move: boolean; max: number } };
+    };
+    // Enable internal move flag so createTrace honors mouse.x/y as the
+    // rocket target during the delay-based spawn. We never enable
+    // internal click — our pointerdown calls launch() directly.
+    if (followCursor) fwInternal.opts.mouse.move = true;
+
+    const localCoords = (e: PointerEvent): { x: number; y: number } => {
+      const rect = canvas.getBoundingClientRect();
+      // Scale viewport-pixel offset back into canvas-buffer pixels.
+      const sx = rect.width > 0 ? canvas.width / rect.width : 1;
+      const sy = rect.height > 0 ? canvas.height / rect.height : 1;
+      return {
+        x: (e.clientX - rect.left) * sx,
+        y: (e.clientY - rect.top) * sy,
+      };
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (!followMouse) return;
+      const { x, y } = localCoords(e);
+      fwInternal.mouse.x = x;
+      fwInternal.mouse.y = y;
+      // Briefly set active so createTrace honors mouse.x/y for the
+      // launched rocket. Reset immediately after launch so the delay-
+      // based spawn doesn't continue keying off this click.
+      fwInternal.mouse.active = true;
+      fw.launch(1);
+      fwInternal.mouse.active = false;
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!followCursor) return;
+      const { x, y } = localCoords(e);
+      fwInternal.mouse.x = x;
+      fwInternal.mouse.y = y;
+    };
+
+    canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("pointermove", onPointerMove);
+    return () => {
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      // Restore the off state on teardown / cfg change.
+      fwInternal.opts.mouse.move = false;
+    };
+  }, [followMouse, followCursor]);
 
   // Canvas catches pointer events only when click-to-launch or follow-cursor
   // is on — otherwise the EffectAreaOverlay bbox handles need pointer access
