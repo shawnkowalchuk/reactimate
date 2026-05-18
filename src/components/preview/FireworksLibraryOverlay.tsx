@@ -217,20 +217,26 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
 
   // Custom pointer handlers for Click to launch + Follow cursor. We
   // replace the library's built-in mouse handling (which computes click
-  // coords via `pageX - canvas.offsetLeft` and breaks inside our
-  // transformed canvas) with our own listeners. Coords are computed via
-  // getBoundingClientRect to account for the parent's CSS scale.
+  // coords via `pageX - canvas.offsetLeft` — broken inside any CSS-
+  // transformed parent, which our preview always is) with our own
+  // listeners. Coords are computed via getBoundingClientRect so the
+  // canvas-to-viewport scale is correctly inverted.
   //
-  // - Click to launch: each pointerdown calls fw.launch(1) which
-  //   spawns one rocket immediately (bypassing the library's mouse.max
-  //   gate that caps simultaneous click-rockets at 1 — that's why
-  //   subsequent clicks did nothing while a previous rocket was still
-  //   in the air).
-  // - Follow cursor: pointermove pokes fw's internal mouse.x/y so the
-  //   normal delay-based spawn (which reads those coords via
-  //   `createTrace`) targets the cursor. We force mouse.move on the
-  //   internal options so createTrace actually uses mouse.x/y as the
-  //   target. mouse.active stays false (no spam-spawn while hovering).
+  // Internals we poke:
+  // - fw.mouse.x|y: the rocket target (canvas-buffer pixels)
+  // - fw.mouse.active: when true, createTrace uses mouse.x|y as the
+  //   target (bypasses random boundary-based targeting)
+  // - fw.createTrace(): spawn one rocket NOW
+  //
+  // Why not fw.launch(): launch() has a side effect — it calls
+  // waitStop() the first time it's invoked, which schedules the whole
+  // fireworks instance to halt after the launched rocket finishes.
+  // Fine for one-shot celebration use cases ("fire 50 rockets and
+  // stop"), wrong for our continuous per-click spawning.
+  //
+  // Why mouse.active (not opts.mouse.move): the move flag in opts gets
+  // wiped on every updateOptions() call (we issue one on every cfgKey
+  // change). mouse.active is internal state — nothing else touches it.
   const followMouse = Boolean(cfg?.followMouse);
   const followCursor = Boolean(cfg?.followCursor);
   useEffect(() => {
@@ -239,20 +245,19 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
     if (!canvas || !fw) return;
     if (!followMouse && !followCursor) return;
 
-    // Reach into private state — necessary because mouse.x/y/active
-    // and the move flag aren't exposed via the public Options API.
     const fwInternal = fw as unknown as {
       mouse: { x: number; y: number; active: boolean };
-      opts: { mouse: { click: boolean; move: boolean; max: number } };
+      createTrace: () => void;
     };
-    // Enable internal move flag so createTrace honors mouse.x/y as the
-    // rocket target during the delay-based spawn. We never enable
-    // internal click — our pointerdown calls launch() directly.
-    if (followCursor) fwInternal.opts.mouse.move = true;
+
+    // While Follow cursor is on, keep mouse.active true so the delay-
+    // based spawn loop in createTrace honors mouse.x|y as the target.
+    // (Click to launch alone doesn't need it — we set + reset around
+    // the createTrace() call inside onPointerDown.)
+    if (followCursor) fwInternal.mouse.active = true;
 
     const localCoords = (e: PointerEvent): { x: number; y: number } => {
       const rect = canvas.getBoundingClientRect();
-      // Scale viewport-pixel offset back into canvas-buffer pixels.
       const sx = rect.width > 0 ? canvas.width / rect.width : 1;
       const sy = rect.height > 0 ? canvas.height / rect.height : 1;
       return {
@@ -266,12 +271,17 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       const { x, y } = localCoords(e);
       fwInternal.mouse.x = x;
       fwInternal.mouse.y = y;
-      // Briefly set active so createTrace honors mouse.x/y for the
-      // launched rocket. Reset immediately after launch so the delay-
-      // based spawn doesn't continue keying off this click.
+      const wasActive = fwInternal.mouse.active;
       fwInternal.mouse.active = true;
-      fw.launch(1);
-      fwInternal.mouse.active = false;
+      try {
+        // Direct createTrace bypasses launch()'s deferred-stop side
+        // effect AND the library's mouse.max gate on click-triggered
+        // spawns. Every click reliably spawns one rocket at the click
+        // point regardless of how many rockets are already in flight.
+        fwInternal.createTrace();
+      } finally {
+        fwInternal.mouse.active = wasActive;
+      }
     };
 
     const onPointerMove = (e: PointerEvent) => {
@@ -286,8 +296,7 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
     return () => {
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
-      // Restore the off state on teardown / cfg change.
-      fwInternal.opts.mouse.move = false;
+      fwInternal.mouse.active = false;
     };
   }, [followMouse, followCursor]);
 
