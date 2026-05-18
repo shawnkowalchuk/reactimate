@@ -101,7 +101,14 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       flickering: cfg.flickering ?? 50,
       lineStyle: (cfg.lineStyle as "round" | "square") ?? "round",
       hue: { min: cfg.hueMin ?? 0, max: cfg.hueMax ?? 360 },
-      delay: { min: cfg.delayMin ?? 10, max: cfg.delayMax ?? 60 },
+      // When autoFire is OFF, pin the inter-burst delay to an effectively-
+      // infinite value so the delay-based spawn loop never fires. The only
+      // way rockets spawn then is through user input — our pointerdown
+      // handler (Click to launch) or the cursor-driven mouse-active branch
+      // (Follow cursor, gated by mouse.max below).
+      delay: cfg.autoFire === false
+        ? { min: 999999, max: 999999 }
+        : { min: cfg.delayMin ?? 10, max: cfg.delayMax ?? 60 },
       rocketsPoint: { min: cfg.rocketsPointMin ?? 30, max: cfg.rocketsPointMax ?? 70 },
       lineWidth: {
         explosion: { min: cfg.lineWidthExpMin ?? 1, max: cfg.lineWidthExpMax ?? 3 },
@@ -115,7 +122,17 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       // the library's mouse handling entirely and run our own listeners
       // below — they compute correct coords via getBoundingClientRect
       // and call fw.launch() / poke fw.mouse.x|y directly.
-      mouse: { click: false, move: false, max: 1 },
+      // mouse.max gates the cursor-driven spawn branch in fireworks-js
+      // (`mouse.active && i.max > traces.length`). With max=1 only ONE
+      // mouse-driven rocket fires at a time — feels stuttery for Follow
+      // cursor. Bump to 20 when any follow mode is on so cursor-driven
+      // fire feels responsive. (Click to launch bypasses this gate via
+      // direct createTrace.)
+      mouse: {
+        click: false,
+        move: false,
+        max: cfg.followMouse || cfg.followCursor ? 20 : 1,
+      },
       sound: { enabled: false },
       ...(boundaries ? { boundaries } : {}),
     });
@@ -181,7 +198,14 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       flickering: cfg.flickering ?? 50,
       lineStyle: (cfg.lineStyle as "round" | "square") ?? "round",
       hue: { min: cfg.hueMin ?? 0, max: cfg.hueMax ?? 360 },
-      delay: { min: cfg.delayMin ?? 10, max: cfg.delayMax ?? 60 },
+      // When autoFire is OFF, pin the inter-burst delay to an effectively-
+      // infinite value so the delay-based spawn loop never fires. The only
+      // way rockets spawn then is through user input — our pointerdown
+      // handler (Click to launch) or the cursor-driven mouse-active branch
+      // (Follow cursor, gated by mouse.max below).
+      delay: cfg.autoFire === false
+        ? { min: 999999, max: 999999 }
+        : { min: cfg.delayMin ?? 10, max: cfg.delayMax ?? 60 },
       rocketsPoint: { min: cfg.rocketsPointMin ?? 30, max: cfg.rocketsPointMax ?? 70 },
       lineWidth: {
         explosion: { min: cfg.lineWidthExpMin ?? 1, max: cfg.lineWidthExpMax ?? 3 },
@@ -191,7 +215,17 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       decay: { min: cfg.decayMin ?? 0.015, max: cfg.decayMax ?? 0.03 },
       // See init effect — we keep library mouse handling off and run our
       // own pointer listeners (in the separate effect below).
-      mouse: { click: false, move: false, max: 1 },
+      // mouse.max gates the cursor-driven spawn branch in fireworks-js
+      // (`mouse.active && i.max > traces.length`). With max=1 only ONE
+      // mouse-driven rocket fires at a time — feels stuttery for Follow
+      // cursor. Bump to 20 when any follow mode is on so cursor-driven
+      // fire feels responsive. (Click to launch bypasses this gate via
+      // direct createTrace.)
+      mouse: {
+        click: false,
+        move: false,
+        max: cfg.followMouse || cfg.followCursor ? 20 : 1,
+      },
     });
     if (cfg.area) {
       fw.updateBoundaries(areaToBoundaries(cfg.area));
@@ -278,9 +312,25 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       };
     };
 
+    // When `onlyInArea` is on, gate clicks and cursor tracking on whether
+    // the point falls inside the fireworks area rectangle. Without an
+    // area set, behave as if the toggle is off (fail open).
+    //
+    // Reads area + onlyInArea from cfgRef (the live mirror) instead of
+    // the closure-captured cfg, so dragging the area or toggling
+    // "Only inside area" takes effect immediately without re-attaching
+    // pointer listeners.
+    const inArea = (x: number, y: number): boolean => {
+      const a = cfgRef.current?.area;
+      if (!a) return true;
+      return x >= a.x && x <= a.x + a.width && y >= a.y && y <= a.y + a.height;
+    };
+    const isOnlyInArea = (): boolean => Boolean(cfgRef.current?.onlyInArea);
+
     const onPointerDown = (e: PointerEvent) => {
       if (!followMouse) return;
       const { x, y } = localCoords(e);
+      if (isOnlyInArea() && !inArea(x, y)) return;
       fwInternal.mouse.x = x;
       fwInternal.mouse.y = y;
       // Spawn the rocket from canvas-bottom directly BELOW the click X
@@ -315,8 +365,18 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
     const onPointerMove = (e: PointerEvent) => {
       if (!followCursor) return;
       const { x, y } = localCoords(e);
+      if (isOnlyInArea() && !inArea(x, y)) {
+        // Cursor left the area — pause cursor-driven spawn by clearing
+        // mouse.active. Auto-fire (if on) still runs with random
+        // targeting; the cursor just stops influencing it.
+        fwInternal.mouse.active = false;
+        return;
+      }
       fwInternal.mouse.x = x;
       fwInternal.mouse.y = y;
+      // Cursor re-entered the area (or restriction is off) — restore
+      // mouse.active so cursor-driven spawn picks back up.
+      fwInternal.mouse.active = true;
     };
 
     canvas.addEventListener("pointerdown", onPointerDown);

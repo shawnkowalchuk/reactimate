@@ -236,6 +236,21 @@ export interface Effect {
      * as it moves over the preview canvas. Backed by fireworks-js `mouse.move`.
      */
     followCursor?: boolean;
+    /**
+     * "Auto-fire continuously" — default true. When false, the delay-based
+     * random spawn loop is disabled and fireworks ONLY fire on user input
+     * (clicks if followMouse is on, cursor moves if followCursor is on).
+     * Combined with Click to launch, gives a pure "fire on click" effect.
+     */
+    autoFire?: boolean;
+    /**
+     * "Only inside area" — default false. When true, Follow cursor only
+     * tracks the cursor while it's over the `area` rectangle, and Click
+     * to launch only fires on clicks inside the area. Cursor / clicks
+     * outside the area are ignored. Useful for limiting fireworks
+     * interaction to a specific region (e.g. above a headline).
+     */
+    onlyInArea?: boolean;
     /** Rocket explosion target rectangle in canvas DESIGN coords (px). */
     area?: EffectArea;
     /** Inter-burst delay min (ms). */

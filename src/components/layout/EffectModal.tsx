@@ -1438,6 +1438,31 @@ function FireworksPanel({ fireworks, onChange }: FireworksPanelProps) {
           />
           <span className="text-neutral-700 dark:text-neutral-300">Follow cursor</span>
         </label>
+        <label
+          className="flex items-center gap-2 text-xs"
+          title="When OFF, the continuous random spawn stops — fireworks only fire on clicks (if Click to launch is on) or cursor movement (if Follow cursor is on). When ON (default), random fireworks fire continuously regardless of user input."
+        >
+          <input
+            type="checkbox"
+            checked={fireworks.autoFire !== false}
+            onChange={(e) => onChange({ autoFire: e.target.checked })}
+            className="h-3.5 w-3.5 cursor-pointer"
+          />
+          <span className="text-neutral-700 dark:text-neutral-300">Auto-fire</span>
+        </label>
+        <label
+          className="flex items-center gap-2 text-xs"
+          title="When ON, clicks and cursor tracking only register inside the area rectangle. Outside the area, nothing fires. (No effect when both Click to launch and Follow cursor are off.)"
+        >
+          <input
+            type="checkbox"
+            checked={Boolean(fireworks.onlyInArea)}
+            onChange={(e) => onChange({ onlyInArea: e.target.checked })}
+            disabled={!fireworks.followMouse && !fireworks.followCursor}
+            className="h-3.5 w-3.5 cursor-pointer"
+          />
+          <span className="text-neutral-700 dark:text-neutral-300">Only inside area</span>
+        </label>
         <label className="flex items-center gap-2 text-xs">
           <span className="text-neutral-500">Line style</span>
           <select
