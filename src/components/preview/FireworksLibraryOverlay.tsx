@@ -248,7 +248,19 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
     const fwInternal = fw as unknown as {
       mouse: { x: number; y: number; active: boolean };
       createTrace: () => void;
+      opts: { rocketsPoint: { min: number; max: number } };
     };
+
+    // Seed mouse.x|y to canvas center BEFORE doing anything else.
+    // mouse.x / mouse.y are undefined out of the box. If active gets
+    // turned on for Follow cursor and the delay-based spawn fires
+    // before the user has moved the cursor over the canvas, the
+    // library reads `this.mouse.x` (undefined) and builds the trace
+    // with `dx: undefined`. atan2 then returns NaN, the trace's
+    // angle is NaN, position never advances correctly, and the
+    // rocket either glitches or explodes at a bogus location.
+    fwInternal.mouse.x = canvas.width / 2;
+    fwInternal.mouse.y = canvas.height / 2;
 
     // While Follow cursor is on, keep mouse.active true so the delay-
     // based spawn loop in createTrace honors mouse.x|y as the target.
@@ -271,16 +283,32 @@ export function FireworksLibraryOverlay({ effects, time, frameRef }: Props) {
       const { x, y } = localCoords(e);
       fwInternal.mouse.x = x;
       fwInternal.mouse.y = y;
+      // Spawn the rocket from canvas-bottom directly BELOW the click X
+      // so the arc goes straight up to where the user clicked — makes
+      // the cause/effect obvious. createTrace reads rocketsPoint to
+      // pick the spawn X as `width * rocketsPoint% / 100`; pinning
+      // both min and max to the click X percentage gives a vertical
+      // arc. Snapshot & restore the user's setting so this doesn't
+      // affect their normal delay-based spawn pattern.
+      const pct = canvas.width > 0
+        ? Math.max(0, Math.min(100, (x / canvas.width) * 100))
+        : 50;
+      const prevMin = fwInternal.opts.rocketsPoint.min;
+      const prevMax = fwInternal.opts.rocketsPoint.max;
+      fwInternal.opts.rocketsPoint.min = pct;
+      fwInternal.opts.rocketsPoint.max = pct;
       const wasActive = fwInternal.mouse.active;
       fwInternal.mouse.active = true;
       try {
         // Direct createTrace bypasses launch()'s deferred-stop side
         // effect AND the library's mouse.max gate on click-triggered
-        // spawns. Every click reliably spawns one rocket at the click
-        // point regardless of how many rockets are already in flight.
+        // spawns. Every click reliably spawns one rocket aimed at the
+        // click point regardless of how many rockets are in flight.
         fwInternal.createTrace();
       } finally {
         fwInternal.mouse.active = wasActive;
+        fwInternal.opts.rocketsPoint.min = prevMin;
+        fwInternal.opts.rocketsPoint.max = prevMax;
       }
     };
 
