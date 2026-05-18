@@ -19,6 +19,14 @@ interface AreaTarget {
   color: string;
   /** Short label shown above the bbox: "Particle area" / "Fireworks area". */
   label: string;
+  /**
+   * When true, the bbox body lets pointer events pass through to the
+   * canvas below — needed when the effect itself wants to listen to
+   * mouse events (fireworks Follow cursor / Click to launch). The
+   * label tag becomes the move-drag handle in this mode and the
+   * corner handles still resize.
+   */
+  passThroughBody: boolean;
 }
 
 /**
@@ -37,6 +45,9 @@ function collectAreaTargets(project: Project): AreaTarget[] {
           area: e.particle.area,
           color: c.color,
           label: "Particle area",
+          // Particle effects don't use canvas mouse events today; the
+          // bbox body can stay interactive for drag-to-move.
+          passThroughBody: false,
         });
       }
       if (e.type === "fireworks-js" && e.fireworks?.area) {
@@ -47,6 +58,16 @@ function collectAreaTargets(project: Project): AreaTarget[] {
           area: e.fireworks.area,
           color: c.color,
           label: "Fireworks area",
+          // Fireworks-js listens to canvas pointer events when Follow
+          // cursor (mouse.move) or Click to launch (mouse.click) is on.
+          // Make the bbox body transparent to pointer events in that
+          // case so the events reach the underlying canvas — otherwise
+          // the bbox visually sits on top of the canvas and silently
+          // eats every move/click. Bbox stays movable via the label
+          // tag and resizable via the corner handles.
+          passThroughBody: Boolean(
+            e.fireworks.followCursor || e.fireworks.followMouse,
+          ),
         });
       }
     }
@@ -174,6 +195,10 @@ function AreaBox({ target, scale }: { target: AreaTarget; scale: number }) {
   const handleSize = 12 / scale; // keep handles visually constant under transform
   const borderWidth = 2 / scale;
 
+  // When the body is "pass through", the bbox stops being a click target
+  // (so the canvas behind it gets mouse moves / clicks) and the drag-to-move
+  // affordance moves onto the label tag at the top-left.
+  const bodyInteractive = !target.passThroughBody;
   return (
     <div
       style={{
@@ -182,14 +207,18 @@ function AreaBox({ target, scale }: { target: AreaTarget; scale: number }) {
         top: target.area.y,
         width: target.area.width,
         height: target.area.height,
-        pointerEvents: "auto",
-        cursor: "move",
+        pointerEvents: bodyInteractive ? "auto" : "none",
+        cursor: bodyInteractive ? "move" : "default",
         boxSizing: "border-box",
         border: `${borderWidth}px dashed ${target.color}`,
         background: "transparent",
       }}
-      onPointerDown={onMoveDown}
-      title={`${target.label} — drag to move, drag corners to resize`}
+      onPointerDown={bodyInteractive ? onMoveDown : undefined}
+      title={
+        bodyInteractive
+          ? `${target.label} — drag to move, drag corners to resize`
+          : `${target.label} — drag the label to move, corners to resize`
+      }
     >
       <span
         style={{
@@ -203,9 +232,13 @@ function AreaBox({ target, scale }: { target: AreaTarget; scale: number }) {
           color: "#0a0a0a",
           borderRadius: 3 / scale,
           whiteSpace: "nowrap",
-          pointerEvents: "none",
+          // Label is the drag-handle when the body is pass-through;
+          // otherwise it's a static caption.
+          pointerEvents: bodyInteractive ? "none" : "auto",
+          cursor: bodyInteractive ? "default" : "move",
           userSelect: "none",
         }}
+        onPointerDown={bodyInteractive ? undefined : onMoveDown}
       >
         {target.label}
       </span>
