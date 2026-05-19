@@ -1299,6 +1299,8 @@ interface FireworksPanelProps {
     lineWidthTraceMin?: number;
     lineWidthTraceMax?: number;
     continueAfter?: boolean;
+    autoFire?: boolean;
+    onlyInArea?: boolean;
   };
   onChange: (update: Partial<FireworksPanelProps["fireworks"]>) => void;
 }
