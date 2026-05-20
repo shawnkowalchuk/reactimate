@@ -94,29 +94,43 @@ function formatForMotion(prop: AnimatableProp, value: PropValue): PropValue {
 }
 
 /**
- * An effect's timing for one letter when `staggerLetters` is on. Each
- * letter starts `staggerDelay` later than the previous, and its window
- * shrinks so every letter still finishes at the effect's nominal end —
- * exactly the per-letter math the compose engine uses for the preview.
- * `letterIndex` undefined → whole-component timing (no stagger).
+ * An effect's timing for one letter of a per-letter (typewriter or
+ * `staggerLetters`) component. Mirrors the compose engine exactly:
+ *  - typewriter      → each letter offset by `duration / charCount`
+ *  - `staggerLetters` → each letter offset by `staggerDelay`
+ *  - any other effect on a per-letter component plays in sync
+ * The window shrinks so every letter still finishes at the effect's
+ * nominal end; snap-mode typewriter letters flip near-instantly.
+ * `letterIndex` undefined → whole-component timing (no per-letter split).
  */
 function effectTiming(
   e: Effect,
   letterIndex: number | undefined,
   charCount: number,
 ): { start: number; duration: number } {
-  if (letterIndex === undefined || !e.staggerLetters) {
+  if (letterIndex === undefined) {
     return { start: e.startTime, duration: e.duration };
   }
   const idx =
     e.staggerDirection === "reverse"
       ? Math.max(0, charCount - 1 - letterIndex)
       : letterIndex;
-  const shift = (e.staggerDelay ?? 0.05) * idx;
-  return {
-    start: e.startTime + shift,
-    duration: shift > 0 ? Math.max(0.001, e.duration - shift) : e.duration,
-  };
+  let shift: number;
+  if (e.type === "typewriter") {
+    shift = (e.duration / Math.max(1, charCount)) * idx;
+  } else if (e.staggerLetters) {
+    shift = (e.staggerDelay ?? 0.05) * idx;
+  } else {
+    // A non-staggered effect sharing a per-letter component is in sync.
+    return { start: e.startTime, duration: e.duration };
+  }
+  const isSnap = e.type === "typewriter" && e.typewriter?.mode === "snap";
+  const duration = isSnap
+    ? Math.max(0.001, e.duration / 1000)
+    : shift > 0
+      ? Math.max(0.001, e.duration - shift)
+      : e.duration;
+  return { start: e.startTime + shift, duration };
 }
 
 /**

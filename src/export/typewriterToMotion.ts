@@ -1,5 +1,6 @@
 import type { Component, Effect, TypewriterShape } from "../types/project";
 import { fmt, jsxTextExpression } from "./format";
+import { buildComponentMotion, type ComponentMotion } from "./effectToMotion";
 
 /**
  * Find the typewriter effect on a component, if any. Components can have
@@ -11,24 +12,23 @@ export function typewriterOf(c: Component): Effect | undefined {
 
 /**
  * Render a component with a typewriter effect as a series of per-letter
- * motion.span elements with staggered reveal delays. When the typewriter
- * also has a shape config (square/circle), each letter gets a sibling
- * motion.span behind/in-front animating size/blur/fade.
+ * motion.span elements. Each letter carries the FULL component animation
+ * for that letter index — the typewriter reveal PLUS any other effect on
+ * the component (blur, slide, color-shift, …) — so a typewriter combined
+ * with a second effect exports faithfully. When the typewriter also has a
+ * shape config (square/circle), each letter gets a sibling motion.span
+ * animating size/blur/fade.
  *
- * Limitations:
- * - Other effects on the same component (slide, color-shift, etc.) are
- *   NOT folded into the per-letter spans yet — typewriter + extra effect
- *   combos only animate the typewriter reveal in the export.
- * - Line-spacing within the typed text is handled by line-height on the
- *   outer container; `\n` characters become `<br />`.
+ * Line-spacing within the typed text is handled by line-height on the
+ * outer container; `\n` characters become `<br />`.
  */
 export function renderTypewriterSpan(
   c: Component,
   text: string,
   effect: Effect,
+  totalDuration: number,
 ): string {
   const tw = effect.typewriter!;
-  const mode = tw.mode; // "snap" | "fade"
   const shape = tw.shape;
   const reverse = effect.staggerDirection === "reverse";
 
@@ -36,15 +36,14 @@ export function renderTypewriterSpan(
   // line-break characters are emitted as <br /> and don't get a slot.
   const chars = Array.from(text);
   const n = Math.max(1, chars.length);
+  // Per-letter slot — the optional shape animates over this window.
   const perLetter = effect.duration / n;
-  const fadeDur = mode === "snap" ? 0.001 : perLetter;
 
   const baseStyle: Record<string, unknown> = {
     fontFamily: c.style.fontFamily,
     fontSize: c.style.fontSize,
     fontWeight: c.style.fontWeight,
     letterSpacing: c.style.letterSpacing,
-    color: c.style.color,
     display: "inline-block",
     // Anchor scale animations at the baseline so per-letter scale
     // effects (e.g. typewriter + zoom combo) collapse / expand toward
@@ -52,6 +51,11 @@ export function renderTypewriterSpan(
     // transformOrigin in playback/useAnimationEngine.ts.
     transformOrigin: "50% 100%",
   };
+  // Color is identical for every letter — bake it in unless an effect
+  // (e.g. color-shift) animates it.
+  const probe = buildComponentMotion(c, totalDuration, 0, n);
+  if (probe.animate.color === undefined) baseStyle.color = c.style.color;
+  const styleStr = fmt(baseStyle, 1);
 
   const letterParts: string[] = [];
   for (let i = 0; i < chars.length; i++) {
@@ -60,12 +64,18 @@ export function renderTypewriterSpan(
       letterParts.push(`<br key={"br_${i}"} />`);
       continue;
     }
-    const idx = reverse ? n - 1 - i : i;
-    const delay = Math.round((effect.startTime + perLetter * idx) * 1000) / 1000;
+    // Every effect on the component, evaluated for THIS letter index —
+    // the typewriter reveal is just one of them.
+    const motion = buildComponentMotion(c, totalDuration, i, n);
     const display = ch === " " ? "\\u00a0" : ch;
-    const letterJsx = renderLetterSpan(baseStyle, delay, fadeDur, i, display);
+    const letterJsx = renderLetterSpan(styleStr, motion, i, display);
     if (shape) {
-      letterParts.push(renderLetterWithShape(letterJsx, shape, delay, perLetter, i));
+      const idx = reverse ? n - 1 - i : i;
+      const delay =
+        Math.round((effect.startTime + perLetter * idx) * 1000) / 1000;
+      letterParts.push(
+        renderLetterWithShape(letterJsx, shape, delay, perLetter, i),
+      );
     } else {
       letterParts.push(letterJsx);
     }
@@ -86,19 +96,20 @@ ${indent(letterParts.join("\n"), "  ")}
 }
 
 function renderLetterSpan(
-  baseStyle: Record<string, unknown>,
-  delay: number,
-  duration: number,
+  styleStr: string,
+  motion: ComponentMotion,
   i: number,
   ch: string,
 ): string {
-  return `<motion.span
-  key={"l_${i}"}
-  style={${fmt(baseStyle, 1)}}
-  initial={{ opacity: 0 }}
-  animate={{ opacity: 1 }}
-  transition={{ delay: ${delay}, duration: ${duration}, ease: "linear" }}
->{"${ch}"}</motion.span>`;
+  const Tag = motion.isStatic ? "span" : "motion.span";
+  const lines = [`<${Tag} key={"l_${i}"}`, `  style={${styleStr}}`];
+  if (!motion.isStatic) {
+    lines.push(`  initial={${fmt(motion.initial, 1)}}`);
+    lines.push(`  animate={${fmt(motion.animate, 1)}}`);
+    lines.push(`  transition={${fmt(motion.transition, 1)}}`);
+  }
+  lines.push(`>{"${ch}"}</${Tag}>`);
+  return lines.join("\n");
 }
 
 function renderLetterWithShape(

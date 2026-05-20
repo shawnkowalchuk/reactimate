@@ -205,7 +205,7 @@ export function generateReactComponent(project: Project): string {
       // render one motion.span per letter so the export matches the preview.
       const staggered = !tw && c.effects.some((e) => e.staggerLetters);
       let spanJsx = tw
-        ? renderTypewriterSpan(c, seg.text, tw)
+        ? renderTypewriterSpan(c, seg.text, tw, project.duration)
         : staggered
           ? renderStaggeredSpan(c, seg.text, project.duration)
           : renderComponentSpan(c, seg.text, project.duration);

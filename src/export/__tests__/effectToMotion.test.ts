@@ -157,6 +157,39 @@ describe("buildPropTransition", () => {
     expect(l3?.animate).toBe(1);
   });
 
+  it("folds a secondary effect into typewriter per-letter timing", () => {
+    const typewriter: Effect = {
+      id: "tw",
+      type: "typewriter",
+      startTime: 0,
+      duration: 1,
+      easing: "linear",
+      from: { opacity: 0 },
+      targets: { opacity: 1 },
+      staggerLetters: true,
+      typewriter: { mode: "fade" },
+    };
+    const blur: Effect = {
+      id: "bl",
+      type: "blur",
+      startTime: 0,
+      duration: 0.8,
+      easing: "ease-out",
+      from: { blur: 10 },
+      targets: { blur: 0 },
+    };
+    // Letter 2 of a 7-character component.
+    const m = buildComponentMotion(c({ effects: [typewriter, blur] }), 3, 2, 7);
+    expect(m.initial).toMatchObject({ opacity: 0, filter: "blur(10px)" });
+    expect(m.animate).toMatchObject({ opacity: 1, filter: "blur(0px)" });
+    const t = m.transition as Record<string, { delay: number; duration: number }>;
+    // Typewriter reveal is per-letter (duration / 7 per character)...
+    expect(t.opacity.delay).toBeCloseTo(2 / 7);
+    // ...the blur has no staggerLetters, so it plays in sync for every letter.
+    expect(t.filter.delay).toBe(0);
+    expect(t.filter.duration).toBe(0.8);
+  });
+
   it("wraps blur as a Motion `filter: blur(Npx)` string", () => {
     // Blur-in: from 8 → 0. Motion's `filter` needs a CSS string —
     // a bare number is invalid.
