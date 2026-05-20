@@ -17,8 +17,8 @@ describe("generateReactComponent", () => {
 
   it("uses double-quoted strings inside JS expressions (idiomatic)", () => {
     const out = generateReactComponent(makeSampleProject());
-    // Easing names should be double-quoted in transition objects
-    expect(out).toMatch(/ease: "easeOut"/);
+    // Non-linear easing resolves to the engine-matched EASE table.
+    expect(out).toMatch(/ease: EASE\["ease-out"\]/);
     // Style values should use double quotes
     expect(out).toMatch(/fontFamily: "Inter"/);
   });

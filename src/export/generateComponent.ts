@@ -1,5 +1,6 @@
 import type { Component, Effect, Project } from "../types/project";
 import { buildComponentMotion } from "./effectToMotion";
+import { easeHelperSource } from "./easingMap";
 import { fmt, jsxTextExpression } from "./format";
 import {
   buildParticleLayers,
@@ -349,6 +350,11 @@ export function generateReactComponent(project: Project): string {
   const uniqueImports = Array.from(new Set(imports));
 
   const helperParts: string[] = [];
+  // The EASE table — emitted whenever a transition references it (any
+  // non-linear easing). Its curves must match the engine exactly.
+  if (inner.includes("EASE[")) {
+    helperParts.push(easeHelperSource());
+  }
   // Shared particle declarations (PARTICLE_PATHS + PRESET_COLOR_FN) come
   // first if either keyframed or cursor particles are present. Both
   // helpers reference these at module scope.

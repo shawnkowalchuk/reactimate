@@ -3,7 +3,12 @@ import {
   buildComponentMotion,
   buildPropTransition,
 } from "../effectToMotion";
+import { raw } from "../format";
 import type { Component, Effect } from "../../types/project";
+
+// Non-linear easings export as an EASE[...] lookup so the curve matches
+// the engine exactly; `raw` produces the expected formatted token.
+const ease = (type: string) => raw(`EASE[${JSON.stringify(type)}]`);
 
 const c = (overrides: Partial<Component> = {}): Component => ({
   id: "c1",
@@ -57,7 +62,7 @@ describe("buildPropTransition", () => {
       motionProp: "opacity",
       initial: 0,
       animate: 1,
-      transition: { delay: 0.1, duration: 0.6, ease: "easeOut" },
+      transition: { delay: 0.1, duration: 0.6, ease: ease("ease-out") },
     });
   });
 
@@ -80,10 +85,10 @@ describe("buildPropTransition", () => {
     expect(result?.animate).toEqual([0, 1, 1, 0.3]);
     const t = (result?.transition as { times: number[] }).times;
     expect(t).toEqual([0, 1 / 3, 2 / 3, 1].map((x) => +x.toFixed(6)));
-    expect((result?.transition as { ease: string[] }).ease).toEqual([
-      "easeOut",
+    expect((result?.transition as { ease: unknown[] }).ease).toEqual([
+      ease("ease-out"),
       "linear",
-      "easeIn",
+      ease("ease-in"),
     ]);
   });
 
@@ -244,7 +249,7 @@ describe("buildComponentMotion", () => {
     expect(result.transition).toEqual({
       delay: 0.7,
       duration: 0.6,
-      ease: "easeOut",
+      ease: ease("ease-out"),
     });
     expect(result.initial).toMatchObject({ opacity: 0, y: 0, scale: 1 });
     expect(result.animate).toMatchObject({ opacity: 1, y: 0, scale: 1 });
@@ -273,7 +278,7 @@ describe("buildComponentMotion", () => {
     expect((result.transition as Record<string, unknown>).opacity).toEqual({
       delay: 0.1,
       duration: 0.6,
-      ease: "easeOut",
+      ease: ease("ease-out"),
     });
   });
 });

@@ -204,7 +204,8 @@ export function buildPropTransition(
   // Multi-effect: keyframes
   const times: number[] = [];
   const values: PropValue[] = [];
-  const eases: string[] = [];
+  // Mixed: "linear" strings for hold segments, EASE[...] raw refs otherwise.
+  const eases: unknown[] = [];
 
   // First keyframe: t=0. Use the first effect's explicit `from` if it
   // has one (the engine shows it even before the effect starts).

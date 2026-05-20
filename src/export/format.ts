@@ -19,6 +19,27 @@ const DEFAULT_OPTS: FmtOptions = {
   maxInline: 60,
 };
 
+/**
+ * A pre-formatted code fragment that `fmt` emits verbatim — used to drop
+ * a bare identifier or expression (e.g. `EASE["ease-in"]`) into generated
+ * code where a quoted string would be wrong.
+ */
+interface RawCode {
+  __raw__: string;
+}
+
+export function raw(code: string): RawCode {
+  return { __raw__: code };
+}
+
+function isRaw(value: unknown): value is RawCode {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as RawCode).__raw__ === "string"
+  );
+}
+
 export function fmt(
   value: unknown,
   depth = 0,
@@ -26,6 +47,7 @@ export function fmt(
 ): string {
   if (value === null) return "null";
   if (value === undefined) return "undefined";
+  if (isRaw(value)) return value.__raw__;
   if (typeof value === "number") {
     if (Number.isInteger(value)) return String(value);
     return String(+value.toFixed(6));
