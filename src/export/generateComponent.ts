@@ -209,6 +209,11 @@ export function generateReactComponent(project: Project): string {
         : staggered
           ? renderStaggeredSpan(c, seg.text, project.duration)
           : renderComponentSpan(c, seg.text, project.duration);
+      // A slide effect with "Mask box" clips the text in an
+      // overflow-hidden box so it slides in from behind a hard edge.
+      if (c.effects.some((e) => e.type === "slide" && e.maskBox)) {
+        spanJsx = `<span style={{ display: "inline-block", overflow: "hidden", verticalAlign: "bottom" }}>\n${indent(spanJsx, "  ")}\n</span>`;
+      }
       // If a spotlight on this component asks to mask the text, wrap
       // the rendered span in a <MaskedText> helper that clips it (or
       // overlays a tinted copy) following the spotlight position.

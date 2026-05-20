@@ -71,7 +71,16 @@ export function renderTypewriterSpan(
     }
   }
 
-  return `<span style={{ display: "inline-block" }}>
+  // offsetX / offsetY shift the whole typed block by a static translate
+  // (used to stack duplicate components into a layered shadow / outline).
+  const offX = tw.offsetX ?? 0;
+  const offY = tw.offsetY ?? 0;
+  const wrapStyle =
+    offX !== 0 || offY !== 0
+      ? `{{ display: "inline-block", transform: "translate(${offX}px, ${offY}px)" }}`
+      : `{{ display: "inline-block" }}`;
+
+  return `<span style=${wrapStyle}>
 ${indent(letterParts.join("\n"), "  ")}
 </span>`;
 }
