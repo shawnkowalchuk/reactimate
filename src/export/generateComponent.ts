@@ -1,4 +1,4 @@
-import type { Component, Project } from "../types/project";
+import type { Component, Effect, Project } from "../types/project";
 import { buildComponentMotion } from "./effectToMotion";
 import { fmt, jsxTextExpression } from "./format";
 import {
@@ -23,6 +23,9 @@ interface Segment {
   kind: "plain" | "component";
   text: string;
   component?: Component;
+  /** Character range of a `component` segment (after overlap clipping). */
+  start?: number;
+  end?: number;
 }
 
 function splitTextIntoSegments(project: Project): Segment[] {
@@ -34,11 +37,32 @@ function splitTextIntoSegments(project: Project): Segment[] {
     const s = Math.max(cursor, c.startIndex);
     const e = Math.min(text.length, c.endIndex);
     if (s > cursor) out.push({ kind: "plain", text: text.slice(cursor, s) });
-    if (e > s) out.push({ kind: "component", text: text.slice(s, e), component: c });
+    if (e > s) {
+      out.push({ kind: "component", text: text.slice(s, e), component: c, start: s, end: e });
+    }
     cursor = e;
   }
   if (cursor < text.length) {
     out.push({ kind: "plain", text: text.slice(cursor) });
+  }
+  return out;
+}
+
+/**
+ * Every effect animating the text run [start, end) — collected from ALL
+ * components that fully cover the run, not just the one chosen to render
+ * it. reactimate lets components overlap (e.g. one carries a fireworks
+ * effect, a duplicate carries a slide); without this the export renders
+ * the first component and silently drops the rest's animations.
+ */
+function effectsForRange(
+  start: number,
+  end: number,
+  components: Component[],
+): Effect[] {
+  const out: Effect[] = [];
+  for (const c of components) {
+    if (c.startIndex <= start && c.endIndex >= end) out.push(...c.effects);
   }
   return out;
 }
@@ -196,7 +220,14 @@ export function generateReactComponent(project: Project): string {
   const inner = segments
     .map((seg) => {
       if (seg.kind === "plain") return jsxTextExpression(seg.text);
-      const c = seg.component!;
+      const base = seg.component!;
+      // Render this text run once, but apply the effects of EVERY
+      // component covering it — so a slide on a duplicate component
+      // (overlapping the one that carries, say, fireworks) isn't lost.
+      const c: Component = {
+        ...base,
+        effects: effectsForRange(seg.start!, seg.end!, project.layer.components),
+      };
       // If the component has a typewriter effect, replace the single
       // motion.span with per-letter spans (staggered reveal, optional
       // per-letter shape).
@@ -271,6 +302,10 @@ export function generateReactComponent(project: Project): string {
     textAlign: project.layer.alignment,
     lineHeight: project.layer.lineHeight,
     whiteSpace: "pre-wrap",
+    // Wrap at the same content width the editor and preview use — the
+    // canvas minus the 64px design padding on each side. Without an
+    // explicit width the flex item grows to fit and the text never wraps.
+    width: Math.max(1, project.canvas.width - 128),
   };
 
   const particleSection = particleBlocks.length > 0
