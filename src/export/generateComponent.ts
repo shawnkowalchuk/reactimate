@@ -1,4 +1,5 @@
 import type { Component, Effect, Project } from "../types/project";
+import { FONTS } from "../constants/fonts";
 import { buildComponentMotion } from "./effectToMotion";
 import { easeHelperSource } from "./easingMap";
 import { fmt, jsxTextExpression } from "./format";
@@ -215,6 +216,28 @@ ${indent(innerJsx, "  ")}
 </MaskedText>`;
 }
 
+/**
+ * Google Fonts stylesheet URL covering every known font family the
+ * project uses. The exported hero references fonts by name, but the
+ * page it's dropped into won't have them loaded — without this the
+ * browser falls back to a default serif. Returns null when the project
+ * uses no font reactimate can serve from Google Fonts.
+ */
+function buildFontHref(project: Project): string | null {
+  const families = new Set<string>([project.defaultTextStyle.fontFamily]);
+  for (const c of project.layer.components) families.add(c.style.fontFamily);
+
+  const params: string[] = [];
+  for (const family of [...families].sort()) {
+    const font = FONTS.find((f) => f.family === family);
+    if (!font) continue;
+    params.push(`family=${family.replace(/ /g, "+")}:wght@${font.weights.join(";")}`);
+  }
+  return params.length > 0
+    ? `https://fonts.googleapis.com/css2?${params.join("&")}&display=swap`
+    : null;
+}
+
 export function generateReactComponent(project: Project): string {
   const segments = splitTextIntoSegments(project);
 
@@ -372,11 +395,17 @@ export function generateReactComponent(project: Project): string {
   if (needsMaskedText) helperParts.push(maskedTextHelperSource());
   const helpers = helperParts.length > 0 ? "\n" + helperParts.join("\n\n") + "\n" : "";
 
+  // Self-load the project's fonts — the consuming page won't have them.
+  const fontHref = buildFontHref(project);
+  const fontLink = fontHref
+    ? `\n      <link rel="stylesheet" href={${JSON.stringify(fontHref)}} />`
+    : "";
+
   return `${uniqueImports.join("\n")}
 ${helpers}
 export function Hero() {
   return (
-    <div style={${fmt(wrapperStyle, 3)}}>
+    <div style={${fmt(wrapperStyle, 3)}}>${fontLink}
       <div style={${fmt(innerStyle, 4)}}>
 ${indent(inner, "        ")}
       </div>${particleSection}${fireworksSection}${spotlightSection}
