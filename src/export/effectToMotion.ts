@@ -94,6 +94,32 @@ function formatForMotion(prop: AnimatableProp, value: PropValue): PropValue {
 }
 
 /**
+ * An effect's timing for one letter when `staggerLetters` is on. Each
+ * letter starts `staggerDelay` later than the previous, and its window
+ * shrinks so every letter still finishes at the effect's nominal end —
+ * exactly the per-letter math the compose engine uses for the preview.
+ * `letterIndex` undefined → whole-component timing (no stagger).
+ */
+function effectTiming(
+  e: Effect,
+  letterIndex: number | undefined,
+  charCount: number,
+): { start: number; duration: number } {
+  if (letterIndex === undefined || !e.staggerLetters) {
+    return { start: e.startTime, duration: e.duration };
+  }
+  const idx =
+    e.staggerDirection === "reverse"
+      ? Math.max(0, charCount - 1 - letterIndex)
+      : letterIndex;
+  const shift = (e.staggerDelay ?? 0.05) * idx;
+  return {
+    start: e.startTime + shift,
+    duration: shift > 0 ? Math.max(0.001, e.duration - shift) : e.duration,
+  };
+}
+
+/**
  * Build the per-property transition for a single component property
  * that is animated by one or more effects.
  *
@@ -111,6 +137,8 @@ export function buildPropTransition(
   component: Component,
   prop: AnimatableProp,
   totalDuration: number,
+  letterIndex?: number,
+  charCount = 1,
 ): PerPropTransition | null {
   const effects = getEffectsTouching(component.effects, prop);
   if (effects.length === 0) return null;
@@ -120,20 +148,25 @@ export function buildPropTransition(
 
   if (effects.length === 1) {
     const e = effects[0];
+    const { start: effStart, duration: effDur } = effectTiming(
+      e,
+      letterIndex,
+      charCount,
+    );
     const transition: Record<string, unknown> = {
-      delay: e.startTime,
-      duration: e.duration,
+      delay: effStart,
+      duration: effDur,
       ease: toMotionEase(e.easing),
     };
     // Loop: maps to motion's transition.repeat. loopForever computes
     // how many cycles fit inside the effect's window so the export
     // matches the editor preview (which bounds loops to the window).
     // Finite N is emitted as-is. repeatDelay only matters when repeating.
-    const cycleSpan = e.duration + Math.max(0, e.repeatDelay ?? 0);
+    const cycleSpan = effDur + Math.max(0, e.repeatDelay ?? 0);
     if (e.loopForever && cycleSpan > 0) {
       // floor(window / cycle) cycles fit cleanly; subtract 1 because
       // motion's repeat=N plays (N+1) times total.
-      const fits = Math.max(0, Math.floor(e.duration / cycleSpan) - 1);
+      const fits = Math.max(0, Math.floor(effDur / cycleSpan) - 1);
       if (fits > 0) {
         transition.repeat = fits;
         if (e.repeatDelay && e.repeatDelay > 0) {
@@ -167,25 +200,30 @@ export function buildPropTransition(
   values.push(lastValue);
 
   for (const e of effects) {
+    const { start: effStart, duration: effDur } = effectTiming(
+      e,
+      letterIndex,
+      charCount,
+    );
     const segFrom = fromValue(e, prop, lastValue);
-    // Hold from lastTime to e.startTime at lastValue
-    if (e.startTime > lastTime) {
-      times.push(e.startTime);
+    // Hold from lastTime to effStart at lastValue
+    if (effStart > lastTime) {
+      times.push(effStart);
       values.push(lastValue);
       eases.push("linear");
-      lastTime = e.startTime;
+      lastTime = effStart;
     }
     // An explicit `from` that differs from the held value is an instant
     // jump — a second keyframe at the same time (Motion reads equal
     // adjacent `times` as a hard cut).
     if (segFrom !== lastValue) {
-      times.push(e.startTime);
+      times.push(effStart);
       values.push(segFrom);
       eases.push("linear");
     }
     // The effect itself
     const target = e.targets[prop] as PropValue;
-    const endTime = Math.min(e.startTime + e.duration, totalDuration);
+    const endTime = Math.min(effStart + effDur, totalDuration);
     times.push(endTime);
     values.push(target);
     eases.push(toMotionEase(e.easing));
@@ -232,11 +270,15 @@ function transitionsEqual(
 export function buildComponentMotion(
   component: Component,
   totalDuration: number,
+  letterIndex?: number,
+  charCount = 1,
 ): ComponentMotion {
   const props = Object.keys(PROP_TO_MOTION) as AnimatableProp[];
 
   const perProp = props
-    .map((p) => buildPropTransition(component, p, totalDuration))
+    .map((p) =>
+      buildPropTransition(component, p, totalDuration, letterIndex, charCount),
+    )
     .filter((p): p is PerPropTransition => p !== null);
 
   if (perProp.length === 0) {

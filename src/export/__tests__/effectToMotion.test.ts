@@ -131,6 +131,32 @@ describe("buildPropTransition", () => {
     expect(result?.animate).toBe(0);
   });
 
+  it("shifts per-letter timing for staggered effects", () => {
+    const staggeredFade: Effect = {
+      id: "sf",
+      type: "fade",
+      startTime: 0,
+      duration: 0.6,
+      easing: "ease-out",
+      from: { opacity: 0 },
+      targets: { opacity: 1 },
+      staggerLetters: true,
+      staggerDelay: 0.05,
+    };
+    const comp = c({ effects: [staggeredFade] });
+    // Letter 0 — no shift.
+    expect(buildPropTransition(comp, "opacity", 3, 0, 10)?.transition).toMatchObject(
+      { delay: 0, duration: 0.6 },
+    );
+    // Letter 3 — delay shifts by 3 * 0.05; window shrinks to still end at 0.6.
+    const l3 = buildPropTransition(comp, "opacity", 3, 3, 10);
+    expect((l3!.transition as { delay: number }).delay).toBeCloseTo(0.15);
+    expect((l3!.transition as { duration: number }).duration).toBeCloseTo(0.45);
+    // The animated values are identical for every letter.
+    expect(l3?.initial).toBe(0);
+    expect(l3?.animate).toBe(1);
+  });
+
   it("wraps blur as a Motion `filter: blur(Npx)` string", () => {
     // Blur-in: from 8 → 0. Motion's `filter` needs a CSS string —
     // a bare number is invalid.

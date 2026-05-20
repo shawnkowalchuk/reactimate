@@ -80,6 +80,59 @@ function renderComponentSpan(c: Component, content: string, totalDuration: numbe
   return lines.join("\n");
 }
 
+/**
+ * Render a component whose effects use `staggerLetters` as one
+ * motion.span PER LETTER, each carrying the component's full animation
+ * but time-shifted by the per-letter stagger — mirroring how the editor
+ * preview renders staggered text. Without this a staggered fade / blur /
+ * slide would export as a single span animating the whole phrase at once.
+ */
+function renderStaggeredSpan(
+  c: Component,
+  content: string,
+  totalDuration: number,
+): string {
+  const chars = Array.from(content);
+  const charCount = Math.max(1, chars.length);
+
+  const baseStyle: Record<string, unknown> = {
+    fontFamily: c.style.fontFamily,
+    fontSize: c.style.fontSize,
+    fontWeight: c.style.fontWeight,
+    letterSpacing: c.style.letterSpacing,
+    display: "inline-block",
+    transformOrigin: "50% 100%",
+  };
+  // Color is the same for every letter — bake it in unless it animates.
+  const probe = buildComponentMotion(c, totalDuration, 0, charCount);
+  if (probe.animate.color === undefined) baseStyle.color = c.style.color;
+  const styleStr = fmt(baseStyle, 2);
+
+  const letters: string[] = [];
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i];
+    if (ch === "\n") {
+      letters.push(`<br key={"br_${i}"} />`);
+      continue;
+    }
+    const motion = buildComponentMotion(c, totalDuration, i, charCount);
+    const Tag = motion.isStatic ? "span" : "motion.span";
+    const lines = [`<${Tag} key={"l_${i}"}`];
+    lines.push(`  style={${styleStr}}`);
+    if (!motion.isStatic) {
+      lines.push(`  initial={${fmt(motion.initial, 2)}}`);
+      lines.push(`  animate={${fmt(motion.animate, 2)}}`);
+      lines.push(`  transition={${fmt(motion.transition, 2)}}`);
+    }
+    lines.push(`>${jsxTextExpression(ch)}</${Tag}>`);
+    letters.push(lines.join("\n"));
+  }
+
+  return `<span style={{ display: "inline-block" }}>
+${indent(letters.join("\n"), "  ")}
+</span>`;
+}
+
 function indent(s: string, prefix: string): string {
   return s
     .split("\n")
@@ -148,9 +201,14 @@ export function generateReactComponent(project: Project): string {
       // motion.span with per-letter spans (staggered reveal, optional
       // per-letter shape).
       const tw = typewriterOf(c);
+      // A non-typewriter effect with staggerLetters reveals per-character —
+      // render one motion.span per letter so the export matches the preview.
+      const staggered = !tw && c.effects.some((e) => e.staggerLetters);
       let spanJsx = tw
         ? renderTypewriterSpan(c, seg.text, tw)
-        : renderComponentSpan(c, seg.text, project.duration);
+        : staggered
+          ? renderStaggeredSpan(c, seg.text, project.duration)
+          : renderComponentSpan(c, seg.text, project.duration);
       // If a spotlight on this component asks to mask the text, wrap
       // the rendered span in a <MaskedText> helper that clips it (or
       // overlays a tinted copy) following the spotlight position.
