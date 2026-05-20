@@ -6,27 +6,29 @@ import { useCanvasScaleStore } from "../../store/canvasScaleStore";
 import { diffStrings } from "../../utils/textDiff";
 import { ComponentOverlay } from "./ComponentOverlay";
 import { EditorActions } from "./EditorActions";
+import { charOffsetToPoint, renderEditorDom } from "./editorDom";
 
 /**
  * Contenteditable text editor for the layer's hero text.
  *
  * Important: this component does NOT render `layer.text` as JSX
  * children. React reconciliation would fight the browser's text
- * input and collapse the caret to position 0 on every keystroke.
- * Instead the DOM text node is managed by a useLayoutEffect that
- * only writes when the store value diverged from the DOM (undo,
- * file load, reset-to-sample, etc.).
+ * input and collapse the caret on every keystroke. Instead the DOM
+ * is rebuilt imperatively by a useLayoutEffect that runs whenever
+ * the model (`text` or `components`) changes.
  *
- * The editor maintains a SINGLE text node so that
- * `Selection.startContainer === editor.firstChild` and
- * `Range.startOffset` is directly the character offset in
- * `layer.text`. To enforce this:
+ * The DOM is a controlled render of the model: each componentized
+ * run becomes a styled <span> carrying that component's font metrics
+ * (see `renderEditorDom`), so the editor wraps text at exactly the
+ * same points the preview does. On every `input` we read the flat
+ * `textContent` (character offsets stay stable regardless of the span
+ * structure), diff it into the store, then the layout effect rebuilds
+ * the canonical DOM and restores the caret by character offset.
  *  - Enter / paragraph-break input types are intercepted and
- *    replaced with a literal `\n` via `insertText`
- *  - Multi-line paste is normalized via the `paste` event
- *  - On every `input`, if the DOM ended up with extra nodes
- *    (browser put a <br> or <div>), we re-flatten textContent
- *    back into a single text node and restore the caret.
+ *    replaced with a literal `\n` via `insertText`.
+ *  - Multi-line paste is normalized via the `paste` event.
+ *  - IME composition is left to the browser (input events with
+ *    `isComposing` are skipped); the commit event re-syncs.
  */
 export function TextEditor() {
   const text = useProjectStore((s) => s.project.layer.text);
@@ -34,22 +36,37 @@ export function TextEditor() {
   const defaultTextStyle = useProjectStore(
     (s) => s.project.defaultTextStyle,
   );
+  const alignment = useProjectStore((s) => s.project.layer.alignment);
+  const lineHeight = useProjectStore((s) => s.project.layer.lineHeight);
   const updateLayerText = useProjectStore((s) => s.updateLayerText);
   const selectComponent = useSelectionStore((s) => s.selectComponent);
 
   const editorRef = useRef<HTMLDivElement>(null);
+  // Char offset to restore the caret to after the next model-driven
+  // rebuild. Set in `onInput` (captured post-keystroke); consumed by the
+  // render effect below. Null for external changes (undo / file load).
+  const pendingCaretRef = useRef<number | null>(null);
 
-  // External text changes (undo, file load, reset) → push into the DOM.
-  // User-keystroke updates round-trip through the store, but at the time
-  // this effect re-runs the DOM already matches the store, so we skip.
+  // Controlled render: rebuild the contenteditable from the model
+  // whenever `text` or `components` change — including per-component
+  // style edits (font size, family, weight, letter-spacing), so the
+  // editor stays pixel-faithful to the preview. Then restore the caret.
   useLayoutEffect(() => {
     const el = editorRef.current;
     if (!el) return;
-    if (el.textContent === text) return;
-    const wasFocused = document.activeElement === el;
-    el.textContent = text;
-    if (wasFocused) placeCaretAtEnd(el);
-  }, [text]);
+    const focused = document.activeElement === el;
+    let caret = pendingCaretRef.current;
+    pendingCaretRef.current = null;
+    if (caret == null && focused) {
+      // No keystroke pending — preserve wherever the live caret is.
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0 && el.contains(sel.anchorNode)) {
+        caret = caretCharOffset(el);
+      }
+    }
+    renderEditorDom(el, text, components);
+    if (focused && caret != null) placeCaretAt(el, caret);
+  }, [text, components]);
 
   // Intercept Enter / paragraph: insert a literal "\n" instead of
   // letting the browser insert a <br> or <div>. Same for multi-line
@@ -83,33 +100,28 @@ export function TextEditor() {
     };
   }, []);
 
-  const onInput = () => {
+  const onInput = (e: React.FormEvent<HTMLDivElement>) => {
+    // Mid-IME-composition input events: let the browser own the DOM;
+    // the commit event (isComposing false) re-syncs everything.
+    if ((e.nativeEvent as InputEvent).isComposing) return;
     const el = editorRef.current;
     if (!el) return;
 
-    // Reflatten — if the browser still inserted a <br> or <div>
-    // (some implementations do this even with our interceptor), flatten
-    // back to a single text node so Selection offsets stay character-true.
-    let dirty = false;
-    for (let n = el.firstChild; n; n = n.nextSibling) {
-      if (n.nodeType !== Node.TEXT_NODE) {
-        dirty = true;
-        break;
-      }
-    }
-    if (el.childNodes.length > 1) dirty = true;
-
-    let newText = el.textContent ?? "";
-    if (dirty) {
+    const newText = el.textContent ?? "";
+    if (newText === text) {
+      // No text change, but the browser may have left a non-canonical
+      // span structure (merged / split spans) — rebuild it canonically
+      // and keep the caret where it is.
       const caret = caretCharOffset(el);
-      el.textContent = newText;
-      newText = el.textContent ?? newText;
+      renderEditorDom(el, text, components);
       placeCaretAt(el, caret);
+      return;
     }
-
-    if (newText === text) return;
     const edit = diffStrings(text, newText);
     if (!edit) return;
+    // Capture the post-keystroke caret; the render effect restores it
+    // once the store update round-trips back through the model.
+    pendingCaretRef.current = caretCharOffset(el);
     updateLayerText(newText, edit.editStart, edit.editEnd, edit.newLength);
   };
 
@@ -200,19 +212,24 @@ export function TextEditor() {
               autoCorrect="off"
               autoCapitalize="off"
               onInput={onInput}
-              className="relative z-10 whitespace-pre-wrap text-center outline-none caret-sky-400"
+              className="relative z-10 whitespace-pre-wrap outline-none caret-sky-400"
               style={{
                 // width: 100% forces the contenteditable to span the full
                 // padded canvas area instead of shrinking to its content's
                 // min-width (which is what happens by default for a flex
                 // item under justify-content: center). RenderedText already
                 // uses width: 100% so this lines the two wrap points up.
+                // fontFamily / fontSize / fontWeight / color / lineHeight /
+                // textAlign mirror RenderedText's root so plain text and
+                // wrap points match the preview; componentized runs get
+                // their own per-component styles via renderEditorDom.
                 width: "100%",
                 fontFamily: defaultTextStyle.fontFamily,
                 fontSize: defaultTextStyle.fontSize,
-                lineHeight: 1.1,
+                lineHeight: lineHeight,
                 fontWeight: defaultTextStyle.fontWeight,
                 color: defaultTextStyle.color,
+                textAlign: alignment,
               }}
             />
           </div>
@@ -260,14 +277,12 @@ function placeCaretAtEnd(el: HTMLElement) {
 }
 
 function placeCaretAt(el: HTMLElement, offset: number) {
-  const node = el.firstChild;
-  if (!node || node.nodeType !== Node.TEXT_NODE) {
-    placeCaretAtEnd(el);
-    return;
-  }
+  // Walk the styled-span tree to resolve the character offset to a
+  // concrete (node, offset) point — the editor is no longer a single
+  // flat text node.
+  const point = charOffsetToPoint(el, offset);
   const range = document.createRange();
-  const safe = Math.max(0, Math.min(offset, (node.textContent ?? "").length));
-  range.setStart(node, safe);
+  range.setStart(point.node, point.offset);
   range.collapse(true);
   const sel = window.getSelection();
   sel?.removeAllRanges();

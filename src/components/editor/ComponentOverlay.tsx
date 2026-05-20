@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { useSelectionStore } from "../../store/selectionStore";
 import type { Component } from "../../types/project";
+import { charOffsetToPoint } from "./editorDom";
 
 interface OverlayProps {
   editorRef: RefObject<HTMLDivElement | null>;
@@ -19,8 +20,9 @@ interface CompBox {
 
 /**
  * Renders colored highlight boxes and selection dots on top of
- * componentized text in the editor. Uses Range.getBoundingClientRect()
- * (single rect per component) for reliable positioning.
+ * componentized text in the editor. Each box is the union of every
+ * line rect a component's text occupies, so multi-line components are
+ * fully enclosed.
  */
 export function ComponentOverlay({ editorRef, components, text }: OverlayProps) {
   const [boxes, setBoxes] = useState<CompBox[]>([]);
@@ -36,20 +38,14 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
     if (!editor || !overlay) return;
 
     const compute = () => {
-      const textNode = findTextNode(editor);
-      if (!textNode) {
+      const fullText = editor.textContent ?? "";
+      const textLen = fullText.length;
+      if (textLen === 0) {
         setBoxes([]);
         return;
       }
       const overlayRect = overlay.getBoundingClientRect();
-      const textLen = textNode.textContent?.length ?? 0;
 
-      const sel = window.getSelection();
-      const savedRanges = sel
-        ? Array.from({ length: sel.rangeCount }, (_, i) => sel.getRangeAt(i).cloneRange())
-        : [];
-
-      const fullText = textNode.textContent ?? "";
       const next: CompBox[] = [];
       for (const c of components) {
         let start = Math.max(0, Math.min(c.startIndex, textLen));
@@ -57,24 +53,26 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
         // Skip leading and trailing whitespace (especially \n) so a
         // component whose range happens to include the newline separator
         // before / after it doesn't blow up the bbox across two lines.
-        // Range.getBoundingClientRect() unions every line rect — even an
-        // empty line break contributes a near-zero rect that pulls the
-        // bbox top up to the previous line.
         while (start < end && /\s/.test(fullText[start] ?? "")) start++;
         while (end > start && /\s/.test(fullText[end - 1] ?? "")) end--;
         if (end <= start) continue;
+        // The editor renders componentized text as styled spans, so a
+        // character offset can land inside any descendant text node —
+        // resolve both ends through the span tree.
+        const a = charOffsetToPoint(editor, start);
+        const b = charOffsetToPoint(editor, end);
         const range = document.createRange();
         try {
-          range.setStart(textNode, start);
-          range.setEnd(textNode, end);
+          range.setStart(a.node, a.offset);
+          range.setEnd(b.node, b.offset);
         } catch {
           continue;
         }
-        // Pick the LARGEST client rect (skips tiny leading-edge fragments
-        // that some browsers emit for ranges starting at a line boundary)
-        // and fall back to getBoundingClientRect when there are no rects.
-        const rects = Array.from(range.getClientRects());
-        const r = rects.length > 0 ? largestRect(rects) : range.getBoundingClientRect();
+        // Union every line rect so a component whose text wraps onto
+        // multiple lines gets a box enclosing ALL of them — not just the
+        // single largest line.
+        const r = unionRects(Array.from(range.getClientRects()));
+        if (!r) continue;
         next.push({
           id: c.id,
           color: c.color,
@@ -85,23 +83,28 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
         });
       }
 
-      if (sel) {
-        sel.removeAllRanges();
-        savedRanges.forEach((r) => sel.addRange(r));
-      }
-
       setBoxes(next);
     };
 
     compute();
     const ro = new ResizeObserver(compute);
     ro.observe(editor);
+    // The editor rebuilds its DOM imperatively (styled spans) on every
+    // model change — watch for that so the boxes track font-size /
+    // text edits even when the editor's own box size doesn't change.
+    const mo = new MutationObserver(compute);
+    mo.observe(editor, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
     window.addEventListener("resize", compute);
     if (document.fonts) {
       document.fonts.ready.then(compute).catch(() => undefined);
     }
     return () => {
       ro.disconnect();
+      mo.disconnect();
       window.removeEventListener("resize", compute);
     };
   }, [editorRef, components, text]);
@@ -192,22 +195,27 @@ export function ComponentOverlay({ editorRef, components, text }: OverlayProps) 
   );
 }
 
-function findTextNode(host: HTMLElement): Text | null {
-  for (let n = host.firstChild; n; n = n.nextSibling) {
-    if (n.nodeType === Node.TEXT_NODE) return n as Text;
-  }
-  return null;
-}
-
 /**
- * Pick the rect with the largest area — skips tiny line-edge fragments
- * (those near-zero rects browsers emit when a range starts or ends at a
- * line break) that would otherwise inflate the bbox across two lines.
+ * Union all client rects into the smallest box that encloses them,
+ * after dropping degenerate line-edge fragments — the near-zero-width
+ * slivers browsers emit when a range starts or ends at a line boundary.
+ * For a component whose text wraps onto multiple lines this returns the
+ * box covering every line; the highlight then includes the upper line,
+ * not just whichever single line happened to be widest.
  */
-function largestRect(rects: DOMRect[]): DOMRect {
-  let best = rects[0];
-  for (const r of rects) {
-    if (r.width * r.height > best.width * best.height) best = r;
+function unionRects(rects: DOMRect[]): DOMRect | null {
+  const solid = rects.filter((r) => r.width > 0.5 && r.height > 0.5);
+  const use = solid.length > 0 ? solid : rects;
+  if (use.length === 0) return null;
+  let top = Infinity;
+  let left = Infinity;
+  let right = -Infinity;
+  let bottom = -Infinity;
+  for (const r of use) {
+    top = Math.min(top, r.top);
+    left = Math.min(left, r.left);
+    right = Math.max(right, r.right);
+    bottom = Math.max(bottom, r.bottom);
   }
-  return best;
+  return new DOMRect(left, top, right - left, bottom - top);
 }
