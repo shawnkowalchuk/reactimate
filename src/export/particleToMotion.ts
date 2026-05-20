@@ -190,6 +190,19 @@ function pseudo(seed: number, k: number): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
+/**
+ * Time-driven horizontal sway applied to the WHOLE group of non-standard
+ * particles (fireworks / volcano / dropping). Mirrors the `gwX` term in
+ * the runtime ParticleOverlay so the exported burst drifts in sync with
+ * the editor preview. Standard particles get no group sway.
+ */
+function groupWobbleX(timeSec: number, eSeed: number): number {
+  return (
+    Math.sin(timeSec * 0.4 + eSeed) * 40 +
+    Math.cos(timeSec * 0.65 + eSeed + 1) * 30
+  );
+}
+
 interface ExportedParticleKeyframed {
   /** Particle shape: star / circle / diamond / square. */
   shape: string;
@@ -260,6 +273,8 @@ export function buildParticleLayers(
     const continueAfter = Boolean(cfg.continueAfter);
     const shape = cfg.shape ?? "star";
     const rotSpeed = cfg.rotationSpeed ?? 0;
+    // Seed for the group sway — keyed on the effect id, same as the runtime.
+    const eSeed = hash(e.id);
 
     // Sample N points along each particle's lifespan and emit them as
     // motion keyframes. 10 samples is enough for visually-smooth physics
@@ -304,7 +319,10 @@ export function buildParticleLayers(
           continue;
         }
         ok = true;
-        xs.push(Math.round((area.x + path.x) * 10) / 10);
+        // Non-standard types sway as a group; sample the sway at this
+        // keyframe's absolute time so it lines up with the preview.
+        const gwX = type === "standard" ? 0 : groupWobbleX(spawnT + age, eSeed);
+        xs.push(Math.round((area.x + path.x + gwX) * 10) / 10);
         ys.push(Math.round((area.y + path.y) * 10) / 10);
         opacities.push(Math.round(path.opacity * 100) / 100);
         scales.push(Math.round((path.scale ?? 1) * 100) / 100);
