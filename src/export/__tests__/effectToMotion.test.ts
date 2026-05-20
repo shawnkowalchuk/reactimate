@@ -106,6 +106,55 @@ describe("buildPropTransition", () => {
     );
     expect(result?.motionProp).toBe("rotate");
   });
+
+  it("uses the effect's explicit `from` for the initial value", () => {
+    // A slide-in: from y -100 → 0. The component's base style.y is 0, so
+    // ignoring `from` (the old bug) would export a no-op 0 → 0.
+    const result = buildPropTransition(
+      c({
+        effects: [
+          {
+            id: "slide",
+            type: "slide",
+            startTime: 0,
+            duration: 0.6,
+            easing: "ease-out",
+            from: { y: -100 },
+            targets: { y: 0 },
+          },
+        ],
+      }),
+      "y",
+      3,
+    );
+    expect(result?.initial).toBe(-100);
+    expect(result?.animate).toBe(0);
+  });
+
+  it("wraps blur as a Motion `filter: blur(Npx)` string", () => {
+    // Blur-in: from 8 → 0. Motion's `filter` needs a CSS string —
+    // a bare number is invalid.
+    const result = buildPropTransition(
+      c({
+        effects: [
+          {
+            id: "blur",
+            type: "blur",
+            startTime: 0,
+            duration: 0.5,
+            easing: "ease-out",
+            from: { blur: 8 },
+            targets: { blur: 0 },
+          },
+        ],
+      }),
+      "blur",
+      3,
+    );
+    expect(result?.motionProp).toBe("filter");
+    expect(result?.initial).toBe("blur(8px)");
+    expect(result?.animate).toBe("blur(0px)");
+  });
 });
 
 describe("buildComponentMotion", () => {

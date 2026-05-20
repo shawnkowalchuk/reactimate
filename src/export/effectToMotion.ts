@@ -69,6 +69,31 @@ function getStartValue(
 }
 
 /**
+ * The value `prop` animates FROM for `effect`. An explicit `effect.from`
+ * entry wins; otherwise it falls back to the chained value (the previous
+ * effect's target, or the component's base style for the first effect).
+ * Mirrors the compose engine's precedence — without this the export
+ * drops every entrance's start state (a blur-in becomes 0 → 0).
+ */
+function fromValue(
+  effect: Effect,
+  prop: AnimatableProp,
+  fallback: PropValue,
+): PropValue {
+  const explicit = effect.from?.[prop];
+  return explicit !== undefined ? (explicit as PropValue) : fallback;
+}
+
+/**
+ * Motion's `filter` property needs a CSS function string — a bare blur
+ * number (`filter: 8`) is invalid and animates nothing. Wrap blur values
+ * as `blur(Npx)`. Every other prop animates fine as a raw number.
+ */
+function formatForMotion(prop: AnimatableProp, value: PropValue): PropValue {
+  return prop === "blur" ? `blur(${value}px)` : value;
+}
+
+/**
  * Build the per-property transition for a single component property
  * that is animated by one or more effects.
  *
@@ -91,6 +116,7 @@ export function buildPropTransition(
   if (effects.length === 0) return null;
 
   const start = getStartValue(component.style, prop);
+  const wrap = (v: PropValue) => formatForMotion(prop, v);
 
   if (effects.length === 1) {
     const e = effects[0];
@@ -122,8 +148,8 @@ export function buildPropTransition(
     }
     return {
       motionProp: PROP_TO_MOTION[prop],
-      initial: start,
-      animate: e.targets[prop] as PropValue,
+      initial: wrap(fromValue(e, prop, start)),
+      animate: wrap(e.targets[prop] as PropValue),
       transition,
     };
   }
@@ -133,20 +159,29 @@ export function buildPropTransition(
   const values: PropValue[] = [];
   const eases: string[] = [];
 
-  let lastValue = start;
+  // First keyframe: t=0. Use the first effect's explicit `from` if it
+  // has one (the engine shows it even before the effect starts).
+  let lastValue: PropValue = fromValue(effects[0], prop, start);
   let lastTime = 0;
-
-  // First keyframe: t=0, start value
   times.push(0);
-  values.push(start);
+  values.push(lastValue);
 
   for (const e of effects) {
+    const segFrom = fromValue(e, prop, lastValue);
     // Hold from lastTime to e.startTime at lastValue
     if (e.startTime > lastTime) {
       times.push(e.startTime);
       values.push(lastValue);
       eases.push("linear");
       lastTime = e.startTime;
+    }
+    // An explicit `from` that differs from the held value is an instant
+    // jump — a second keyframe at the same time (Motion reads equal
+    // adjacent `times` as a hard cut).
+    if (segFrom !== lastValue) {
+      times.push(e.startTime);
+      values.push(segFrom);
+      eases.push("linear");
     }
     // The effect itself
     const target = e.targets[prop] as PropValue;
@@ -172,8 +207,8 @@ export function buildPropTransition(
 
   return {
     motionProp: PROP_TO_MOTION[prop],
-    initial: start,
-    animate: values,
+    initial: wrap(values[0]),
+    animate: values.map(wrap),
     transition: {
       duration: totalDuration,
       times: normTimes,
