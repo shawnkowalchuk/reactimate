@@ -53,11 +53,17 @@ export function buildFireworksExport(
 // Install: npm install fireworks-js
 function FireworksLayer({ config, width, height, autoStart = true }) {
   const canvasRef = useRef(null);
+  const hitRef = useRef(null);
+  const fwRef = useRef(null);
+
+  // Create the fireworks-js instance once.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     canvas.width = width;
     canvas.height = height;
+    const noAutoFire = config.autoFire === false;
+    const interactive = config.followMouse || config.followCursor;
     const fw = new Fireworks(canvas, {
       autoresize: false,
       opacity: config.opacity ?? 0.5,
@@ -72,7 +78,11 @@ function FireworksLayer({ config, width, height, autoStart = true }) {
       flickering: config.flickering ?? 50,
       lineStyle: config.lineStyle ?? "round",
       hue: { min: config.hueMin ?? 0, max: config.hueMax ?? 360 },
-      delay: { min: config.delayMin ?? 30, max: config.delayMax ?? 60 },
+      // Auto-fire off: push the inter-burst delay to infinity so rockets
+      // ONLY spawn from clicks / cursor, never from the random loop.
+      delay: noAutoFire
+        ? { min: 999999, max: 999999 }
+        : { min: config.delayMin ?? 30, max: config.delayMax ?? 60 },
       rocketsPoint: { min: config.rocketsPointMin ?? 30, max: config.rocketsPointMax ?? 70 },
       lineWidth: {
         explosion: { min: config.lineWidthExpMin ?? 1, max: config.lineWidthExpMax ?? 3 },
@@ -80,23 +90,104 @@ function FireworksLayer({ config, width, height, autoStart = true }) {
       },
       brightness: { min: config.brightnessMin ?? 50, max: config.brightnessMax ?? 80 },
       decay: { min: config.decayMin ?? 0.015, max: config.decayMax ?? 0.03 },
-      mouse: { click: config.followMouse ?? false, move: config.followCursor ?? false, max: 1 },
+      // The library's own click/move handlers are left OFF: they read raw
+      // pageX/Y (wrong inside a transformed parent) and fire the public
+      // launch(), which schedules the whole show to stop. The pointer
+      // effect below drives clicks via createTrace instead.
+      mouse: { click: false, move: false, max: interactive ? 20 : 1 },
       sound: { enabled: false },
       ...(config.boundaries ? { boundaries: config.boundaries } : {}),
     });
+    fwRef.current = fw;
+    // createCanvas inside the constructor resets boundaries to canvas
+    // size — re-apply the area-derived boundaries.
     if (config.boundaries) fw.updateBoundaries(config.boundaries);
     if (autoStart) fw.start();
-    return () => fw.stop(false);
+    return () => {
+      fw.stop(false);
+      fwRef.current = null;
+    };
   }, []);
+
+  // Click-to-launch / follow-cursor. The listeners live on a separate
+  // hit element so clicks OUTSIDE the fireworks region pass straight
+  // through to the page (buttons, links) instead of being swallowed.
+  useEffect(() => {
+    if (!config.followMouse && !config.followCursor) return;
+    const hit = hitRef.current;
+    const canvas = canvasRef.current;
+    const fw = fwRef.current;
+    if (!hit || !canvas || !fw) return;
+
+    // Seed the rocket target so a cursor-driven spawn before the first
+    // pointer event doesn't compute a NaN trajectory.
+    fw.mouse.x = canvas.width / 2;
+    fw.mouse.y = canvas.height / 2;
+    if (config.followCursor) fw.mouse.active = true;
+
+    const coords = (e) => {
+      const r = canvas.getBoundingClientRect();
+      const sx = r.width > 0 ? canvas.width / r.width : 1;
+      const sy = r.height > 0 ? canvas.height / r.height : 1;
+      return { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
+    };
+    const onDown = (e) => {
+      if (!config.followMouse) return;
+      const { x, y } = coords(e);
+      fw.mouse.x = x;
+      fw.mouse.y = y;
+      const wasActive = fw.mouse.active;
+      fw.mouse.active = true;
+      // createTrace fires one rocket NOW aimed at mouse.x/y — unlike
+      // launch(), it has no deferred-stop side effect.
+      try {
+        fw.createTrace();
+      } finally {
+        fw.mouse.active = wasActive;
+      }
+    };
+    const onMove = (e) => {
+      if (!config.followCursor) return;
+      const { x, y } = coords(e);
+      fw.mouse.x = x;
+      fw.mouse.y = y;
+      fw.mouse.active = true;
+    };
+    hit.addEventListener("pointerdown", onDown);
+    hit.addEventListener("pointermove", onMove);
+    return () => {
+      hit.removeEventListener("pointerdown", onDown);
+      hit.removeEventListener("pointermove", onMove);
+      fw.mouse.active = false;
+    };
+  }, []);
+
+  const interactive = config.followMouse || config.followCursor;
+  // "Only inside area" confines the interactive hit zone to the area
+  // rectangle, so clicks elsewhere on the page aren't swallowed.
+  // Otherwise the whole layer is interactive.
+  const hitStyle =
+    config.onlyInArea && config.area
+      ? {
+          position: "absolute",
+          left: config.area.x,
+          top: config.area.y,
+          width: config.area.width,
+          height: config.area.height,
+          pointerEvents: "auto",
+        }
+      : { position: "absolute", inset: 0, pointerEvents: "auto" };
+
   return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        position: "absolute",
-        inset: 0,
-        pointerEvents: config.followMouse || config.followCursor ? "auto" : "none",
-      }}
-    />
+    <>
+      {/* The canvas only renders — it never captures pointer events, so
+          decorative fireworks can't block the page underneath. */}
+      <canvas
+        ref={canvasRef}
+        style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+      />
+      {interactive && <div ref={hitRef} style={hitStyle} />}
+    </>
   );
 }`;
 
@@ -118,6 +209,8 @@ function FireworksLayer({ config, width, height, autoStart = true }) {
       lineStyle: fw.lineStyle,
       followMouse: fw.followMouse,
       followCursor: fw.followCursor,
+      autoFire: fw.autoFire,
+      onlyInArea: fw.onlyInArea,
       delayMin: fw.delayMin,
       delayMax: fw.delayMax,
       brightnessMin: fw.brightnessMin,
@@ -137,6 +230,9 @@ function FireworksLayer({ config, width, height, autoStart = true }) {
     for (const k of Object.keys(cfg)) {
       if (cfg[k] === undefined) delete cfg[k];
     }
+    // `area` positions the interactive hit zone; `boundaries` constrains
+    // where rockets explode. Both are emitted in canvas-design px.
+    if (fw.area) cfg.area = fw.area;
     if (boundaries) cfg.boundaries = boundaries;
 
     return `{/* fireworks-js effect ${e.id} */}
