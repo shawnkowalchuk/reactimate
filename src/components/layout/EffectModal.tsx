@@ -180,6 +180,12 @@ export function EffectModal() {
 
   if (!open || !component || !effect) return null;
 
+  // A "custom" effect is the blank placeholder — no effect type picked
+  // yet. Until the user chooses a real type, none of the configuration
+  // (easing, looping, stagger, keyframes, presets) applies, so it stays
+  // hidden to avoid implying a blank block can be tuned.
+  const isBlank = effect.type === "custom";
+
   const text = project.layer.text.slice(component.startIndex, component.endIndex);
   const onStart = (v: number) =>
     updateEffect(component.id, effect.id, { startTime: Math.max(0, v) });
@@ -375,12 +381,14 @@ export function EffectModal() {
           </span>
         </div>
 
-        <PresetBar
-          effect={effect}
-          onApply={(cfg) =>
-            updateEffect(component.id, effect.id, { ...cfg })
-          }
-        />
+        {!isBlank && (
+          <PresetBar
+            effect={effect}
+            onApply={(cfg) =>
+              updateEffect(component.id, effect.id, { ...cfg })
+            }
+          />
+        )}
 
         <label className="flex flex-col gap-1">
           <span className="text-xs text-neutral-500">Type</span>
@@ -429,7 +437,13 @@ export function EffectModal() {
           </label>
         </div>
 
-        {effect.type !== "fireworks-js" && effect.type !== "particle" && (
+        {isBlank && (
+          <p className="rounded border border-dashed border-neutral-300 px-3 py-2 text-xs text-neutral-500 dark:border-neutral-700">
+            Pick an effect type above to set up its animation.
+          </p>
+        )}
+
+        {!isBlank && effect.type !== "fireworks-js" && effect.type !== "particle" && (
         <div className="flex flex-col gap-1.5">
           <span className="text-xs text-neutral-500">Easing</span>
           <EasingPicker
@@ -442,7 +456,7 @@ export function EffectModal() {
         {/* Loop controls — hidden for particle / fireworks-js since those
             have their own continueAfter checkbox that handles spawner
             looping (and the two would overlap confusingly if both shown). */}
-        {effect.type !== "fireworks-js" && effect.type !== "particle" && (
+        {!isBlank && effect.type !== "fireworks-js" && effect.type !== "particle" && (
           <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-3">
             <label className="flex flex-col gap-1">
               <span
@@ -522,7 +536,7 @@ export function EffectModal() {
           </label>
         )}
 
-        {effect.type !== "particle" && effect.type !== "fireworks-js" && (
+        {!isBlank && effect.type !== "particle" && effect.type !== "fireworks-js" && (
           <div className="flex flex-col gap-1.5 rounded border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
             <label className="flex items-center gap-2 text-xs">
               <input
@@ -657,7 +671,8 @@ export function EffectModal() {
           />
         )}
 
-        {effect.type !== "spotlight" &&
+        {!isBlank &&
+          effect.type !== "spotlight" &&
           effect.type !== "particle" &&
           effect.type !== "typewriter" &&
           effect.type !== "fireworks-js" && (
