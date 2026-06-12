@@ -23,5 +23,4 @@ jobs:
           fi
           curl -fsSL --retry 3 --retry-delay 10 \
             -H "apikey: $SUPABASE_ANON_KEY" \
-            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
-            "$SUPABASE_URL/rest/v1/" -o /dev/null
+            "$SUPABASE_URL/auth/v1/health" -o /dev/null
