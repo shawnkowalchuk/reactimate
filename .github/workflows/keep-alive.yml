@@ -11,3 +11,17 @@ jobs:
     steps:
       - name: Ping production site
         run: curl -fsSL --retry 3 --retry-delay 10 https://reactimate.vercel.app/ -o /dev/null
+
+      - name: Ping Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "SUPABASE_URL / SUPABASE_ANON_KEY secrets not set — skipping"
+            exit 0
+          fi
+          curl -fsSL --retry 3 --retry-delay 10 \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/rest/v1/" -o /dev/null
