@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-08-12 · Firebase migration (see header commit)
+**Last updated:** 2026-08-12 · commit [`b73a69b`](https://github.com/shawnkowalchuk/reactimate/commit/b73a69b) (Supabase→Firebase migration)
 
 ---
 
