@@ -6,4 +6,4 @@ Allow: /feedback
 Disallow: /app
 Disallow: /admin
 
-Sitemap: https://reactimate.cloud/sitemap.xml
+Sitemap: https://reactimate.top/sitemap.xml

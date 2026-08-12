@@ -21,7 +21,7 @@
 - App entry: `main.tsx` mounts `<BrowserRouter>` with the route table; `themeStore` is imported for its side effect (applies `dark` class before first paint)
 
 ### SEO
-- Full meta tag suite in `index.html`: title, description, keywords, canonical (`https://reactimate.cloud/`), theme-color (per color-scheme), Open Graph (`og:type` / `og:url` / `og:title` / `og:description` / `og:image` / `og:locale`), Twitter card (`summary_large_image`), and a `robots` directive
+- Full meta tag suite in `index.html`: title, description, keywords, canonical (`https://reactimate.top/`), theme-color (per color-scheme), Open Graph (`og:type` / `og:url` / `og:title` / `og:description` / `og:image` / `og:locale`), Twitter card (`summary_large_image`), and a `robots` directive
 - JSON-LD structured data (`SoftwareApplication` schema) so search engines understand the product
 - `public/og-image.svg` — 1200×630 social-share card with the reactimate logo + tagline (referenced by `og:image` and `twitter:image`)
 - `public/robots.txt` — allows `/` and `/feedback`, disallows `/app` and `/admin`, points to the sitemap
@@ -250,11 +250,11 @@ The `Test-Project/` folder at the repo root is a bare Vite + React 19 + Motion s
 - Conventional commits; commit log is the design record
 
 ### Deployment
-- **Firebase Hosting**, project **`reactimate-cloud`** (us-central1 Firestore, Spark/free plan — no pausing, no card). Default URL `https://reactimate-cloud.web.app`; production domain **`https://reactimate.cloud`** (Hostinger DNS → Firebase). All SEO meta/sitemap/robots/OG URLs now point at `reactimate.cloud`
+- **Firebase Hosting**, project **`reactimate-cloud`** (us-central1 Firestore, Spark/free plan — no pausing, no card). Default URL `https://reactimate-cloud.web.app`; production domain **`https://reactimate.top`** (registered 2026-08-12 through 2031). All SEO meta/sitemap/robots/OG URLs point at `reactimate.top`. The older `reactimate.cloud` domain is deliberately unused — no DNS, no redirect — and lapses 2027-05
 - `firebase.json` — SPA rewrite (`** → /index.html`), long-cache headers for `/assets/**`, Firestore rules + indexes wiring. `.firebaserc` pins the default project
 - CI deploy job (`.github/workflows/ci.yml`) deploys on push to `main` after checks pass. Needs repo **variable** `VITE_FIREBASE_CONFIG` (set) and repo **secret** `FIREBASE_SERVICE_ACCOUNT_REACTIMATE_CLOUD` (pending — see follow-ups). Manual: `npm run build && firebase deploy --only hosting`
 - The Supabase keep-alive cron workflow is deleted — Firebase free projects never pause
-- Google Search Console verification file (`public/google995357ceb40b715c.html`) still ships; the `reactimate.cloud` property needs adding + sitemap resubmit (follow-up)
+- Google Search Console verification file (`public/google995357ceb40b715c.html`) still ships; the `reactimate.top` property needs adding + sitemap resubmit (follow-up)
 
 ---
 
@@ -265,8 +265,8 @@ The `Test-Project/` folder at the repo root is a bare Vite + React 19 + Motion s
 - Enable Auth providers in the Firebase console: Email/Password (+ Email link toggle), Google, Apple (Services ID / Team ID / Key ID / `.p8`, and the `__/auth/handler` return URL registered at developer.apple.com)
 - Create the CI deploy secret: Firebase console → Project settings → Service accounts → generate key, then `gh secret set FIREBASE_SERVICE_ACCOUNT_REACTIMATE_CLOUD < key.json` (or run `firebase init hosting:github` and keep only the secret it creates)
 - First hosting deploy + smoke test: all four sign-in methods, identity link/unlink, project autosave → Firestore, presets, feedback + admin reply, admin gate, auth-off localStorage mode
-- Point `reactimate.cloud` DNS (Hostinger) at Firebase Hosting (console → Hosting → Add custom domain gives the records) and add the domain to Auth → Settings → Authorized domains
-- Add the `reactimate.cloud` property in Google Search Console + resubmit the sitemap
+- Point `reactimate.top` DNS at Firebase Hosting (console → Hosting → Add custom domain gives the records) and add the domain to Auth → Settings → Authorized domains
+- Add the `reactimate.top` property in Google Search Console + resubmit the sitemap
 - After cutover is verified: delete the Vercel project and the old Supabase project; remove the now-unused `SUPABASE_URL` / `SUPABASE_ANON_KEY` repo secrets
 - Optional: link the Firebase project to GA4 (console → Integrations) and add the resulting `measurementId` to `VITE_FIREBASE_CONFIG` (repo variable + `.env.local`) to activate the built-in analytics hook
 

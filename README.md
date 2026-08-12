@@ -166,7 +166,7 @@ When signed in, your **current project and effect presets sync to your account**
 
 ## Deployment
 
-Hosted on **Firebase Hosting** (project `reactimate-cloud`) at https://reactimate.cloud. Pushes to `main` auto-deploy via the `deploy` job in [ci.yml](./.github/workflows/ci.yml) after lint/typecheck/test/build pass. That job needs two repo settings:
+Hosted on **Firebase Hosting** (project `reactimate-cloud`) at https://reactimate.top. Pushes to `main` auto-deploy via the `deploy` job in [ci.yml](./.github/workflows/ci.yml) after lint/typecheck/test/build pass. That job needs two repo settings:
 
 - **Actions variable** `VITE_FIREBASE_CONFIG` — the public web-app config JSON baked into the build.
 - **Actions secret** `FIREBASE_SERVICE_ACCOUNT_REACTIMATE_CLOUD` — a service-account key with Hosting deploy rights (Firebase console → Project settings → Service accounts, or `firebase init hosting:github` to generate one).
