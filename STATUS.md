@@ -262,10 +262,10 @@ The `Test-Project/` folder at the repo root is a bare Vite + React 19 + Motion s
 
 ### Firebase cutover — remaining manual steps
 **Status (2026-08-12 EOD):** LIVE and verified at https://reactimate.top — DNS connected, cert issued (~32 min), all four auth providers enabled + authorized. Verified on prod: Google sign-in, Apple sign-in, email/password sign-up (verification email delivered; landed in spam pre-custom-domain), profile bootstrap (create-race fixed in `82d435e`), admin gate, Firestore autosave. GitHub hardening on: secret scanning, push protection, Dependabot security updates (`npm audit` 10 → 0 same day). **Custom email domain** (`noreply@reactimate.top`): SPF merged with Namecheap forwarding SPF, `firebase=` TXT + both DKIM CNAMEs added and resolving — awaiting Firebase's verification pass (auto-switches senders when done; fixes the spam-folder problem). Remaining:
+- ~~Teardown~~ **DONE 2026-08-12**: Vercel project and Supabase project deleted; `SUPABASE_URL` / `SUPABASE_ANON_KEY` repo secrets removed. reactimate.vercel.app is gone (no redirect — old indexed URLs will fall out of Google naturally)
 - Quick magic-link sign-in test once the email domain verifies (the link email will come from noreply@reactimate.top)
 - Create the CI deploy secret: Firebase console → Project settings → Service accounts → generate key, then `gh secret set FIREBASE_SERVICE_ACCOUNT_REACTIMATE_CLOUD < key.json` (until then the ci.yml deploy job fails on main pushes; manual `firebase deploy --only hosting` works)
 - Add the `reactimate.top` property in Google Search Console + resubmit the sitemap
-- Teardown: delete the Vercel project and the old Supabase project; remove the now-unused `SUPABASE_URL` / `SUPABASE_ANON_KEY` repo secrets
 - Optional: link the Firebase project to GA4 (console → Integrations) and add the resulting `measurementId` to `VITE_FIREBASE_CONFIG` (repo variable + `.env.local`) to activate the built-in analytics hook
 
 ### Multi-project cloud library (Option B)
