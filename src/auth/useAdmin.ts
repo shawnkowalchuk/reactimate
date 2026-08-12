@@ -2,7 +2,11 @@ import { useEffect } from "react";
 import { create } from "zustand";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, isAuthEnabled } from "./firebase";
-import { fetchMyProfile, type Profile } from "../api/profileApi";
+import {
+  ensureMyProfile,
+  fetchMyProfile,
+  type Profile,
+} from "../api/profileApi";
 
 export interface AdminState {
   profile: Profile | null;
@@ -19,6 +23,10 @@ export const useAdminStore = create<AdminState>((set) => ({
       return;
     }
     set({ loading: true });
+    // On a brand-new account the profile doc may still be mid-create;
+    // awaiting the (deduped) ensure guarantees create-before-read.
+    const u = auth?.currentUser;
+    if (u) await ensureMyProfile(u.uid, u.email);
     const p = await fetchMyProfile();
     set({ profile: p, loading: false });
   },

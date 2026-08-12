@@ -30,8 +30,13 @@ function docToProfile(id: string, data: Record<string, unknown>): Profile {
   };
 }
 
-/** Only ensure/touch the profile once per uid per page load. */
-let ensuredForUid: string | null = null;
+/**
+ * One in-flight/settled ensure per uid per page load. Caching the PROMISE
+ * (not a done flag) lets concurrent callers — e.g. the admin store's
+ * refresh racing useAuth's listener on a brand-new account — await the
+ * same create instead of reading before the doc exists.
+ */
+let ensured: { uid: string; promise: Promise<void> } | null = null;
 
 /**
  * Create the caller's profile doc on first sign-in (replaces the Postgres
@@ -40,14 +45,15 @@ let ensuredForUid: string | null = null;
  * `is_admin: false` on create — admin is granted by editing the doc in the
  * Firebase console.
  */
-export async function ensureMyProfile(
+export function ensureMyProfile(
   uid: string,
   email: string | null,
 ): Promise<void> {
-  if (!db || ensuredForUid === uid) return;
-  ensuredForUid = uid;
+  if (!db) return Promise.resolve();
+  if (ensured?.uid === uid) return ensured.promise;
+
   const ref = doc(db, "profiles", uid);
-  try {
+  const promise = (async () => {
     const snap = await getDoc(ref);
     if (snap.exists()) {
       await updateDoc(ref, { last_seen_at: serverTimestamp() });
@@ -59,12 +65,15 @@ export async function ensureMyProfile(
         last_seen_at: serverTimestamp(),
       });
     }
-  } catch (err) {
+  })().catch((err) => {
     // Best effort — a StrictMode double-invoke or offline start shouldn't
-    // break sign-in. Cleared so the next auth event retries.
-    ensuredForUid = null;
+    // break sign-in. Cleared so the next call retries.
+    ensured = null;
     console.warn("ensureMyProfile:", err);
-  }
+  });
+
+  ensured = { uid, promise };
+  return promise;
 }
 
 export async function fetchMyProfile(): Promise<Profile | null> {
