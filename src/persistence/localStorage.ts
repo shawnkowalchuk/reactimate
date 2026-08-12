@@ -1,6 +1,6 @@
 import type { Project } from "../types/project";
-import { isAuthEnabled } from "../auth/supabase";
-import { saveProjectToDB, loadProjectFromDB } from "../api/projectApi";
+import { isAuthEnabled } from "../auth/firebase";
+import { saveProjectToDB, loadProjectFromDBWithMeta } from "../api/projectApi";
 import { isShadowProject } from "./shadowFlag";
 
 const STORAGE_KEY = "reactimate.project.v1";
@@ -104,8 +104,8 @@ export function validateProject(value: unknown): Project | null {
   return migrateAreaSchema(p as Project);
 }
 
-/** Always loads from localStorage (sync — instant on app start). */
-export function loadFromStorage(): Project | null {
+/** Load + validate the raw saved state, keeping its savedAt stamp. */
+function loadSavedState(): { project: Project; savedAt: string | null } | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -115,13 +115,59 @@ export function loadFromStorage(): Project | null {
     const state = parsed as Partial<SavedState>;
     if (state.schemaVersion !== SCHEMA_VERSION) return null;
     const migrated = migrateSparkleToParticle(state.project) as Project;
-    return validateProject(migrated);
+    const project = validateProject(migrated);
+    if (!project) return null;
+    return { project, savedAt: state.savedAt ?? null };
   } catch {
     return null;
   }
 }
 
-/** Always saves to localStorage. Also fires an async DB save if auth is enabled. */
+/** Always loads from localStorage (sync — instant on app start). */
+export function loadFromStorage(): Project | null {
+  return loadSavedState()?.project ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Cloud write throttle. localStorage keeps the 400ms autosave cadence, but
+// Firestore bills per write and its free tier is 20K writes/day — so cloud
+// pushes coalesce to at most one every CLOUD_SAVE_INTERVAL_MS, with a flush
+// when the tab hides so the last edits still land.
+// ---------------------------------------------------------------------------
+
+const CLOUD_SAVE_INTERVAL_MS = 10_000;
+
+let cloudTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingCloudProject: Project | null = null;
+
+function queueCloudSave(project: Project): void {
+  pendingCloudProject = project;
+  if (cloudTimer === null) {
+    cloudTimer = setTimeout(flushCloudSave, CLOUD_SAVE_INTERVAL_MS);
+  }
+}
+
+/** Push the pending cloud write immediately (no-op when nothing is queued). */
+export function flushCloudSave(): void {
+  if (cloudTimer !== null) {
+    clearTimeout(cloudTimer);
+    cloudTimer = null;
+  }
+  const project = pendingCloudProject;
+  pendingCloudProject = null;
+  if (project) {
+    saveProjectToDB(project).catch(() => undefined);
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", flushCloudSave);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushCloudSave();
+  });
+}
+
+/** Always saves to localStorage. Also queues an async DB save if auth is enabled. */
 export function saveToStorage(project: Project): void {
   // LocalStorage (sync, always works).
   if (typeof window !== "undefined") {
@@ -136,11 +182,11 @@ export function saveToStorage(project: Project): void {
       // Quota exceeded, private browsing, etc.
     }
   }
-  // DB (async, fire-and-forget). Skipped while the project is shadowing
+  // DB (async, throttled). Skipped while the project is shadowing
   // an example — otherwise the user's cloud project gets silently
   // clobbered the moment they open an example in the editor.
   if (isAuthEnabled && !isShadowProject()) {
-    saveProjectToDB(project).catch(() => undefined);
+    queueCloudSave(project);
   }
 }
 
@@ -154,23 +200,36 @@ export function clearStorage(): void {
 }
 
 /**
- * Called once after auth is resolved. If the DB has a project, returns it.
- * If not but localStorage does, migrates localStorage → DB and returns that.
+ * Called once after auth is resolved. Picks whichever copy is newer:
+ * the throttled cloud push means localStorage can be up to ~10s ahead of
+ * the DB (e.g. the tab was killed before the flush), so when both sides
+ * exist the fresher timestamp wins and the loser is overwritten. If only
+ * one side has data, that side wins (and local gets migrated up).
  * Returns null if nothing is available.
  */
 export async function loadFromCloudOrMigrate(): Promise<Project | null> {
   if (!isAuthEnabled) return null;
+  let cloud = null;
   try {
-    const dbProject = await loadProjectFromDB();
-    if (dbProject) return validateProject(dbProject);
+    cloud = await loadProjectFromDBWithMeta();
   } catch {
-    // DB unavailable — fall through to migrate.
+    // DB unavailable — fall through to local.
   }
-  // No DB project — migrate localStorage if present.
-  const local = loadFromStorage();
+  const local = loadSavedState();
+
+  if (cloud && local) {
+    const cloudTime = cloud.updatedAt ? Date.parse(cloud.updatedAt) : 0;
+    const localTime = local.savedAt ? Date.parse(local.savedAt) : 0;
+    if (localTime > cloudTime) {
+      saveProjectToDB(local.project).catch(() => undefined);
+      return local.project;
+    }
+    return validateProject(cloud.project);
+  }
+  if (cloud) return validateProject(cloud.project);
   if (local) {
-    saveProjectToDB(local).catch(() => undefined);
-    return local;
+    saveProjectToDB(local.project).catch(() => undefined);
+    return local.project;
   }
   return null;
 }

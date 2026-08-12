@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { create } from "zustand";
-import { isAuthEnabled, supabase } from "./supabase";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth, isAuthEnabled } from "./firebase";
 import { fetchMyProfile, type Profile } from "../api/profileApi";
 
 export interface AdminState {
@@ -31,14 +32,12 @@ export function useAdminSync() {
   const refresh = useAdminStore((s) => s.refresh);
 
   useEffect(() => {
-    if (!supabase) return;
-    refresh();
-    const { data } = supabase.auth.onAuthStateChange(() => {
-      refresh();
+    if (!auth) return;
+    // onAuthStateChanged fires immediately with the restored session, so
+    // this covers both the initial load and later sign-in/sign-out.
+    return onAuthStateChanged(auth, () => {
+      void refresh();
     });
-    return () => {
-      data.subscription.unsubscribe();
-    };
   }, [refresh]);
 }
 

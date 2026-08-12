@@ -27,7 +27,7 @@ export function AdminUsers() {
     <AdminLayout>
       <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Everyone who has signed in via your Supabase Auth providers.
+        Everyone who has signed in via your Firebase Auth providers.
       </p>
 
       <div className="mt-6 flex items-center justify-between gap-3">

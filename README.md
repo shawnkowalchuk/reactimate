@@ -80,73 +80,61 @@ Notes:
 
 The app runs **without authentication by default** — projects live in `localStorage` per-browser and the editor works exactly as described above.
 
-If you want user accounts (email + Google + Apple), wire up [Supabase](https://supabase.com). Auth activates the moment you set the env vars; it gates the editor behind a sign-in screen.
+If you want user accounts (email + magic link + Google + Apple) and cross-device sync, wire up [Firebase](https://firebase.google.com). Auth activates the moment you set the env var; it gates the editor behind a sign-in screen and syncs your project + effect presets to Firestore.
 
-### 1. Create a Supabase project
+### 1. Create a Firebase project
 
-1. Sign up at https://supabase.com (free tier is fine).
-2. Create a new project.
-3. Once it's provisioned, in the dashboard go to **Project Settings → API** and copy:
-   - **Project URL** (looks like `https://xxxx.supabase.co`)
-   - **anon public** key
+```sh
+npm i -g firebase-tools
+firebase login
+firebase projects:create <your-project-id>
+firebase apps:create WEB <app-name> --project <your-project-id>
+firebase firestore:databases:create "(default)" --location us-central1 --project <your-project-id>
+```
 
-### 2. Configure providers in the Supabase dashboard
+(Or click through the [Firebase console](https://console.firebase.google.com) — the free Spark plan is plenty; no credit card needed.)
 
-Under **Authentication → Providers**:
+### 2. Enable sign-in providers
 
-- **Email** — enabled by default. To force email verification before sign-in, turn on **"Confirm email"** under Email settings.
-- **Google** — toggle on, then paste a **Client ID** and **Client Secret** from a Google Cloud OAuth client (Google Cloud Console → APIs & Services → Credentials → Create OAuth client ID → Web application). Add Supabase's callback URL (`https://<project>.supabase.co/auth/v1/callback`) to the OAuth client's Authorized redirect URIs.
-- **Apple** — toggle on. Requires an Apple Developer Program membership ($99/year). You'll need:
-  - A **Services ID** (created in Apple Developer → Identifiers → Services IDs) with Sign in with Apple enabled
+In the Firebase console under **Build → Authentication → Sign-in method**:
+
+- **Email/Password** — enable it, and also switch on **Email link (passwordless sign-in)** on the same panel for magic links.
+- **Google** — enable, pick a support email. Done.
+- **Apple** — enable. Requires an Apple Developer Program membership ($99/year). You'll need:
+  - A **Services ID** (Apple Developer → Identifiers → Services IDs) with Sign in with Apple enabled
   - A **Private Key** (Keys → +, with Sign in with Apple checked)
-  - Add Supabase's callback URL to the Services ID's "Return URLs"
-  - Paste the Services ID, Team ID, Key ID, and the contents of the `.p8` private key into Supabase
+  - Add `https://<your-project-id>.firebaseapp.com/__/auth/handler` to the Services ID's Return URLs
+  - Paste the Services ID, Team ID, Key ID, and the contents of the `.p8` private key into the Firebase provider config
 
-### 3. Add the env vars to this app
+### 3. Deploy the Firestore rules
 
-Copy `.env.example` to `.env.local` and fill in:
+The Feedback page (`/feedback`), Admin backend (`/admin`), and cloud-stored projects/presets are protected by [`firestore.rules`](./firestore.rules) (plus the composite indexes in [`firestore.indexes.json`](./firestore.indexes.json)):
+
+```sh
+firebase deploy --only firestore
+```
+
+Collections used: `profiles` (one doc per user, created on first sign-in), `projects` (one doc per user, id = uid), `presets`, and `feedback` with a `replies` subcollection.
+
+### 4. Add the env var to this app
+
+Copy `.env.example` to `.env.local` and paste your web app config as one line of JSON (Firebase console → Project settings → Your apps → SDK setup → Config, or `firebase apps:sdkconfig WEB <appId>`):
 
 ```
-VITE_SUPABASE_URL=https://xxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOi…
+VITE_FIREBASE_CONFIG={"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}
 ```
 
-Restart `npm run dev`. The app now shows a sign-in screen before the editor.
-
-### 4. Run the SQL schema
-
-To enable the **Feedback page** (`/feedback`), the **Admin backend** (`/admin`), and **cloud-stored effect presets**, paste [`supabase/schema.sql`](./supabase/schema.sql) into the Supabase project's **SQL Editor** and run it. It creates:
-
-- `public.profiles` — one row per auth user, populated by a trigger on `auth.users` insert. Carries `is_admin: boolean`.
-- `public.feedback` — user-submitted messages.
-- `public.feedback_replies` — admin replies to a thread.
-- `public.feedback_with_counts` — view exposing `reply_count` and `last_reply_at`.
-- `public.presets` — per-user saved effect presets, with RLS so each user sees only their own.
-- RLS policies so users can only read their own data and admins can read everything.
-
-Already ran the schema before presets shipped? Just run [`supabase/migrations/2026_05_13_presets.sql`](./supabase/migrations/2026_05_13_presets.sql) instead — it's the same `presets` block in isolation.
+Restart `npm run dev`. The app now shows a sign-in screen before the editor. (This config is public by design — security comes from the Firestore rules, not the key.)
 
 ### 5. Promote yourself to admin
 
-After signing in once (which creates your profile row via the trigger), run in the SQL editor:
+After signing in once (which creates your profile doc), open **Firestore → Data → `profiles` → your uid** in the Firebase console and set `is_admin` to `true`.
 
-```sql
-update public.profiles set is_admin = true where email = 'you@example.com';
-```
-
-The `/admin` nav link will appear in the navbar; you'll have access to the Dashboard, Users, and Feedback admin pages.
-
-### 6. Enable manual identity linking (optional, for `/settings`)
-
-If you want users to link multiple sign-in providers to one account (e.g. Email + Google + Apple on the same `auth.users` row), enable:
-
-**Authentication → Sign In / Up → Manual Linking** (toggle on).
-
-With this off, the link buttons on `/settings` will fail with "Manual linking is not enabled". Unlinking still works in both cases.
+The `/admin` nav link will appear in the navbar; you'll have access to the Dashboard, Users, and Feedback admin pages. Identity linking on `/settings` works out of the box — no extra toggles.
 
 ### Heads-up
 
-In v1, the **projects still live in `localStorage`** per browser even when signed in. Auth currently does access control only — it doesn't sync your projects across devices. Per-user cloud project storage is a separate planned feature.
+When signed in, your **current project and effect presets sync to your account** and follow you across devices. The cloud holds ONE editor project per account — the Save button warns before overwriting it with an imported or example project. Signed out, everything stays in `localStorage`.
 
 ---
 
@@ -156,7 +144,7 @@ In v1, the **projects still live in `localStorage`** per browser even when signe
 - **Zustand** + **zundo** — state with undo/redo
 - **Motion** (formerly Framer Motion) — for *exported* output only; editor playback uses raw `requestAnimationFrame` + direct DOM style writes for performance
 - **@dnd-kit/core**, **nanoid**, **lucide-react**
-- **@supabase/supabase-js** — optional auth (only loaded when env vars are set)
+- **firebase** — optional auth + Firestore sync (only activates when `VITE_FIREBASE_CONFIG` is set)
 - **Vitest** + Testing Library for the pure-logic modules
 
 ---
@@ -176,6 +164,24 @@ In v1, the **projects still live in `localStorage`** per browser even when signe
 
 ---
 
+## Deployment
+
+Hosted on **Firebase Hosting** (project `reactimate-cloud`) at https://reactimate.cloud. Pushes to `main` auto-deploy via the `deploy` job in [ci.yml](./.github/workflows/ci.yml) after lint/typecheck/test/build pass. That job needs two repo settings:
+
+- **Actions variable** `VITE_FIREBASE_CONFIG` — the public web-app config JSON baked into the build.
+- **Actions secret** `FIREBASE_SERVICE_ACCOUNT_REACTIMATE_CLOUD` — a service-account key with Hosting deploy rights (Firebase console → Project settings → Service accounts, or `firebase init hosting:github` to generate one).
+
+Manual deploy from a machine with `firebase login`:
+
+```sh
+npm run build
+firebase deploy --only hosting
+```
+
+Firestore rules/indexes deploy separately: `firebase deploy --only firestore`.
+
+---
+
 ## Roadmap
 
 | Phase | What | Status |
@@ -189,13 +195,13 @@ In v1, the **projects still live in `localStorage`** per browser even when signe
 | 7 — timeline | draggable effect blocks, modal-based editor, duplicate, wheel-dampened scroll | ✓ |
 | 8 — export | `Hero.tsx` generator (core effects) + Copy/Download | ✓ |
 | 9 — persistence | localStorage autosave, save/load, undo/redo, effect presets | ✓ |
-| Auth (opt) | Supabase email + Google + Apple, sign-in gate | ✓ |
+| Auth (opt) | Firebase email + magic link + Google + Apple, sign-in gate | ✓ |
 | Inspector | Always-on Project + Component InspectorBar at top, EffectModal w/ easing graphs + per-prop start/end | ✓ |
 | Spotlight effect | mouse / sweep motion, mask + feather + backdrop | ✓ |
 | Particle effect | 4 spawn modes × 4 particle physics presets + fireworks-js integration by crashmax-dev | ✓ |
 
 | Export spotlight / particle / typewriter | emit real Motion JSX for the new effect types | — |
-| Cloud project storage | per-user project rows in Supabase, sync | — |
+| Cloud project storage | per-user project doc in Firestore, cross-device sync | ✓ |
 | Templates / starter projects | — | — |
 
 ---

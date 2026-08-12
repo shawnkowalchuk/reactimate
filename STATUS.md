@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-05-15 · commit [`ac78332`](https://github.com/shawnkowalchuk/reactimate/commit/ac78332)
+**Last updated:** 2026-08-12 · Firebase migration (see header commit)
 
 ---
 
@@ -11,17 +11,17 @@
 ### Routing
 - `react-router-dom` v7. Routes:
   - `/` → `HomePage` (public marketing site)
-  - `/feedback` → `FeedbackPage` (public; signed-in users submit + read their threads; falls back to a GitHub-issues prompt when Supabase isn't configured)
+  - `/feedback` → `FeedbackPage` (public; signed-in users submit + read their threads; falls back to a GitHub-issues prompt when Firebase isn't configured)
   - `/settings` → `SettingsPage` (public route but renders a "sign in" card when not authenticated)
   - `/app` → `EditorPage` wrapped in `AuthGate`
   - `/admin`, `/admin/users`, `/admin/feedback`, `/admin/feedback/:id` → admin subpages wrapped in `AdminGate`
   - `*` → `HomePage`
 - `AuthGate` wraps only `/app`; `AdminGate` wraps `/admin/*` and additionally requires `profiles.is_admin = true`
-- `AdminSync` headless component mounts at app root to subscribe `useAdminStore` to Supabase auth changes
+- `AdminSync` headless component mounts at app root to subscribe `useAdminStore` to Firebase auth changes
 - App entry: `main.tsx` mounts `<BrowserRouter>` with the route table; `themeStore` is imported for its side effect (applies `dark` class before first paint)
 
 ### SEO
-- Full meta tag suite in `index.html`: title, description, keywords, canonical (`https://reactimate.app/` — change for your domain), theme-color (per color-scheme), Open Graph (`og:type` / `og:url` / `og:title` / `og:description` / `og:image` / `og:locale`), Twitter card (`summary_large_image`), and a `robots` directive
+- Full meta tag suite in `index.html`: title, description, keywords, canonical (`https://reactimate.cloud/`), theme-color (per color-scheme), Open Graph (`og:type` / `og:url` / `og:title` / `og:description` / `og:image` / `og:locale`), Twitter card (`summary_large_image`), and a `robots` directive
 - JSON-LD structured data (`SoftwareApplication` schema) so search engines understand the product
 - `public/og-image.svg` — 1200×630 social-share card with the reactimate logo + tagline (referenced by `og:image` and `twitter:image`)
 - `public/robots.txt` — allows `/` and `/feedback`, disallows `/app` and `/admin`, points to the sitemap
@@ -31,48 +31,50 @@
 
 ### Feedback (`/feedback`)
 - Public-facing route; the page renders for everyone (so anyone can find it from search), but submitting + reading threads requires sign-in
-- When Supabase isn't configured: a callout points users to GitHub Issues
+- When Firebase isn't configured: a callout points users to GitHub Issues
 - When signed in:
-  - **New feedback** form (Subject + Message, with length caps) → inserts into `public.feedback` via `api/feedbackApi.ts.submitFeedback`. User-id, email, and timestamp are filled in by the client + DB defaults
-  - **Your previous feedback** list — collapsible threads (subject + status pill + reply count); expanding fetches replies from `public.feedback_replies` and renders them in a sky-tinted "Admin reply" panel
-- All queries use the Supabase anon client; RLS enforces who sees what (users only see their own; admins see everything)
+  - **New feedback** form (Subject + Message, with length caps) → adds a doc to the `feedback` collection via `api/feedbackApi.ts.submitFeedback` (status/reply_count/timestamps seeded client-side with `serverTimestamp()`)
+  - **Your previous feedback** list — collapsible threads (subject + status pill + reply count); expanding fetches the thread's `replies` subcollection and renders them in a sky-tinted "Admin reply" panel
+- All queries use the Firebase web SDK; `firestore.rules` enforces who sees what (users only see their own; admins see everything). `listMyFeedback` uses the composite index (user_id, created_at desc)
 
 ### Admin backend (`/admin/*`, gated)
 - `auth/AdminGate.tsx` — wraps every admin route. Behavior:
-  - Supabase not configured → `SetupRequired` screen with the env-var + schema.sql + admin-promotion SQL instructions
+  - Firebase not configured → `SetupRequired` screen with the env-var + rules-deploy + console admin-promotion instructions
   - Loading → spinner
   - Signed-out → `SignInScreen`
-  - Signed-in but `profile.is_admin = false` → `Forbidden` screen with the exact SQL to promote
+  - Signed-in but `profile.is_admin = false` → `Forbidden` screen pointing at the Firestore console field to flip
   - Otherwise → renders children
 - `pages/admin/AdminLayout.tsx` — sidebar nav (Dashboard / Users / Feedback) + footer with current admin email, "Editor" link back to `/app`, sign-out button
 - **Dashboard** (`/admin`) — 4 stat cards (total users, signups last 7d, total feedback, open feedback) + the 10 most-recent feedback rows linked to detail view
-- **Users** (`/admin/users`) — searchable table over `public.profiles` (email, joined date, last_seen, admin pill)
+- **Users** (`/admin/users`) — searchable table over the `profiles` collection (email, joined date, last_seen, admin pill). `last_seen_at` is now actually populated — `ensureMyProfile` refreshes it on every sign-in/session restore, so the dashboard's active-user stats are real (they were always null under Supabase; the writer was dead code)
 - **Feedback** (`/admin/feedback`) — list filtered by status (all/open/replied/closed); rows link to the detail page
 - **Feedback detail** (`/admin/feedback/:id`) — full thread (subject + body + sender + status dropdown) plus existing replies and a Reply form. Posting a reply also flips the row's status to `replied`
 - Admin state lives in `useAdminStore` (zustand): the user's profile is cached and refreshed on every auth state change
 
-### Supabase schema (`supabase/schema.sql`)
-- `public.profiles` — `id uuid pk (-> auth.users)`, `email`, `is_admin`, `created_at`, `last_seen_at`. Populated by a `handle_new_user` trigger on `auth.users` insert. Existing users are backfilled by the script
-- `public.feedback` — `subject`, `body`, `status` ∈ {open, replied, closed}, indexed by user_id and created_at
-- `public.feedback_replies` — admin-authored replies tied to feedback rows (cascade delete)
-- `public.feedback_with_counts` — view exposing `reply_count` and `last_reply_at` for the admin list / dashboard
-- `public.presets` — `user_id`, `name`, `effect_type`, `config` (jsonb). Per-user effect presets used by `SupabaseBackend` in `presetStore`. Includes `supabase/migrations/2026_05_13_presets.sql` as a standalone migration so users who already ran the schema don't have to re-run the whole thing
-- **RLS policies**:
-  - profiles/feedback/replies: users see their own; admins see everything; only admins post replies or change feedback status; users can only insert feedback for themselves
-  - presets: users can SELECT/INSERT/UPDATE/DELETE only their own rows
-- Idempotent — safe to re-run after schema changes
+### Firestore schema (`firestore.rules` + `firestore.indexes.json`)
+- `profiles/{uid}` — `email`, `is_admin`, `created_at`, `last_seen_at`. Created client-side by `ensureMyProfile()` on first sign-in (replaces the old Postgres trigger — no Cloud Functions needed, stays on the free Spark plan); `last_seen_at` refreshed every session
+- `projects/{uid}` — `user_id`, `name`, `data` (project JSON as a **string** — Firestore rejects nested arrays), `created_at`, `updated_at`. Doc id == uid keeps the one-project-per-user invariant
+- `presets/{autoId}` — `user_id`, `name`, `effect_type`, `config` (JSON string), `created_at`
+- `feedback/{autoId}` — `subject`, `body`, `status` ∈ {open, replied, closed}, plus denormalized `reply_count` / `last_reply_at` (the old SQL view, maintained atomically by the reply batch)
+- `feedback/{id}/replies/{autoId}` — admin-authored replies
+- **Security rules** (ported 1:1 from the old RLS policies):
+  - users read their own docs; admins (`profiles.is_admin`, checked via `get()` in rules) read everything
+  - profile create forces `is_admin: false`; updates may only touch `last_seen_at` — admin is granted ONLY by editing the doc in the Firebase console
+  - only admins post replies / change feedback status; users only create feedback as themselves
+- **Composite indexes**: feedback (user_id asc, created_at desc), presets (user_id asc, created_at asc)
+- Deploy both with `firebase deploy --only firestore`
 
 ### Account settings (`/settings`)
 - `pages/SettingsPage.tsx` — four cards stacked vertically: **Profile** (email / joined date / account id), **Sign-in methods**, **Change password**, **Account**
-- **Profile** is read-only and pulls everything from the Supabase user object
-- **Sign-in methods** lists Email & password, Google, Apple. Each row reads the user's identities via `supabase.auth.getUserIdentities()`, shows a green "linked" pill + the provider's email if present, and offers:
-  - **Link** for unlinked providers → calls `linkProvider(provider)` which is a thin wrapper over `supabase.auth.linkIdentity()`. Browser is redirected through the OAuth flow and back to `/settings`
+- **Profile** is read-only and pulls everything from the app-level `AuthUser` (adapted from the Firebase user)
+- **Sign-in methods** lists Email & password, Google, Apple. Each row reads the user's `providerData`, shows a green "linked" pill + the provider's email if present, and offers:
+  - **Link** for unlinked providers → `linkProvider(provider)` wraps `linkWithPopup()` — resolves in place (no redirect), then the list refreshes with a success message
   - **Unlink** for linked providers → calls `unlinkIdentityById(identity)`. The button is disabled (with a tooltip) when the user only has one identity, so they can't lock themselves out
   - The Email row is labeled "primary" and not actionable from this card — passwords are handled in the Change password card instead
-- **Change password** card — new password + confirm, eye/eye-off toggles, ≥8 chars, live mismatch warning. Calls `supabase.auth.updateUser({ password })`. Works as both "change" and "set a new password" (for users who signed up via OAuth and never had one)
-- **Account** card — Sign out button and a collapsible "Delete my account" disclosure that points the user to the Feedback page for now (no self-serve delete in v1; admin handles via Supabase)
-- `api/identityApi.ts` — `getMyIdentities`, `linkProvider`, `unlinkIdentityById`, `updatePassword` wrappers; all return typed values and throw `Error` with readable messages
-- **Heads-up:** linking requires *Authentication → Sign In/Up → Manual Linking* enabled in the Supabase dashboard. Documented in README step 6.
+- **Change password** card — new password + confirm, eye/eye-off toggles, ≥8 chars, live mismatch warning. Calls Firebase `updatePassword()`. Works as both "change" and "set a new password" (for users who signed up via OAuth and never had one). Firebase's "requires recent login" error is caught and mapped to a readable "sign out and back in" message
+- **Account** card — Sign out button and a collapsible "Delete my account" disclosure that points the user to the Feedback page for now (no self-serve delete in v1; admin handles via the Firebase console)
+- `api/identityApi.ts` — `getMyIdentities`, `linkProvider`, `unlinkIdentityById`, `updatePassword` wrappers plus `friendlyAuthError()` mapping Firebase error codes to human copy; all return typed values and throw `Error` with readable messages
+- Identity linking works out of the box in Firebase — no dashboard toggle needed (the old Supabase "Manual Linking" requirement is gone)
 - Settings link in the home Navbar (when signed in) and in the editor's UserMenu (gear icon)
 
 ### Public home page (`/`)
@@ -85,7 +87,7 @@
 - **How it works**: 4-step explainer (Type → Componentize → Animate → Export) with lucide icons and numbered chips
 - **Examples**: 4 live animated heroes rendered as real `motion/react` JSX (Welcome stagger fade, Slide + color shift, Typewriter, Pop + scale bounce). Each card has its own background color (dark/light/navy/cream) so the visual matches the target site style; tabs flip between **Preview** (live animation) and **Code** (the JSX you'd export, with a **Copy** button). All examples loop on a shared 5s timer; a per-card **Replay** button forces a fresh mount
   - `components/home/MotionExample.tsx` is the reusable card; example contents are hand-written snippets in `components/home/Examples.tsx` matching the exact shape `export/generateComponent.ts` produces
-- **Features**: 8 bullets (visual + code side-by-side, advanced effects, per-component style, clean exported JSX, autosave, undo/redo + loop, Supabase auth, self-contained output)
+- **Features**: 8 bullets (visual + code side-by-side, advanced effects, per-component style, clean exported JSX, autosave, undo/redo + loop, Firebase auth, self-contained output)
 - **CallToAction**: large "Open the editor" CTA
 - **Footer**: GitHub / Status / MIT links
 - Theme: same `themeStore` + `dark:` Tailwind variants — the home page respects the persisted theme
@@ -95,7 +97,7 @@
 - Toolbar: clickable logo → home page (`/`), time slider, undo/redo, transport (skip-back / play-pause / **loop**), **theme toggle (sun/moon)**, save / load / reset, export
 - Tabbed preview pane (live animation / live generated JSX). The preview stays mounted under the Code tab so animation engine refs don't churn
 - **Light/dark theme** for the app chrome — Tailwind `darkMode: 'class'` driven by `themeStore` (persisted as `reactimate.theme`); `applyThemeClass` runs at module load before React mounts so the first paint matches the saved preference
-- Optional `UserMenu` (avatar + email + sign-out) when Supabase auth is enabled
+- Optional `UserMenu` (avatar + email + sign-out) when Firebase auth is enabled
 
 ### InspectorBar (top of app)
 - **Project row** (always visible): editable `Name` / `Duration` / `Canvas` preset (16:9 · 1:1 · 9:16 · **Custom**) + `W × H` inputs (aspect-locked to the preset, free in `Custom` mode) / `Bg` (swatch ColorPicker + hex text) / `Text` color (swatch ColorPicker) / Quick **Dark site** + **Light site** preset buttons that set bg + default text and rewrite any component whose color matched the prior default
@@ -166,9 +168,9 @@
   - **Typewriter:** Snap / Fade letter-reveal toggle, **per-letter shape** (none / square / circle) with Layer (behind/in front) + Color + Size start/end + Blur start/end + Fade start/end + Snap off at end, **Offset X / Y** for stacking duplicate components as drop shadows, staggerDirection forward/reverse
 - **Preset save/load bar** at the top:
   - `store/presetStore.ts` — `PresetStorage` interface with two implementations:
-    - `LocalStorageBackend` (key: `reactimate.presets.v1`) — used when Supabase isn't configured OR the user is signed out (so presets still work offline)
-    - `SupabaseBackend` — `public.presets` table with RLS, used when Supabase is configured AND the user is signed in. Presets follow the user across devices
-    - `activeBackend()` picks based on `signedIn` flag. The store subscribes to `onAuthStateChange` and refreshes on every sign-in / sign-out
+    - `LocalStorageBackend` (key: `reactimate.presets.v1`) — used when Firebase isn't configured OR the user is signed out (so presets still work offline)
+    - `FirestoreBackend` — `presets` collection guarded by security rules, used when Firebase is configured AND the user is signed in. Presets follow the user across devices. `bulkPut` (Import) is a single atomic batch — the old delete-then-insert could lose everything if the insert half failed
+    - `activeBackend()` picks based on `signedIn` flag. The store subscribes to `onAuthStateChanged` and refreshes on every sign-in / sign-out
     - **One-time migration** on first sign-in: if the user's cloud bucket is empty AND they have local presets, the store uploads them. Guarded by a per-session flag so it only fires once per fresh sign-in
   - Save current effect as preset (name)
   - Apply a saved preset (replaces type + config + targets/from on the open effect)
@@ -212,57 +214,68 @@ The `Test-Project/` folder at the repo root is a bare Vite + React 19 + Motion s
 
 ### Persistence (Phase 9)
 - `persistence/localStorage.ts` — schema-versioned save/load with `validateProject` runtime gate. Auto-migrates old `particle.mode: "component"/"around"` + `rangePx` / `fireworks.mode + spreadRadius` to the new `area` rectangle (defaults centered on canvas, padded for old `spreadRadius`)
-- `persistence/useAutosave.ts` — 400ms debounced project-store subscription. Calls `saveToStorage` which writes localStorage AND fires a Supabase save when auth is enabled
-- `persistence/useCloudSync.ts` — once auth resolves to a signed-in user, pulls the latest project from Supabase. If the DB is empty but localStorage has data, that data is migrated to the DB. Runs once per session
-- `persistence/shadowFlag.ts` — module-level flag set when the editor's project came from an example or imported `.json`. While set, the autosave pipeline still writes localStorage but **skips** the Supabase save, so the user's cloud project isn't silently clobbered. Cleared on first explicit Save-to-cloud (which prompts for overwrite confirmation)
+- `persistence/useAutosave.ts` — 400ms debounced project-store subscription. Calls `saveToStorage` which writes localStorage immediately AND queues a **throttled cloud write (max one per 10s)** when auth is enabled — Firestore bills per write (20K/day free), so the cloud cadence is decoupled from the localStorage cadence. A `pagehide`/`visibilitychange` flush pushes the pending write when the tab hides or closes
+- `persistence/useCloudSync.ts` — once auth resolves to a signed-in user, pulls the cloud project. **Newer-wins**: if localStorage's `savedAt` is fresher than the cloud's `updated_at` (e.g. the tab died inside the 10s throttle window), local wins and re-syncs up; otherwise cloud wins. If only one side has data, that side wins (local migrates up). Runs once per session
+- `persistence/shadowFlag.ts` — module-level flag set when the editor's project came from an example or imported `.json`. While set, the autosave pipeline still writes localStorage but **skips** the cloud save, so the user's cloud project isn't silently clobbered. Cleared on first explicit Save-to-cloud (which prompts for overwrite confirmation)
 - `persistence/importExport.ts` — `.json` save (download) and load (file picker + validate). Marks shadow on import when signed in
 - Toolbar **Smart Save** (`Toolbar.tsx`):
-  - **Signed in (cloud active)** → click forces a Supabase sync, flashes a green check on success. **Shift+click** forces a `.json` download instead (escape hatch for local backups)
-  - **Signed out / Supabase unconfigured** → click downloads `.json` (the only persistence path available)
+  - **Signed in (cloud active)** → click forces an immediate Firestore sync, flashes a green check on success. **Shift+click** forces a `.json` download instead (escape hatch for local backups)
+  - **Signed out / Firebase unconfigured** → click downloads `.json` (the only persistence path available)
   - When the project is in shadow mode + signed in, prompts for confirmation before clobbering the cloud project. DB failure fallback: auto-downloads `.json` so the click isn't wasted
 - Toolbar **Import** (file-folder icon) → file picker for `.json`
 - Toolbar **Reset-to-sample** with confirm dialog (also clears local storage + temporal stack). Confirm message beefed up for signed-in users explaining the cloud-overwrite risk
-- Toolbar **Cloud indicator** badge next to Save: ☁ Cloud (sky blue) when signed in, ⊘ Local (grey) when signed out. Only renders when Supabase is configured
+- Toolbar **Cloud indicator** badge next to Save: ☁ Cloud (sky blue) when signed in, ⊘ Local (grey) when signed out. Only renders when Firebase is configured
 - `store/presetStore.ts` (above) — separate localStorage key, separate from the project blob
-- **Cloud model is intentionally ONE project per account** (`projects` table has `unique` on `user_id`). The guardrails above make this safe; multi-project library is on the backlog if user feedback asks for it
+- **Cloud model is intentionally ONE project per account** (`projects/{uid}` — the doc id IS the user id). The guardrails above make this safe; multi-project library is on the backlog if user feedback asks for it
 
 ### Undo / redo
 - `zundo` `temporal` middleware on `projectStore`
 - **Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y** keyboard shortcuts (ignore when focus is in an `input`/`textarea`/`contenteditable`)
 - Undo / Redo buttons in toolbar
 
-### Optional auth (Supabase)
-- Env-gated: `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`. Unset → app runs as before; auth code never activates
-- `auth/AuthGate.tsx` wraps the app; shows `SignInScreen` when enabled and unauthenticated
-- `auth/SignInScreen.tsx` — email/password sign-in **and** sign-up (with email verification) **and** magic-link, plus Google + Apple OAuth buttons
-- `auth/useAuth.ts` — `{ isLoading, user, session }`, subscribed to `onAuthStateChange`
+### Optional auth (Firebase)
+- Env-gated: `VITE_FIREBASE_CONFIG` (one-line JSON of the web-app config). Unset → app runs as before; auth code never activates. `auth/firebase.ts` is the single chokepoint exporting `{ app, auth, db, isAuthEnabled }`
+- `auth/AuthGate.tsx` wraps `/app`; shows `SignInScreen` when enabled and unauthenticated, and a **verify-email screen** for password-only accounts that haven't confirmed their address (Firebase signs users in pre-verification; Supabase didn't — the gate preserves the old behavior, with resend + recheck buttons)
+- `auth/SignInScreen.tsx` — email/password sign-in **and** sign-up (with verification email) **and** magic link (`sendSignInLinkToEmail`; the requesting email is stashed in localStorage and redeemed by `useAuth`'s module-level handler when the link lands back on the app, then scrubbed from the URL), plus Google + Apple via `signInWithPopup`. Firebase error codes map to human copy via `friendlyAuthError`
+- `auth/useAuth.ts` — `{ isLoading, user }` where `user` is an app-level `AuthUser` (`id`/`email`/`created_at`/`emailVerified`/`providerIds`) adapted from the Firebase user so components don't touch SDK internals. Also calls `ensureMyProfile` on sign-in (profile bootstrap + `last_seen_at`)
 - `signOut()` exported alongside
 
 ### Tooling & quality
 - Vite 6 + React 19 + TypeScript (strict) + Tailwind v3 (`darkMode: 'class'`)
 - **fireworks-js** by crashmax-dev (MIT) — canvas-based fireworks engine for the `"fireworks-js"` particle type
-- **@vercel/analytics** + **@vercel/speed-insights** — production telemetry on the hosted site
+- **firebase** — auth + Firestore, env-gated (see Optional auth). Firebase Analytics activates only if the config JSON carries a `measurementId` (i.e. the project gets linked to GA4); silent no-op otherwise. The Vercel analytics/speed-insights packages are gone with the Vercel exit
 - ESLint flat config + Prettier
-- **104 tests passing** across 10 files: ranges (15), compose (15 — includes 6 new `computeTypewriterShape` cases), interpolate (11), palette (3), format (10), effectToMotion (7), generateComponent (9), localStorage (13 — includes 2 new area-migration cases), textDiff (13), projectStore split/merge (8)
-- GitHub Actions CI: `lint` → `typecheck` → `test` → `build`
+- **124 tests passing across 12 files** — all green through the Firebase migration with zero test edits (the env-gated null client keeps the cloud branch dead under vitest, same as before)
+- GitHub Actions CI: `lint` → `typecheck` → `test` → `build`, then a `deploy` job (push to main only) that builds with the repo-variable config and deploys to Firebase Hosting
 - Conventional commits; commit log is the design record
 
 ### Deployment
-- Live at **`https://reactimate.vercel.app`** on Vercel Hobby. Auto-deploys from `main`
-- `vercel.json` with SPA rewrite (`/(.*) → /index.html`) so client-side routes don't 404 on refresh
-- Google Search Console verified via `public/google995357ceb40b715c.html`. Sitemap submitted
-- Hostinger domain `reactimate.cloud` registered but not pointed yet — easy DNS flip when ready
+- **Firebase Hosting**, project **`reactimate-cloud`** (us-central1 Firestore, Spark/free plan — no pausing, no card). Default URL `https://reactimate-cloud.web.app`; production domain **`https://reactimate.cloud`** (Hostinger DNS → Firebase). All SEO meta/sitemap/robots/OG URLs now point at `reactimate.cloud`
+- `firebase.json` — SPA rewrite (`** → /index.html`), long-cache headers for `/assets/**`, Firestore rules + indexes wiring. `.firebaserc` pins the default project
+- CI deploy job (`.github/workflows/ci.yml`) deploys on push to `main` after checks pass. Needs repo **variable** `VITE_FIREBASE_CONFIG` (set) and repo **secret** `FIREBASE_SERVICE_ACCOUNT_REACTIMATE_CLOUD` (pending — see follow-ups). Manual: `npm run build && firebase deploy --only hosting`
+- The Supabase keep-alive cron workflow is deleted — Firebase free projects never pause
+- Google Search Console verification file (`public/google995357ceb40b715c.html`) still ships; the `reactimate.cloud` property needs adding + sitemap resubmit (follow-up)
 
 ---
 
 ## Not implemented yet
 
+### Firebase cutover — remaining manual steps
+**Status:** code + rules + hosting config shipped and verified locally; these console/DNS steps finish the move.
+- Enable Auth providers in the Firebase console: Email/Password (+ Email link toggle), Google, Apple (Services ID / Team ID / Key ID / `.p8`, and the `__/auth/handler` return URL registered at developer.apple.com)
+- Create the CI deploy secret: Firebase console → Project settings → Service accounts → generate key, then `gh secret set FIREBASE_SERVICE_ACCOUNT_REACTIMATE_CLOUD < key.json` (or run `firebase init hosting:github` and keep only the secret it creates)
+- First hosting deploy + smoke test: all four sign-in methods, identity link/unlink, project autosave → Firestore, presets, feedback + admin reply, admin gate, auth-off localStorage mode
+- Point `reactimate.cloud` DNS (Hostinger) at Firebase Hosting (console → Hosting → Add custom domain gives the records) and add the domain to Auth → Settings → Authorized domains
+- Add the `reactimate.cloud` property in Google Search Console + resubmit the sitemap
+- After cutover is verified: delete the Vercel project and the old Supabase project; remove the now-unused `SUPABASE_URL` / `SUPABASE_ANON_KEY` repo secrets
+- Optional: link the Firebase project to GA4 (console → Integrations) and add the resulting `measurementId` to `VITE_FIREBASE_CONFIG` (repo variable + `.env.local`) to activate the built-in analytics hook
+
 ### Multi-project cloud library (Option B)
 **Status:** deliberately deferred — the single-project model is shipped with guardrails (shadow flag, save-overwrite confirm, reset warning, Cloud/Local indicator) that make it safe. Revisit if user feedback asks for it. **Effort:** ~15-30 min.
-- Schema: drop `unique` constraint on `projects.user_id`, add `unique (user_id, name)` OR continue keying by the existing `id` UUID
+- Schema: key projects by auto-id docs (`projects/{projectId}` with a `user_id` field + composite index) instead of doc-id-per-user
 - API: `listProjects()`, `loadProject(id)`, `saveProject(project)` (insert-or-update by id), `deleteProject(id)`, `renameProject(id, name)`
 - UI: "Projects" dropdown in the toolbar near the project name (or an `/app/projects` route) showing a list; "Save As..." to fork on name conflict
-- Migration: existing one-row-per-user schema stays valid; old projects load fine, new ones can coexist
+- Migration: existing one-doc-per-user data stays valid; old projects load fine, new ones can coexist
 
 ### Phase 2 — layout polish
 **Status:** mostly done via the editor/inspector overhaul. Remaining: better empty/error states, breakpoint behavior, a polish pass on spacing/typography. Probably "read-only on mobile" rather than building a real touch editor.
@@ -278,8 +291,7 @@ If the user presses Enter at the very end of the text and then types, the new te
 - Cubic-bezier easing curve editor in the EasingPicker (currently 6 named presets)
 - Compact toolbar when narrow
 - Tests for the new effect types (particle physics paths, spotlight masking math, typewriter timing)
-- Bundle splitting — single chunk is ~610 KB (178 KB gzipped); `manualChunks` for `motion` + `fireworks-js` would cut the initial payload
-- Point custom domain (`reactimate.cloud` registered at Hostinger, DNS not yet pointed)
+- Bundle splitting — single chunk is now ~1,426 KB (380 KB gzipped; the Firebase SDK added ~200 KB gzip). `manualChunks` for `firebase` + `motion` + `fireworks-js`, or dynamic-importing the Firebase modules behind the env gate, would cut the initial payload substantially
 
 ### Far horizon
 - Multiple stacked layers (multi-line text exists today via `\n`; per-layer animations would let you stack independent text/shape blocks)

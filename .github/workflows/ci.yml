@@ -31,3 +31,35 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # Deploys to Firebase Hosting on push to main, replacing Vercel's git
+  # integration. Needs two repo settings (see README → Deployment):
+  #   - variable VITE_FIREBASE_CONFIG — the public web-app config JSON
+  #   - secret FIREBASE_SERVICE_ACCOUNT_REACTIMATE_CLOUD — deploy credentials
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_FIREBASE_CONFIG: ${{ vars.VITE_FIREBASE_CONFIG }}
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_REACTIMATE_CLOUD }}
+          channelId: live
+          projectId: reactimate-cloud

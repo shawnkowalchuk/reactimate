@@ -1,6 +1,6 @@
 import { LogOut, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
-import { isAuthEnabled } from "../../auth/supabase";
+import { isAuthEnabled } from "../../auth/firebase";
 import { signOut, useAuth } from "../../auth/useAuth";
 
 export function UserMenu() {

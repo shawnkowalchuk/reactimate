@@ -1,4 +1,16 @@
-import { supabase } from "../auth/supabase";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
+import { auth, db } from "../auth/firebase";
+import { tsToIso } from "./firestoreUtils";
 
 export interface Profile {
   id: string;
@@ -8,42 +20,75 @@ export interface Profile {
   last_seen_at: string | null;
 }
 
-export async function fetchMyProfile(): Promise<Profile | null> {
-  if (!supabase) return null;
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return null;
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, email, is_admin, created_at, last_seen_at")
-    .eq("id", userData.user.id)
-    .maybeSingle();
-  if (error) {
-    console.warn("fetchMyProfile:", error.code, error.message);
-    return null;
-  }
-  return data as Profile | null;
+function docToProfile(id: string, data: Record<string, unknown>): Profile {
+  return {
+    id,
+    email: (data.email as string | null) ?? null,
+    is_admin: data.is_admin === true,
+    created_at: tsToIso(data.created_at) ?? "",
+    last_seen_at: tsToIso(data.last_seen_at),
+  };
 }
 
-export async function touchLastSeen(): Promise<void> {
-  if (!supabase) return;
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return;
-  await supabase
-    .from("profiles")
-    .update({ last_seen_at: new Date().toISOString() })
-    .eq("id", userData.user.id);
+/** Only ensure/touch the profile once per uid per page load. */
+let ensuredForUid: string | null = null;
+
+/**
+ * Create the caller's profile doc on first sign-in (replaces the Postgres
+ * `handle_new_user()` trigger) and refresh `last_seen_at` on every session.
+ * Security rules only allow `last_seen_at` to change on update, and force
+ * `is_admin: false` on create — admin is granted by editing the doc in the
+ * Firebase console.
+ */
+export async function ensureMyProfile(
+  uid: string,
+  email: string | null,
+): Promise<void> {
+  if (!db || ensuredForUid === uid) return;
+  ensuredForUid = uid;
+  const ref = doc(db, "profiles", uid);
+  try {
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      await updateDoc(ref, { last_seen_at: serverTimestamp() });
+    } else {
+      await setDoc(ref, {
+        email,
+        is_admin: false,
+        created_at: serverTimestamp(),
+        last_seen_at: serverTimestamp(),
+      });
+    }
+  } catch (err) {
+    // Best effort — a StrictMode double-invoke or offline start shouldn't
+    // break sign-in. Cleared so the next auth event retries.
+    ensuredForUid = null;
+    console.warn("ensureMyProfile:", err);
+  }
+}
+
+export async function fetchMyProfile(): Promise<Profile | null> {
+  if (!db || !auth?.currentUser) return null;
+  const uid = auth.currentUser.uid;
+  try {
+    const snap = await getDoc(doc(db, "profiles", uid));
+    if (!snap.exists()) return null;
+    return docToProfile(snap.id, snap.data());
+  } catch (err) {
+    console.warn("fetchMyProfile:", err);
+    return null;
+  }
 }
 
 export async function listAllProfiles(): Promise<Profile[]> {
-  if (!supabase) return [];
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, email, is_admin, created_at, last_seen_at")
-    .order("created_at", { ascending: false });
-  if (error) {
-    console.warn("listAllProfiles:", error.message);
+  if (!db) return [];
+  try {
+    const snap = await getDocs(
+      query(collection(db, "profiles"), orderBy("created_at", "desc")),
+    );
+    return snap.docs.map((d) => docToProfile(d.id, d.data()));
+  } catch (err) {
+    console.warn("listAllProfiles:", err);
     return [];
   }
-  return (data ?? []) as Profile[];
 }

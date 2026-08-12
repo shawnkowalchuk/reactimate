@@ -4,7 +4,7 @@ import { ArrowRight, Github, MessageSquare, Moon, Settings, Shield, Sun } from "
 import { useThemeStore } from "../../store/themeStore";
 import { useAuth } from "../../auth/useAuth";
 import { useIsAdmin } from "../../auth/useAdmin";
-import { isAuthEnabled } from "../../auth/supabase";
+import { isAuthEnabled } from "../../auth/firebase";
 import { SignInScreen } from "../../auth/SignInScreen";
 
 export function Navbar() {

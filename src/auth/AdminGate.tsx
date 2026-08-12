@@ -1,14 +1,14 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Loader2, ShieldAlert } from "lucide-react";
-import { isAuthEnabled } from "./supabase";
+import { isAuthEnabled } from "./firebase";
 import { useAuth } from "./useAuth";
 import { useAdminStore } from "./useAdmin";
 import { SignInScreen } from "./SignInScreen";
 
 /**
  * Wraps admin routes. Behavior:
- *  - Supabase not configured → setup-required message
+ *  - Firebase not configured → setup-required message
  *  - Loading session → spinner
  *  - Signed out         → SignInScreen
  *  - Signed in, profile not yet loaded → spinner
@@ -45,16 +45,16 @@ function SetupRequired() {
     <div className="mx-auto flex min-h-screen max-w-xl flex-col items-start justify-center gap-4 px-6 text-neutral-700 dark:text-neutral-300">
       <ShieldAlert size={28} className="text-amber-500" />
       <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
-        Admin requires Supabase
+        Admin requires Firebase
       </h1>
       <p className="text-sm">
-        Configure <code className="rounded bg-neutral-100 px-1 dark:bg-neutral-900">VITE_SUPABASE_URL</code> and{" "}
-        <code className="rounded bg-neutral-100 px-1 dark:bg-neutral-900">VITE_SUPABASE_ANON_KEY</code>, run{" "}
-        <code className="rounded bg-neutral-100 px-1 dark:bg-neutral-900">supabase/schema.sql</code>{" "}
-        in the Supabase SQL Editor, then mark yourself as admin:
+        Set <code className="rounded bg-neutral-100 px-1 dark:bg-neutral-900">VITE_FIREBASE_CONFIG</code> in{" "}
+        <code className="rounded bg-neutral-100 px-1 dark:bg-neutral-900">.env.local</code>, deploy{" "}
+        <code className="rounded bg-neutral-100 px-1 dark:bg-neutral-900">firestore.rules</code>, sign in once, then
+        grant yourself admin in the Firebase console:
       </p>
       <pre className="w-full overflow-auto rounded border border-neutral-200 bg-neutral-50 p-3 text-xs dark:border-neutral-800 dark:bg-neutral-900">
-        update public.profiles set is_admin = true where email = 'you@example.com';
+        Firestore → profiles → your uid → set is_admin = true
       </pre>
       <Link
         to="/"
@@ -75,10 +75,10 @@ function ForbiddenScreen({ email }: { email: string | null }) {
       </h1>
       <p className="text-sm">
         You're signed in as <code className="rounded bg-neutral-100 px-1 dark:bg-neutral-900">{email ?? "anonymous"}</code> but that
-        account isn't an admin. Promote it with:
+        account isn't an admin. Promote it in the Firebase console:
       </p>
       <pre className="w-full overflow-auto rounded border border-neutral-200 bg-neutral-50 p-3 text-xs dark:border-neutral-800 dark:bg-neutral-900">
-        {`update public.profiles set is_admin = true where email = '${email ?? "you@example.com"}';`}
+        Firestore → profiles → this account's uid → set is_admin = true
       </pre>
       <Link
         to="/"
@@ -102,7 +102,8 @@ function ProfileMissing({ uid }: { email?: string | null; uid?: string }) {
         <code className="rounded bg-neutral-100 px-1 dark:bg-neutral-900 text-xs break-all">{uid ?? "unknown"}</code>
       </p>
       <p className="text-sm">
-        Compare with your profile ID in the Supabase Table Editor. They must match.
+        A profile doc should exist at <code className="rounded bg-neutral-100 px-1 dark:bg-neutral-900">profiles/&lt;that id&gt;</code> in
+        Firestore — it's created automatically on sign-in, so a retry usually fixes this.
       </p>
       <button
         type="button"

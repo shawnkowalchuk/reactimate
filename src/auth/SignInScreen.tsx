@@ -1,6 +1,18 @@
 import { useState } from "react";
 import { Eye, EyeOff, Loader2, Mail } from "lucide-react";
-import { supabase } from "./supabase";
+import {
+  GoogleAuthProvider,
+  OAuthProvider,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  sendSignInLinkToEmail,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+} from "firebase/auth";
+import { FirebaseError } from "firebase/app";
+import { auth } from "./firebase";
+import { EMAIL_FOR_SIGN_IN_KEY } from "./useAuth";
+import { friendlyAuthError } from "../api/identityApi";
 
 type Mode = "sign-in" | "sign-up" | "magic-link";
 
@@ -54,7 +66,7 @@ export function SignInScreen() {
 
   const onEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supabase || s.pending) return;
+    if (!auth || s.pending) return;
 
     if (s.mode === "sign-up") {
       if (!passwordsMatch) {
@@ -74,36 +86,36 @@ export function SignInScreen() {
 
     try {
       if (s.mode === "magic-link") {
-        const { error } = await supabase.auth.signInWithOtp({
-          email: s.email,
-          options: { emailRedirectTo: window.location.origin },
+        await sendSignInLinkToEmail(auth, s.email, {
+          url: window.location.origin,
+          handleCodeInApp: true,
         });
-        if (error) throw error;
+        // Firebase's email-link flow needs the address again when the link
+        // is opened; stash it so the redemption step doesn't have to ask.
+        window.localStorage.setItem(EMAIL_FOR_SIGN_IN_KEY, s.email);
         setMessage({ kind: "info", text: `Check ${s.email} for a sign-in link.` });
         return;
       }
 
       if (s.mode === "sign-up") {
-        const { error } = await supabase.auth.signUp({
-          email: s.email,
-          password: s.password,
-          options: { emailRedirectTo: window.location.origin },
+        const cred = await createUserWithEmailAndPassword(
+          auth,
+          s.email,
+          s.password,
+        );
+        await sendEmailVerification(cred.user, {
+          url: window.location.origin,
         });
-        if (error) throw error;
         setMessage({
           kind: "info",
-          text: `Check ${s.email} to confirm your address. Sign in once verified.`,
+          text: `Check ${s.email} to verify your address.`,
         });
         return;
       }
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email: s.email,
-        password: s.password,
-      });
-      if (error) throw error;
+      await signInWithEmailAndPassword(auth, s.email, s.password);
       // Defensive: clear `pending` on success. When this screen is rendered
-      // by AuthGate on /app, the gate unmounts us once onAuthStateChange
+      // by AuthGate on /app, the gate unmounts us once onAuthStateChanged
       // delivers the new user — but when we're rendered inside a modal
       // (e.g. Navbar's "Sign in" button) the modal's host owns mount/unmount,
       // so the spinner would otherwise spin forever post-success.
@@ -111,22 +123,34 @@ export function SignInScreen() {
     } catch (err) {
       setMessage({
         kind: "error",
-        text: err instanceof Error ? err.message : "Something went wrong.",
+        text: friendlyAuthError(err, "Something went wrong."),
       });
     }
   };
 
   const onOAuth = async (provider: "google" | "apple") => {
-    if (!supabase || s.pending) return;
+    if (!auth || s.pending) return;
     setPending(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: window.location.origin },
-    });
-    if (error) {
-      setMessage({ kind: "error", text: error.message });
+    try {
+      await signInWithPopup(
+        auth,
+        provider === "google"
+          ? new GoogleAuthProvider()
+          : new OAuthProvider("apple.com"),
+      );
+      setPending(false);
+    } catch (err) {
+      // Closing the popup isn't an error worth shouting about.
+      if (
+        err instanceof FirebaseError &&
+        (err.code === "auth/popup-closed-by-user" ||
+          err.code === "auth/cancelled-popup-request")
+      ) {
+        setPending(false);
+        return;
+      }
+      setMessage({ kind: "error", text: friendlyAuthError(err, "Sign-in failed.") });
     }
-    // On success Supabase redirects the page — nothing to do here.
   };
 
   const submitDisabled =

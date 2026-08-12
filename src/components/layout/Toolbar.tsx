@@ -28,7 +28,7 @@ import {
 } from "../../persistence/importExport";
 import { clearStorage } from "../../persistence/localStorage";
 import { saveProjectToDB } from "../../api/projectApi";
-import { isAuthEnabled } from "../../auth/supabase";
+import { isAuthEnabled } from "../../auth/firebase";
 import { useAuth } from "../../auth/useAuth";
 import {
   clearShadowFlag,
@@ -95,7 +95,7 @@ export function Toolbar() {
 
   /**
    * Smart Save:
-   *  - Signed in (cloud available)   → force-sync to Supabase and confirm.
+   *  - Signed in (cloud available)   → force-sync to Firestore and confirm.
    *    (Auto-save is already running on every change; this button is the
    *    "I want a visible confirmation that my work is in the cloud" path.)
    *  - Signed out / auth not configured → download a .json file of the
@@ -301,7 +301,7 @@ export function Toolbar() {
           )}
         </button>
         {/* Live cloud-sync indicator: shows whether your changes are being
-            mirrored to the database. Only renders when Supabase auth is
+            mirrored to the database. Only renders when Firebase auth is
             configured in this build. */}
         {isAuthEnabled && (
           <span

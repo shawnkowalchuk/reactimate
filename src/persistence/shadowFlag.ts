@@ -7,7 +7,7 @@
 //   1. User clicks "Open in Editor" on the homepage → markShadowProject()
 //      sets the flag.
 //   2. While the flag is true, the autosave pipeline still writes to
-//      localStorage but SKIPS the Supabase save (so the user's cloud
+//      localStorage but SKIPS the Firestore save (so the user's cloud
 //      project isn't silently clobbered by the example).
 //   3. First time the user clicks Save in the toolbar and confirms the
 //      cloud-overwrite prompt → clearShadowFlag() flips it off and

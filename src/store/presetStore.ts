@@ -1,6 +1,20 @@
 import { create } from "zustand";
+import { onAuthStateChanged } from "firebase/auth";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  where,
+  writeBatch,
+  Timestamp,
+} from "firebase/firestore";
 import type { Effect, EffectType } from "../types/project";
-import { supabase } from "../auth/supabase";
+import { auth, db } from "../auth/firebase";
 
 /**
  * The subset of an effect that survives saving as a preset. Excludes
@@ -31,13 +45,14 @@ export interface PresetRecord {
 /**
  * Storage abstraction. The frontend has two implementations:
  *  - `LocalStorageBackend` — keeps presets in browser localStorage.
- *    Always available; used when Supabase isn't configured OR the user
+ *    Always available; used when Firebase isn't configured OR the user
  *    isn't signed in (so presets still work offline).
- *  - `SupabaseBackend` — persists to `public.presets` with RLS so the
- *    presets follow the user across devices.
+ *  - `FirestoreBackend` — persists to the `presets` collection (security
+ *    rules scope rows to their owner) so presets follow the user across
+ *    devices.
  *
  * `activeBackend()` returns the right one based on auth state. The store
- * subscribes to Supabase auth changes and refreshes on sign-in / sign-out.
+ * subscribes to Firebase auth changes and refreshes on sign-in / sign-out.
  */
 export interface PresetStorage {
   list(): Promise<PresetRecord[]>;
@@ -96,83 +111,91 @@ class LocalStorageBackend implements PresetStorage {
 }
 
 // ---------------------------------------------------------------------------
-// SupabaseBackend
+// FirestoreBackend
 // ---------------------------------------------------------------------------
 
-interface PresetRow {
-  id: string;
-  user_id: string;
-  name: string;
-  effect_type: string;
-  config: PresetConfig;
-  created_at: string;
-}
+// `config` is stored as a JSON string: Firestore rejects directly-nested
+// arrays, which effect configs can contain, and it's never queried.
+const docToRecord = (
+  id: string,
+  data: Record<string, unknown>,
+): PresetRecord | null => {
+  try {
+    const created = data.created_at;
+    return {
+      id,
+      name: (data.name as string) ?? "",
+      effectType: data.effect_type as EffectType,
+      config: JSON.parse(data.config as string) as PresetConfig,
+      createdAt:
+        created instanceof Timestamp ? created.toMillis() : Date.now(),
+    };
+  } catch {
+    return null;
+  }
+};
 
-const rowToRecord = (row: PresetRow): PresetRecord => ({
-  id: row.id,
-  name: row.name,
-  effectType: row.effect_type as EffectType,
-  config: row.config,
-  createdAt: new Date(row.created_at).getTime(),
-});
-
-class SupabaseBackend implements PresetStorage {
+class FirestoreBackend implements PresetStorage {
   async list(): Promise<PresetRecord[]> {
-    if (!supabase) return [];
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
-    const { data, error } = await supabase
-      .from("presets")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: true });
-    if (error) {
-      console.warn("presets list:", error.message);
+    const uid = auth?.currentUser?.uid;
+    if (!db || !uid) return [];
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, "presets"),
+          where("user_id", "==", uid),
+          orderBy("created_at", "asc"),
+        ),
+      );
+      return snap.docs
+        .map((d) => docToRecord(d.id, d.data()))
+        .filter((r): r is PresetRecord => r !== null);
+    } catch (err) {
+      console.warn("presets list:", err);
       return [];
     }
-    return ((data ?? []) as PresetRow[]).map(rowToRecord);
   }
 
   async save(
     input: Omit<PresetRecord, "id" | "createdAt">,
   ): Promise<PresetRecord> {
-    if (!supabase) throw new Error("Supabase isn't configured.");
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Sign in to save to the cloud.");
-    const { data, error } = await supabase
-      .from("presets")
-      .insert({
-        user_id: user.id,
-        name: input.name,
-        effect_type: input.effectType,
-        config: input.config,
-      })
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    return rowToRecord(data as PresetRow);
+    const uid = auth?.currentUser?.uid;
+    if (!db || !uid) throw new Error("Sign in to save to the cloud.");
+    const ref = await addDoc(collection(db, "presets"), {
+      user_id: uid,
+      name: input.name,
+      effect_type: input.effectType,
+      config: JSON.stringify(input.config),
+      created_at: serverTimestamp(),
+    });
+    return { ...input, id: ref.id, createdAt: Date.now() };
   }
 
   async delete(id: string): Promise<void> {
-    if (!supabase) return;
-    const { error } = await supabase.from("presets").delete().eq("id", id);
-    if (error) throw new Error(error.message);
+    if (!db) return;
+    await deleteDoc(doc(db, "presets", id));
   }
 
   async bulkPut(records: PresetRecord[]): Promise<void> {
-    if (!supabase) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Sign in to save to the cloud.");
-    await supabase.from("presets").delete().eq("user_id", user.id);
-    if (records.length === 0) return;
-    const rows = records.map((r) => ({
-      user_id: user.id,
-      name: r.name,
-      effect_type: r.effectType,
-      config: r.config,
-    }));
-    const { error } = await supabase.from("presets").insert(rows);
-    if (error) throw new Error(error.message);
+    const uid = auth?.currentUser?.uid;
+    if (!db || !uid) throw new Error("Sign in to save to the cloud.");
+    // Single atomic batch — the old delete-then-insert could lose every
+    // preset if the insert half failed.
+    const existing = await getDocs(
+      query(collection(db, "presets"), where("user_id", "==", uid)),
+    );
+    const batch = writeBatch(db);
+    for (const d of existing.docs) batch.delete(d.ref);
+    for (const r of records) {
+      batch.set(doc(collection(db, "presets")), {
+        user_id: uid,
+        name: r.name,
+        effect_type: r.effectType,
+        config: JSON.stringify(r.config),
+        created_at: serverTimestamp(),
+      });
+    }
+    await batch.commit();
   }
 }
 
@@ -181,17 +204,17 @@ class SupabaseBackend implements PresetStorage {
 // ---------------------------------------------------------------------------
 
 const localBackend = new LocalStorageBackend();
-const cloudBackend = new SupabaseBackend();
+const cloudBackend = new FirestoreBackend();
 
-/** True iff Supabase is configured AND the user is signed in. */
+/** True iff Firebase is configured AND the user is signed in. */
 let signedIn = false;
 
 function activeBackend(): PresetStorage {
-  return supabase && signedIn ? cloudBackend : localBackend;
+  return auth && signedIn ? cloudBackend : localBackend;
 }
 
 export function isPresetCloudActive(): boolean {
-  return Boolean(supabase) && signedIn;
+  return Boolean(auth) && signedIn;
 }
 
 // ---------------------------------------------------------------------------
@@ -203,7 +226,7 @@ export function isPresetCloudActive(): boolean {
 let migrationDone = false;
 
 async function migrateLocalToCloudOnce(): Promise<void> {
-  if (migrationDone || !supabase || !signedIn) return;
+  if (migrationDone || !auth || !signedIn) return;
   migrationDone = true;
   try {
     const cloud = await cloudBackend.list();
@@ -294,17 +317,12 @@ export const usePresetStore = create<PresetState>((set, get) => ({
 // Wire auth state changes → refresh + migrate
 // ---------------------------------------------------------------------------
 
-if (supabase) {
-  // Initial session lookup
-  void supabase.auth.getSession().then(async ({ data }) => {
-    signedIn = Boolean(data.session);
-    if (signedIn) await migrateLocalToCloudOnce();
-    void usePresetStore.getState().refresh();
-  });
-
-  supabase.auth.onAuthStateChange((_event, session) => {
+if (auth) {
+  // Fires immediately with the restored session, then on every sign-in /
+  // sign-out — covers both the initial lookup and later changes.
+  onAuthStateChanged(auth, (user) => {
     const wasSignedIn = signedIn;
-    signedIn = Boolean(session);
+    signedIn = Boolean(user);
     // Reset the per-session migration guard so a fresh sign-in on a new
     // browser triggers migration if the cloud is still empty.
     if (!wasSignedIn && signedIn) migrationDone = false;

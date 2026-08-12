@@ -12,16 +12,16 @@ import {
   ShieldCheck,
   Type,
 } from "lucide-react";
-import type { UserIdentity } from "@supabase/supabase-js";
 import { Navbar } from "../components/home/Navbar";
 import { Footer } from "../components/home/Footer";
-import { isAuthEnabled } from "../auth/supabase";
+import { isAuthEnabled } from "../auth/firebase";
 import { signOut, useAuth } from "../auth/useAuth";
 import {
   getMyIdentities,
   linkProvider,
   unlinkIdentityById,
   updatePassword,
+  type Identity,
   type LinkableProvider,
 } from "../api/identityApi";
 import {
@@ -72,8 +72,8 @@ function Body() {
 function NotConfigured() {
   return (
     <div className="rounded-lg border border-amber-300/60 bg-amber-50 p-5 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
-      Account settings require Supabase auth. Set <code className="rounded bg-amber-100/80 px-1 dark:bg-amber-900/50">VITE_SUPABASE_URL</code>{" "}
-      and <code className="rounded bg-amber-100/80 px-1 dark:bg-amber-900/50">VITE_SUPABASE_ANON_KEY</code> in <code className="rounded bg-amber-100/80 px-1 dark:bg-amber-900/50">.env.local</code>{" "}
+      Account settings require Firebase auth. Set <code className="rounded bg-amber-100/80 px-1 dark:bg-amber-900/50">VITE_FIREBASE_CONFIG</code>{" "}
+      in <code className="rounded bg-amber-100/80 px-1 dark:bg-amber-900/50">.env.local</code>{" "}
       and restart the dev server. (Font preferences above still work.)
     </div>
   );
@@ -314,7 +314,7 @@ function Row({
 
 function SignInMethodsCard() {
   const { user } = useAuth();
-  const [identities, setIdentities] = useState<UserIdentity[]>([]);
+  const [identities, setIdentities] = useState<Identity[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{
@@ -345,19 +345,21 @@ function SignInMethodsCard() {
     setBusy(provider);
     setMessage(null);
     try {
+      // Popup flow — resolves in place once the provider is linked.
       await linkProvider(provider);
-      // The page redirects via OAuth; this code path resumes only on error
-      // (or when the popup gets blocked).
+      setMessage({ kind: "info", text: `${labelFor(provider)} linked.` });
+      await refresh();
     } catch (err) {
-      setBusy(null);
       setMessage({
         kind: "error",
-        text: err instanceof Error ? err.message : "Couldn't start linking.",
+        text: err instanceof Error ? err.message : "Couldn't link provider.",
       });
+    } finally {
+      setBusy(null);
     }
   };
 
-  const onUnlink = async (identity: UserIdentity) => {
+  const onUnlink = async (identity: Identity) => {
     if (!canUnlink) return;
     if (
       !window.confirm(
@@ -449,7 +451,7 @@ function SignInMethodsCard() {
       )}
 
       <p className="mt-3 text-[11px] text-neutral-500">
-        Heads-up: linking requires "Manual Linking" enabled in your Supabase project under <em>Authentication → Sign In / Up</em>, and the relevant provider configured under <em>Authentication → Providers</em>.
+        Heads-up: each provider must be enabled in the Firebase console under <em>Authentication → Sign-in method</em> before it can be linked here.
       </p>
     </section>
   );
@@ -459,13 +461,13 @@ interface ProviderRowProps {
   icon: React.ReactNode;
   label: string;
   providerKey: string;
-  identity: UserIdentity | undefined;
+  identity: Identity | undefined;
   /** False for email (handled via the Change Password card instead). */
   actionable: boolean;
   canUnlink: boolean;
   busy: string | null;
   onLink: (provider: LinkableProvider) => Promise<void>;
-  onUnlink: (identity: UserIdentity) => Promise<void>;
+  onUnlink: (identity: Identity) => Promise<void>;
 }
 
 function ProviderRow({
@@ -481,10 +483,7 @@ function ProviderRow({
 }: ProviderRowProps) {
   const linked = Boolean(identity);
   const isBusy = busy === providerKey || (identity && busy === identity.id);
-  const subEmail =
-    typeof identity?.identity_data?.email === "string"
-      ? identity.identity_data.email
-      : null;
+  const subEmail = identity?.email ?? null;
 
   return (
     <li className="flex items-center justify-between gap-3 px-4 py-3 text-sm">

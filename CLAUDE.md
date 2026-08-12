@@ -63,7 +63,7 @@ When you add or modify an example, mentally walk through:
 1. Run `text.match(/\S+/g)` to enumerate words and their `[start, end)` ranges.
 2. Check each animated range `[s, e]` covers the intended word(s) exactly (no off-by-one with the period or comma).
 3. Compute `latestEnd = max(effect.startTime + effect.duration)` for each animated range — confirm the auto-bridge will produce a sensible trailing block (or none if it equals `duration`).
-4. Open `https://reactimate.vercel.app/`, click "Editor" on the card, and verify:
+4. Open `https://reactimate.cloud/`, click "Editor" on the card, and verify:
    - Editor text matches the demo text exactly (incl. line breaks).
    - Timeline shows one row per word (static rows have grey "(no effect)" blocks; animated rows have colored effect blocks + a trailing grey block if the effect ends before project end).
    - Hit Play in the editor — only animated words animate; static + post-animation text stays visible to project end.
@@ -73,10 +73,10 @@ When you add or modify an example, mentally walk through:
 ## General project conventions
 
 - **Stack:** Vite 6 + React 19 + TypeScript (strict) + Tailwind 3 (`darkMode: 'class'`) + zustand + zundo (temporal middleware).
-- **Backend:** env-gated Supabase (`VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`). With env unset the app runs purely from `localStorage` — preserve that fallback path in any auth/persistence change.
-- **Routing:** `react-router-dom` v7. SPA — `vercel.json` rewrites `/(.*)` → `/index.html` so refreshes don't 404.
-- **Hosting:** Vercel (Hobby tier), production at `https://reactimate.vercel.app`. SEO meta in `index.html`, `public/sitemap.xml`, `public/robots.txt`, `public/og-image.svg` all reference that exact URL — keep them in sync if the domain ever changes.
-- **Testing:** vitest, **96 tests passing across 10 files**. Run `npm test -- --run`. Don't merge a regression.
+- **Backend:** env-gated Firebase (`VITE_FIREBASE_CONFIG` — one-line JSON of the web-app config). With env unset the app runs purely from `localStorage` — preserve that fallback path in any auth/persistence change. Auth = Firebase Auth (password, email link, Google, Apple); data = Firestore (`profiles`, `projects` id=uid, `presets`, `feedback` + `replies` subcollection) guarded by `firestore.rules`. Project/preset JSON blobs are stored as JSON **strings** (Firestore rejects nested arrays).
+- **Routing:** `react-router-dom` v7. SPA — `firebase.json` rewrites `**` → `/index.html` so refreshes don't 404.
+- **Hosting:** Firebase Hosting (Spark tier), project `reactimate-cloud`, production at `https://reactimate.cloud`. SEO meta in `index.html`, `public/sitemap.xml`, `public/robots.txt`, `public/og-image.svg` all reference that exact URL — keep them in sync if the domain ever changes. Deploys: CI on push to main, or `firebase deploy --only hosting`.
+- **Testing:** vitest, **124 tests passing across 12 files**. Run `npm test -- --run`. Don't merge a regression.
 - **Commits:** conventional. After landing user-facing changes, commit + push to `origin/main` only when explicitly asked (the user often wants to test locally first).
 
 ## Particle / fireworks: `area` is canvas-design coords

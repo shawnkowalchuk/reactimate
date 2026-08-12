@@ -42,8 +42,8 @@ const FEATURES = [
   },
   {
     icon: KeyRound,
-    title: "Optional Supabase auth",
-    body: "Drop in two env vars and the editor gates behind email/password, magic link, Google, or Apple sign-in.",
+    title: "Optional Firebase auth",
+    body: "Drop in one env var and the editor gates behind email/password, magic link, Google, or Apple sign-in.",
   },
   {
     icon: FileJson2,

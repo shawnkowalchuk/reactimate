@@ -1,0 +1,79 @@
+rules_version = '2';
+
+// Ported from the old supabase/schema.sql RLS policies. Admin status lives
+// on profiles/{uid}.is_admin and is granted only by editing that doc in the
+// Firebase console — no client path can set it.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // One profile read per evaluation — the Firestore analog of the SQL
+    // "exists (select 1 from profiles where is_admin)" subquery.
+    function isAdmin() {
+      return signedIn() &&
+        get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.is_admin == true;
+    }
+
+    // profiles: created client-side on first sign-in (the old
+    // handle_new_user() trigger). Only last_seen_at may change afterwards.
+    match /profiles/{uid} {
+      allow get: if isSelf(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isSelf(uid)
+        && request.resource.data.is_admin == false
+        && request.resource.data.keys().hasOnly(['email', 'is_admin', 'created_at', 'last_seen_at']);
+      allow update: if isSelf(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['last_seen_at']);
+      allow delete: if false;
+    }
+
+    // projects: doc id == owner uid (one project per account).
+    match /projects/{uid} {
+      allow get: if isSelf(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update: if isSelf(uid) && request.resource.data.user_id == uid;
+      allow delete: if isSelf(uid);
+    }
+
+    // presets: flat collection scoped by user_id. Reads/lists require the
+    // query to be provably limited to the caller's own rows.
+    match /presets/{presetId} {
+      allow read: if signedIn() && resource.data.user_id == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.user_id == request.auth.uid;
+      allow update: if signedIn()
+        && resource.data.user_id == request.auth.uid
+        && request.resource.data.user_id == request.auth.uid;
+      allow delete: if signedIn() && resource.data.user_id == request.auth.uid;
+    }
+
+    // feedback: users create + read their own threads; admins see and
+    // manage everything. reply_count/last_reply_at are denormalized and
+    // maintained by the admin's atomic reply batch (hence update: isAdmin).
+    match /feedback/{feedbackId} {
+      allow get, list: if isAdmin()
+        || (signedIn() && resource.data.user_id == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.user_id == request.auth.uid
+        && request.resource.data.status == 'open'
+        && request.resource.data.reply_count == 0;
+      allow update: if isAdmin();
+      allow delete: if false;
+
+      match /replies/{replyId} {
+        allow read: if isAdmin()
+          || (signedIn()
+              && get(/databases/$(database)/documents/feedback/$(feedbackId)).data.user_id == request.auth.uid);
+        allow create: if isAdmin() && request.resource.data.author_id == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+  }
+}

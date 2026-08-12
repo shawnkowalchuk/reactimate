@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Send } from "lucide-react";
-import { isAuthEnabled } from "../auth/supabase";
+import { isAuthEnabled } from "../auth/firebase";
 import { useAuth } from "../auth/useAuth";
 import { Navbar } from "../components/home/Navbar";
 import { Footer } from "../components/home/Footer";
@@ -42,7 +42,7 @@ function NotConfigured() {
   return (
     <div className="mt-8 rounded-lg border border-amber-300/60 bg-amber-50 p-5 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
       <p>
-        In-app feedback requires Supabase. For now, please open an issue at{" "}
+        In-app feedback requires Firebase. For now, please open an issue at{" "}
         <a
           href="https://github.com/shawnkowalchuk/reactimate/issues"
           target="_blank"

@@ -71,7 +71,7 @@ const ITEMS: QA[] = [
       <>
         Not by default. The editor autosaves your project to your browser's{" "}
         <code className="rounded bg-neutral-100 px-1 text-[0.85em] dark:bg-neutral-800">localStorage</code>{" "}
-        and nothing leaves your machine. If you turn on the optional Supabase integration, your <em>effect presets</em> follow you across devices. Per-user project sync is on the roadmap.
+        and nothing leaves your machine. If you sign in (optional Firebase integration), your project and effect presets sync to your account and follow you across devices.
       </>
     ),
   },

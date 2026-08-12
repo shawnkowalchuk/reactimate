@@ -46,7 +46,7 @@ export function AdminDashboard() {
     <AdminLayout>
       <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Live numbers pulled from your Supabase project.
+        Live numbers pulled from your Firebase project.
       </p>
 
       {loading || !stats ? (
