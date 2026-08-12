@@ -261,13 +261,11 @@ The `Test-Project/` folder at the repo root is a bare Vite + React 19 + Motion s
 ## Not implemented yet
 
 ### Firebase cutover — remaining manual steps
-**Status:** code + rules + hosting config shipped and verified locally; these console/DNS steps finish the move.
-- Enable Auth providers in the Firebase console: Email/Password (+ Email link toggle), Google, Apple (Services ID / Team ID / Key ID / `.p8`, and the `__/auth/handler` return URL registered at developer.apple.com)
-- Create the CI deploy secret: Firebase console → Project settings → Service accounts → generate key, then `gh secret set FIREBASE_SERVICE_ACCOUNT_REACTIMATE_CLOUD < key.json` (or run `firebase init hosting:github` and keep only the secret it creates)
-- First hosting deploy + smoke test: all four sign-in methods, identity link/unlink, project autosave → Firestore, presets, feedback + admin reply, admin gate, auth-off localStorage mode
-- Point `reactimate.top` DNS at Firebase Hosting (console → Hosting → Add custom domain gives the records) and add the domain to Auth → Settings → Authorized domains
+**Status (2026-08-12):** LIVE at https://reactimate.top — DNS connected, cert issued (~32 min), all four auth providers enabled, `reactimate.top` in Auth authorized domains. Verified on prod: Google sign-in, profile bootstrap, admin gate (`is_admin` flipped in console), Firestore autosave. GitHub security hardening enabled: secret scanning, push protection, Dependabot security updates (`npm audit` was 10 → 0 advisories same day). Remaining:
+- Smoke-test the other sign-in methods on prod: email/password (+ verify-email gate), magic link, Apple; plus identity link/unlink, presets, feedback + admin reply
+- Create the CI deploy secret: Firebase console → Project settings → Service accounts → generate key, then `gh secret set FIREBASE_SERVICE_ACCOUNT_REACTIMATE_CLOUD < key.json` (until then the ci.yml deploy job fails on main pushes; manual `firebase deploy --only hosting` works)
 - Add the `reactimate.top` property in Google Search Console + resubmit the sitemap
-- After cutover is verified: delete the Vercel project and the old Supabase project; remove the now-unused `SUPABASE_URL` / `SUPABASE_ANON_KEY` repo secrets
+- After the smoke test: delete the Vercel project and the old Supabase project; remove the now-unused `SUPABASE_URL` / `SUPABASE_ANON_KEY` repo secrets
 - Optional: link the Firebase project to GA4 (console → Integrations) and add the resulting `measurementId` to `VITE_FIREBASE_CONFIG` (repo variable + `.env.local`) to activate the built-in analytics hook
 
 ### Multi-project cloud library (Option B)
