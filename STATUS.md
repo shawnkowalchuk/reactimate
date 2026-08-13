@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-08-12 · commit [`b73a69b`](https://github.com/shawnkowalchuk/reactimate/commit/b73a69b) (Supabase→Firebase migration)
+**Last updated:** 2026-08-13 · adoption fixes (responsive export wrapper, visible-on-create components, preview empty-state hint) + admin user removal, unread-feedback badge, time-in-app tracking (see header commit)
 
 ---
 
@@ -45,14 +45,19 @@
   - Signed-in but `profile.is_admin = false` → `Forbidden` screen pointing at the Firestore console field to flip
   - Otherwise → renders children
 - `pages/admin/AdminLayout.tsx` — sidebar nav (Dashboard / Users / Feedback) + footer with current admin email, "Editor" link back to `/app`, sign-out button
-- **Dashboard** (`/admin`) — 4 stat cards (total users, signups last 7d, total feedback, open feedback) + the 10 most-recent feedback rows linked to detail view
-- **Users** (`/admin/users`) — searchable table over the `profiles` collection (email, joined date, last_seen, admin pill). `last_seen_at` is now actually populated — `ensureMyProfile` refreshes it on every sign-in/session restore, so the dashboard's active-user stats are real (they were always null under Supabase; the writer was dead code)
+  - **Unread badge** on the Feedback link — amber pill counting threads with `status: "open"` (only admins can reply, so open == unread). Uses `getCountFromServer`, which bills ONE read no matter how many threads match, instead of `listAllFeedback`'s one-per-doc. Cached in `store/adminBadgeStore.ts` so the layout's re-mount-per-navigation costs one read per admin session; `AdminFeedbackDetail` calls `refresh()` after a reply or status change
+- **Dashboard** (`/admin`) — 5 stat cards (total users, active users, **time in app**, cloud projects, avg effects/project) + signup sparkline, top effect types, feedback breakdown, and the 10 most-recent feedback rows
+- **Users** (`/admin/users`) — searchable table over the `profiles` collection (email, joined date, last_seen, **time in app**, admin pill, remove button). `last_seen_at` is now actually populated — `ensureMyProfile` refreshes it on every sign-in/session restore, so the dashboard's active-user stats are real (they were always null under Supabase; the writer was dead code)
+  - **Remove user** — `api/adminUserApi.ts.purgeUserData()` deletes the user's project, presets, and feedback threads (each thread's replies first — Firestore does NOT cascade into subcollections), then their profile **last**, because the rules guard every other delete with `targetIsProtected(uid)`, which reads that profile. Behind a blocking confirm dialog; not atomic, but a partial failure leaves the profile intact so the row stays listed and the purge can be retried
+  - **Admin accounts are non-removable**, enforced in `firestore.rules` (`profiles` delete requires `resource.data.is_admin != true`, and `targetIsProtected()` shields an admin's projects/presets/feedback). `removalBlockedReason()` mirrors it client-side to disable the button — a courtesy, not the guarantee
+  - **Their Auth login is NOT deleted.** That needs the server-side Admin SDK, which means Cloud Functions and the paid Blaze plan. A purged user who signs in again gets a fresh empty profile; the confirm dialog and the success notice both say so and point at Firebase console → Authentication
 - **Feedback** (`/admin/feedback`) — list filtered by status (all/open/replied/closed); rows link to the detail page
 - **Feedback detail** (`/admin/feedback/:id`) — full thread (subject + body + sender + status dropdown) plus existing replies and a Reply form. Posting a reply also flips the row's status to `replied`
 - Admin state lives in `useAdminStore` (zustand): the user's profile is cached and refreshed on every auth state change
+- **Time in app** — `persistence/useActiveTime.ts`, mounted on `EditorPage` (time spent building, not time reading the marketing page). Counts only while the tab is visible AND input was seen within 60s; without that idle gate a tab left open overnight would report eight hours and make the metric worthless. Time accrues in refs (never re-renders the host) and reaches Firestore only once ≥60s has built up, on a 5-min interval or on `visibilitychange`/`pagehide` — the same flush pattern the cloud save uses. Costs ~1-2 writes per session. No-ops entirely when auth is disabled, preserving the localStorage-only path. `computeStats` aggregates total / max / average, where the average is over users with ANY recorded time — averaging over all profiles would sag toward zero as signups grow and hide whether engaged users are engaging more
 
 ### Firestore schema (`firestore.rules` + `firestore.indexes.json`)
-- `profiles/{uid}` — `email`, `is_admin`, `created_at`, `last_seen_at`. Created client-side by `ensureMyProfile()` on first sign-in (replaces the old Postgres trigger — no Cloud Functions needed, stays on the free Spark plan); `last_seen_at` refreshed every session
+- `profiles/{uid}` — `email`, `is_admin`, `created_at`, `last_seen_at`, `active_seconds`. Created client-side by `ensureMyProfile()` on first sign-in (replaces the old Postgres trigger — no Cloud Functions needed, stays on the free Spark plan); `last_seen_at` refreshed every session. `active_seconds` accumulates via `increment()` so concurrent tabs can't clobber each other, and profiles predating the field read as 0. Rules allow a user to change only `last_seen_at` + `active_seconds` on their own doc — `is_admin` still can't be self-granted
 - `projects/{uid}` — `user_id`, `name`, `data` (project JSON as a **string** — Firestore rejects nested arrays), `created_at`, `updated_at`. Doc id == uid keeps the one-project-per-user invariant
 - `presets/{autoId}` — `user_id`, `name`, `effect_type`, `config` (JSON string), `created_at`
 - `feedback/{autoId}` — `subject`, `body`, `status` ∈ {open, replied, closed}, plus denormalized `reply_count` / `last_reply_at` (the old SQL view, maintained atomically by the reply batch)
@@ -117,6 +122,7 @@
   - **Split** — enabled when selection is fully inside one component
   - **Merge N** — enabled when selection fully covers 2+ components
   - Disabled buttons show a why-not tooltip
+- **New components are visible immediately.** `addComponent` (and both new components `splitOffRange` produces) seed a `custom` "(no effect)" effect spanning `[0, project.duration]`. Without it a fresh component has an empty `effects` array, `compose.ts` never marks it active, and the text the user just componentized vanishes — they did exactly what the editor told them to and got a blank canvas. Same convention `makeWordComponents` uses for the homepage examples. `mergeComponents` is untouched (it inherits its sources' effects)
 - `components/editor/useTextSelectionMode.ts` — pure hook that reads the live `Selection` and returns one of `{ kind: "componentize" | "split" | "merge", … }` or `null`
 - 26 curated Google Fonts loaded statically from `index.html` (Inter, Manrope, Space Grotesk, Plus Jakarta Sans, Outfit, DM Sans, Fraunces, Playfair Display, Bricolage Grotesque, JetBrains Mono, Anton, Archivo Black, Bebas Neue, Caveat, EB Garamond, Fira Code, Geist, Geist Mono, Karla, Lora, Merriweather, Onest, Oswald, Pacifico, Roboto Slab, Sora) with `display=swap`
 - Exported `Hero.tsx` uses `whiteSpace: "pre-wrap"` on the inner `<div>` so `\n` characters render as visible line breaks
@@ -178,6 +184,7 @@
 
 ### Preview rendering
 - `components/preview/PreviewCanvas.tsx` — frames the design canvas at true dimensions, scales to fit via CSS transform + `canvasScaleStore`; shows live zoom %, dimensions, preset. Mounts the frame-level overlays: `SpotlightOverlay`, `FireworksLibraryOverlay`, `EffectAreaOverlay`
+  - **Empty-state hint** — "visible = componentized" means a user with text but nothing componentized sees a blank canvas with no explanation. When the layer has text and no visible component carries an effect, a muted chip explains why and names the next action ("click Componentize" vs "add an effect from the timeline", depending on whether components exist). Rendered OUTSIDE the scaled frame so it stays legible at any zoom
 - `components/preview/RenderedText.tsx`:
   - Splits layer text into plain + componentized segments, sorted by `startIndex`
   - Plain non-whitespace text is **not rendered** in the preview (only componentized text appears) — plain whitespace between components is rendered invisibly to preserve spacing
@@ -209,6 +216,8 @@ Toolbar **Export** button downloads **`Hero.tsx`** (always that name; consumer r
 | `spotlightToMotion.ts` | Backdrop layer (sweep modes via motion's `x`/`y` keyframes, mouse mode via `<MouseSpotlight>` helper with `pointermove`). Soft feather via radial-gradient (matches preview math). Explicit `sweepStart`/`sweepEnd` honored. **`maskText` in both tint and reveal modes** via `<MaskedText>` helper: `useLayoutEffect` measures the text's offset from the canvas-sized ancestor; clip-path `circle()` or `inset()` lerps between start/end (sweep) or follows cursor (mouse); tint mode layers a tinted copy on top of the original, reveal mode clips the original |
 
 **Every editor effect now exports.** What you see in the preview is what lands in `Hero.tsx`.
+
+**Responsive by default.** `fitToWidth.ts` emits a `<FitToWidth>` wrapper around every export. The hero is authored against a fixed design canvas and everything downstream depends on that coordinate space (text laid out in design px; particle / fireworks / spotlight layers absolutely positioned in design coords), so a bare 1200px hero overflowed every phone. The wrapper measures its container with a `ResizeObserver` and applies a uniform `transform: scale(min(1, containerWidth / designWidth))` — a scale rather than a reflow is what keeps every overlay layer aligned. Capped at 1 and sized `maxWidth: designWidth`, so a container at or above the design width renders exactly as it did before the wrapper existed; only narrower containers change. Uses an SSR-safe `useLayoutEffect`/`useEffect` switch so Next.js consumers don't get a server-render warning or a flash of unscaled content.
 
 The `Test-Project/` folder at the repo root is a bare Vite + React 19 + Motion sandbox for drop-in verification: `cd Test-Project && npm install && npm run dev`, then replace `src/Hero.tsx` with your exported file.
 
@@ -245,7 +254,7 @@ The `Test-Project/` folder at the repo root is a bare Vite + React 19 + Motion s
 - **fireworks-js** by crashmax-dev (MIT) — canvas-based fireworks engine for the `"fireworks-js"` particle type
 - **firebase** — auth + Firestore, env-gated (see Optional auth). Firebase Analytics activates only if the config JSON carries a `measurementId` (i.e. the project gets linked to GA4); silent no-op otherwise. The Vercel analytics/speed-insights packages are gone with the Vercel exit
 - ESLint flat config + Prettier
-- **124 tests passing across 12 files** — all green through the Firebase migration with zero test edits (the env-gated null client keeps the cloud branch dead under vitest, same as before)
+- **139 tests passing across 14 files** — all green through the Firebase migration with zero test edits (the env-gated null client keeps the cloud branch dead under vitest, same as before)
 - GitHub Actions CI: `lint` → `typecheck` → `test` → `build`, then a `deploy` job (push to main only) that builds with the repo-variable config and deploys to Firebase Hosting
 - Conventional commits; commit log is the design record
 

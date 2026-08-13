@@ -6,7 +6,11 @@ import type { FeedbackWithCounts } from "../../../api/feedbackApi";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function profileAt(daysAgo: number, lastSeenDaysAgo?: number): Profile {
+function profileAt(
+  daysAgo: number,
+  lastSeenDaysAgo?: number,
+  activeSeconds = 0,
+): Profile {
   const now = Date.now();
   return {
     id: `u-${Math.random()}`,
@@ -17,8 +21,43 @@ function profileAt(daysAgo: number, lastSeenDaysAgo?: number): Profile {
       lastSeenDaysAgo === undefined
         ? null
         : new Date(now - lastSeenDaysAgo * DAY_MS).toISOString(),
+    active_seconds: activeSeconds,
   };
 }
+
+describe("time-in-app stats", () => {
+  it("totals active_seconds and averages over ENGAGED users only", () => {
+    // 3 users, only 2 with recorded time: 600 + 1200 = 1800 total.
+    // Averaging over all 3 would report 600 and understate engagement.
+    const s = computeDashboardStats(
+      [profileAt(10, 1, 600), profileAt(5, 1, 1200), profileAt(2, 1, 0)],
+      [],
+      [],
+    );
+    expect(s.totalActiveSeconds).toBe(1800);
+    expect(s.engagedUsers).toBe(2);
+    expect(s.avgActiveSecondsPerEngagedUser).toBe(900);
+    expect(s.maxActiveSeconds).toBe(1200);
+  });
+
+  it("reports zeros (not NaN) when nobody has recorded time", () => {
+    const s = computeDashboardStats([profileAt(1, 1, 0)], [], []);
+    expect(s.totalActiveSeconds).toBe(0);
+    expect(s.engagedUsers).toBe(0);
+    expect(s.avgActiveSecondsPerEngagedUser).toBe(0);
+    expect(s.maxActiveSeconds).toBe(0);
+  });
+
+  it("ignores a missing/garbage active_seconds from a legacy profile", () => {
+    const legacy = profileAt(3, 1);
+    // Profiles written before the field existed decode to 0, but guard the
+    // aggregate against a non-numeric value slipping through anyway.
+    (legacy as { active_seconds: unknown }).active_seconds = undefined;
+    const s = computeDashboardStats([legacy, profileAt(2, 1, 300)], [], []);
+    expect(s.totalActiveSeconds).toBe(300);
+    expect(s.engagedUsers).toBe(1);
+  });
+});
 
 function projectRow(
   updatedDaysAgo: number,

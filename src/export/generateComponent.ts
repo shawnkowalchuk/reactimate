@@ -13,6 +13,7 @@ import {
 } from "./particleToMotion";
 import { renderTypewriterSpan, typewriterOf } from "./typewriterToMotion";
 import { buildFireworksExport } from "./fireworksToMotion";
+import { FIT_TO_WIDTH_HOOKS, fitToWidthHelperSource } from "./fitToWidth";
 import {
   buildSpotlightExport,
   hasMaskTextSpotlight,
@@ -332,14 +333,15 @@ export function generateReactComponent(project: Project): string {
     width: Math.max(1, project.canvas.width - 128),
   };
 
+  // 8-space bodies: these layers sit inside <FitToWidth> → hero div.
   const particleSection = particleBlocks.length > 0
-    ? "\n" + indent(particleBlocks.join("\n"), "      ")
+    ? "\n" + indent(particleBlocks.join("\n"), "        ")
     : "";
   const fireworksSection = fireworks
-    ? "\n" + indent(fireworks.layerJsx.join("\n"), "      ")
+    ? "\n" + indent(fireworks.layerJsx.join("\n"), "        ")
     : "";
   const spotlightSection = spotlight
-    ? "\n" + indent(spotlight.layerJsx.join("\n"), "      ")
+    ? "\n" + indent(spotlight.layerJsx.join("\n"), "        ")
     : "";
 
   const imports = ['import { motion } from "motion/react";'];
@@ -349,6 +351,10 @@ export function generateReactComponent(project: Project): string {
   // useLayoutEffect). We consolidate every hook into ONE React import
   // so the exported file never has duplicate import lines.
   const reactHooks = new Set<string>();
+  // The <FitToWidth> scaffold wraps every export, so its hooks are always
+  // needed. (It uses useEffect only as the SSR-safe fallback for
+  // useLayoutEffect — see fitToWidth.ts.)
+  for (const h of FIT_TO_WIDTH_HOOKS) reactHooks.add(h);
   if (fireworks) reactHooks.add("useEffect").add("useRef");
   if (spotlight && spotlight.extraImports.length > 0) {
     reactHooks.add("useEffect").add("useRef").add("useState");
@@ -393,23 +399,28 @@ export function generateReactComponent(project: Project): string {
   if (fireworks) helperParts.push(fireworks.helperComponent);
   if (spotlight?.helperComponent) helperParts.push(spotlight.helperComponent);
   if (needsMaskedText) helperParts.push(maskedTextHelperSource());
+  // Emitted last: it's the outermost layout scaffold, not an effect, so the
+  // effect helpers stay nearer the top where they're easier to find.
+  helperParts.push(fitToWidthHelperSource());
   const helpers = helperParts.length > 0 ? "\n" + helperParts.join("\n\n") + "\n" : "";
 
   // Self-load the project's fonts — the consuming page won't have them.
   const fontHref = buildFontHref(project);
   const fontLink = fontHref
-    ? `\n      <link rel="stylesheet" href={${JSON.stringify(fontHref)}} />`
+    ? `\n        <link rel="stylesheet" href={${JSON.stringify(fontHref)}} />`
     : "";
 
   return `${uniqueImports.join("\n")}
 ${helpers}
 export function Hero() {
   return (
-    <div style={${fmt(wrapperStyle, 3)}}>${fontLink}
-      <div style={${fmt(innerStyle, 4)}}>
-${indent(inner, "        ")}
-      </div>${particleSection}${fireworksSection}${spotlightSection}
-    </div>
+    <FitToWidth width={${project.canvas.width}} height={${project.canvas.height}}>
+      <div style={${fmt(wrapperStyle, 4)}}>${fontLink}
+        <div style={${fmt(innerStyle, 5)}}>
+${indent(inner, "          ")}
+        </div>${particleSection}${fireworksSection}${spotlightSection}
+      </div>
+    </FitToWidth>
   );
 }
 `;

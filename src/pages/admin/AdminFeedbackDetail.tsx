@@ -11,6 +11,7 @@ import {
   type FeedbackReply,
   type FeedbackStatus,
 } from "../../api/feedbackApi";
+import { useAdminBadgeStore } from "../../store/adminBadgeStore";
 
 export function AdminFeedbackDetail() {
   const { id = "" } = useParams<{ id: string }>();
@@ -20,6 +21,9 @@ export function AdminFeedbackDetail() {
   const [reply, setReply] = useState("");
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Replying flips the thread to "replied" and closing removes it from the
+  // open set — both change the nav badge, so re-count after each.
+  const refreshBadge = useAdminBadgeStore((s) => s.refresh);
 
   const refresh = useCallback(async () => {
     if (!id) return;
@@ -43,7 +47,7 @@ export function AdminFeedbackDetail() {
     try {
       await postReply({ feedbackId: thread.id, body: reply });
       setReply("");
-      await refresh();
+      await Promise.all([refresh(), refreshBadge()]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to post reply.");
     } finally {
@@ -55,7 +59,7 @@ export function AdminFeedbackDetail() {
     if (!thread) return;
     try {
       await updateFeedbackStatus(thread.id, next);
-      await refresh();
+      await Promise.all([refresh(), refreshBadge()]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't update status.");
     }

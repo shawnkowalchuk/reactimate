@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   doc,
+  getCountFromServer,
   getDoc,
   getDocs,
   increment,
@@ -125,6 +126,27 @@ export async function listAllFeedback(): Promise<FeedbackWithCounts[]> {
   } catch (err) {
     console.warn("listAllFeedback:", err);
     return [];
+  }
+}
+
+/**
+ * How many feedback threads are still awaiting a reply. Only admins can
+ * reply (see `firestore.rules`), so `status: "open"` is exactly "unread".
+ *
+ * Uses an aggregation query: this bills ONE read regardless of how many
+ * threads match, where `listAllFeedback()` would bill one per document.
+ * That matters because the nav badge is fetched on every admin session.
+ */
+export async function countOpenFeedback(): Promise<number> {
+  if (!db) return 0;
+  try {
+    const snap = await getCountFromServer(
+      query(collection(db, "feedback"), where("status", "==", "open")),
+    );
+    return snap.data().count;
+  } catch (err) {
+    console.warn("countOpenFeedback:", err);
+    return 0;
   }
 }
 

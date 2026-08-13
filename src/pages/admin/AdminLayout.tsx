@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
@@ -8,6 +8,7 @@ import {
   Users,
 } from "lucide-react";
 import { signOut, useAuth } from "../../auth/useAuth";
+import { useAdminBadgeStore } from "../../store/adminBadgeStore";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-2 rounded-md px-3 py-2 text-sm ${
@@ -19,6 +20,14 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 export function AdminLayout({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const location = useLocation();
+  const openFeedback = useAdminBadgeStore((s) => s.openFeedback);
+  const ensureBadge = useAdminBadgeStore((s) => s.ensure);
+
+  // Cached in the store, so this re-mount-per-navigation costs one read
+  // for the whole admin session rather than one per page view.
+  useEffect(() => {
+    void ensureBadge();
+  }, [ensureBadge]);
 
   return (
     <div className="grid min-h-screen grid-cols-[220px_minmax(0,1fr)] bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
@@ -41,6 +50,15 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           <NavLink to="/admin/feedback" className={navLinkClass}>
             <MessageSquare size={14} />
             Feedback
+            {openFeedback > 0 && (
+              <span
+                className="ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white"
+                title={`${openFeedback} awaiting a reply`}
+                aria-label={`${openFeedback} unread feedback`}
+              >
+                {openFeedback > 99 ? "99+" : openFeedback}
+              </span>
+            )}
           </NavLink>
         </nav>
         <footer className="border-t border-neutral-200 px-3 py-3 text-xs text-neutral-500 dark:border-neutral-800">

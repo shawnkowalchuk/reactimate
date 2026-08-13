@@ -5,6 +5,7 @@ import { useAnimationEngine } from "../playback/useAnimationEngine";
 import { useKeyboardShortcuts } from "../playback/useKeyboardShortcuts";
 import { useAutosave } from "../persistence/useAutosave";
 import { useCloudSync } from "../persistence/useCloudSync";
+import { useActiveTime } from "../persistence/useActiveTime";
 import { Toolbar } from "../components/layout/Toolbar";
 import { InspectorBar } from "../components/layout/InspectorBar";
 import { TextEditor } from "../components/editor/TextEditor";
@@ -20,6 +21,9 @@ export function EditorPage() {
   useKeyboardShortcuts();
   useAutosave();
   useCloudSync();
+  // Mounted here rather than app-root: "time in app" should mean time
+  // spent building something, not time reading the marketing page.
+  useActiveTime();
 
   const [previewTab, setPreviewTab] = useState<PreviewTab>("preview");
 

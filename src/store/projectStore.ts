@@ -22,6 +22,32 @@ function initialProject(): Project {
 }
 
 /**
+ * The "(no effect)" placeholder every newly-created component starts with.
+ *
+ * A component is only visible while one of its effects' [start, end]
+ * windows is active — outside every window `compose.ts` forces opacity to
+ * 0, and a component with an EMPTY effects array is never active at all.
+ * So without this, componentizing a word made it vanish, which is the
+ * most confusing thing a new user can hit: they did what the editor told
+ * them to do and the text disappeared.
+ *
+ * Starting every component with a `custom` block spanning the whole
+ * project makes it visible from the first frame and gives it a timeline
+ * row to swap for a real effect. Same thing `makeWordComponents` does for
+ * the homepage examples (see CLAUDE.md).
+ */
+function placeholderEffect(projectDuration: number): Effect {
+  return {
+    id: newId("fx"),
+    type: "custom",
+    startTime: 0,
+    duration: projectDuration,
+    easing: "linear",
+    targets: {},
+  };
+}
+
+/**
  * Default rectangle for a freshly-added particle/fireworks effect — a
  * sensibly-sized box centered on the project canvas.
  */
@@ -224,7 +250,7 @@ export const useProjectStore = create<ProjectState>()(
         endIndex,
         color,
         style,
-        effects: [],
+        effects: [placeholderEffect(state.project.duration)],
       };
 
       set({
@@ -333,9 +359,12 @@ export const useProjectStore = create<ProjectState>()(
             endIndex: selEnd,
             color: middleColor,
             style: { ...c.style },
-            effects: [],
+            effects: [placeholderEffect(state.project.duration)],
           });
-          // Tail — same style, no effects, new id + palette color
+          // Tail — same style, new id + palette color. Like the middle it
+          // starts with a "(no effect)" placeholder rather than an empty
+          // effects array, so splitting a word never makes part of it
+          // disappear.
           if (selEnd < c.endIndex) {
             newComponents.push({
               id: newId("comp"),
@@ -343,7 +372,7 @@ export const useProjectStore = create<ProjectState>()(
               endIndex: c.endIndex,
               color: tailColor,
               style: { ...c.style },
-              effects: [],
+              effects: [placeholderEffect(state.project.duration)],
             });
           }
         }

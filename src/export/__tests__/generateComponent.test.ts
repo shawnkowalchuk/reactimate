@@ -58,10 +58,27 @@ describe("generateReactComponent", () => {
 
   it("emits proper imports and a single export", () => {
     const out = generateReactComponent(makeSampleProject());
-    const importMatches = out.match(/^import /gm);
-    const exportMatches = out.match(/^export /gm);
-    expect(importMatches).toHaveLength(1);
-    expect(exportMatches).toHaveLength(1);
+    const importLines = out.split("\n").filter((l) => l.startsWith("import "));
+    const sources = importLines.map((l) => l.match(/from "([^"]+)"/)?.[1]);
+    // Each module is imported exactly once. Several helpers need React
+    // hooks; the generator consolidates them into ONE `from "react"` line.
+    expect(new Set(sources).size).toBe(sources.length);
+    expect(sources).toContain("motion/react");
+    // <FitToWidth> wraps every export, so React hooks are always imported.
+    expect(sources).toContain("react");
+    expect(out.match(/^export /gm)).toHaveLength(1);
+  });
+
+  it("wraps the hero in <FitToWidth> at the project's canvas size", () => {
+    const project = makeSampleProject();
+    const out = generateReactComponent(project);
+    expect(out).toContain(
+      `<FitToWidth width={${project.canvas.width}} height={${project.canvas.height}}>`,
+    );
+    expect(out).toContain("</FitToWidth>");
+    // The wrapper only ever scales DOWN, so a container at or above the
+    // design width renders exactly as it did before the wrapper existed.
+    expect(out).toContain("Math.min(1, w / width)");
   });
 
   it("renders an animated color effect into initial/animate, not into style", () => {

@@ -65,6 +65,19 @@ export function PreviewCanvas({ project, registerElement, registerShape }: Previ
     c.effects.filter((e) => e.type === "fireworks-js" && e.fireworks && !c.hidden),
   );
 
+  // "Visible = componentized": plain text is deliberately rendered invisible,
+  // and a component only shows while one of its effect windows is active. So
+  // a user with text but nothing componentized sees an empty canvas with no
+  // explanation. New components now ship with a "(no effect)" placeholder
+  // (see projectStore.addComponent), but older projects can still hold
+  // effect-less components — hence the second branch.
+  const hasVisibleComponents = project.layer.components.some((c) => !c.hidden);
+  const nothingRenders = !project.layer.components.some(
+    (c) => !c.hidden && c.effects.length > 0,
+  );
+  const showEmptyHint =
+    project.layer.text.trim().length > 0 && nothingRenders;
+
   return (
     <div
       ref={wrapRef}
@@ -124,6 +137,33 @@ export function PreviewCanvas({ project, registerElement, registerShape }: Previ
         )}
         <EffectAreaOverlay project={project} scale={scale} />
       </div>
+      {/* Sits OUTSIDE the scaled frame so it stays legible at any zoom
+          (the frame's transform would shrink it along with the canvas). */}
+      {showEmptyHint && (
+        <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center px-6">
+          <div className="max-w-[16rem] rounded-md border border-neutral-300/70 bg-white/90 px-3 py-2 text-center text-[11px] leading-relaxed text-neutral-600 shadow-sm backdrop-blur-sm dark:border-neutral-700/70 dark:bg-neutral-900/90 dark:text-neutral-300">
+            Nothing to show yet — text appears once it belongs to a component.
+            <br />
+            {hasVisibleComponents ? (
+              <>
+                Add an effect from the{" "}
+                <span className="text-neutral-900 dark:text-neutral-100">
+                  timeline
+                </span>{" "}
+                below.
+              </>
+            ) : (
+              <>
+                Select your text, then click{" "}
+                <span className="text-neutral-900 dark:text-neutral-100">
+                  Componentize
+                </span>
+                .
+              </>
+            )}
+          </div>
+        </div>
+      )}
       <div className="pointer-events-none absolute bottom-2 right-3 flex items-center gap-1 text-[11px] text-neutral-500">
         <button
           type="button"

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Activity,
+  Clock,
   FileText,
   Loader2,
   MessageSquare,
@@ -14,6 +15,7 @@ import { listAllProfiles } from "../../api/profileApi";
 import { listAllFeedback } from "../../api/feedbackApi";
 import { listAllProjectsAdmin } from "../../api/projectApi";
 import { computeDashboardStats, type DashboardStats } from "./computeStats";
+import { formatDuration } from "./formatDuration";
 import { EFFECT_LABELS } from "../../constants/effects";
 import type { EffectType } from "../../types/project";
 
@@ -56,7 +58,7 @@ export function AdminDashboard() {
       ) : (
         <>
           {/* Top-line counts */}
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <StatCard
               icon={Users}
               label="Total users"
@@ -68,6 +70,16 @@ export function AdminDashboard() {
               label="Active users"
               value={stats.activeUsers7d}
               sub={`7d window · ${stats.activeUsers30d} in 30d`}
+            />
+            <StatCard
+              icon={Clock}
+              label="Time in app"
+              value={formatDuration(stats.totalActiveSeconds)}
+              sub={
+                stats.engagedUsers === 0
+                  ? "no sessions recorded yet"
+                  : `avg ${formatDuration(stats.avgActiveSecondsPerEngagedUser)} · top ${formatDuration(stats.maxActiveSeconds)}`
+              }
             />
             <StatCard
               icon={FileText}
@@ -206,7 +218,8 @@ export function AdminDashboard() {
 interface StatCardProps {
   icon: React.ComponentType<{ size?: number; className?: string }>;
   label: string;
-  value: number;
+  /** Pre-formatted string for non-counts (e.g. durations). */
+  value: number | string;
   sub?: string;
   accent?: "neutral" | "amber";
 }

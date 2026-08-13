@@ -34,11 +34,15 @@ describe("projectStore", () => {
       expect(head!.startIndex).toBe(0);
       expect(middle!.startIndex).toBe(3);
       expect(middle!.endIndex).toBe(5);
-      // Middle has no effects; head keeps the original's
-      expect(middle!.effects).toHaveLength(0);
+      // Head keeps the original's effects; the two NEW components each get
+      // a "(no effect)" placeholder so the split text stays visible.
       expect(head!.effects.length).toBe(welcome.effects.length);
-      // Tail has no effects
-      expect(tail!.effects).toHaveLength(0);
+      for (const c of [middle!, tail!]) {
+        expect(c.effects).toHaveLength(1);
+        expect(c.effects[0].type).toBe("custom");
+        expect(c.effects[0].startTime).toBe(0);
+        expect(c.effects[0].duration).toBe(before.duration);
+      }
     });
 
     it("does not produce an empty head when split starts at the original start", () => {
@@ -89,6 +93,26 @@ describe("projectStore", () => {
       const after = useProjectStore.getState().project;
       const middle = after.layer.components.find((c) => c.id === id);
       expect(middle!.color).not.toBe(welcome.color);
+    });
+  });
+
+  describe("addComponent", () => {
+    // compose.ts hides any component that has no active effect window, so a
+    // component born with `effects: []` would be invisible in the preview.
+    // Every new component gets a "(no effect)" block spanning the project.
+    it("seeds a new component with a full-length (no effect) placeholder", () => {
+      const before = useProjectStore.getState().project;
+      const id = useProjectStore.getState().addComponent(8, 10); // "to"
+      expect(id).not.toBeNull();
+
+      const added = useProjectStore
+        .getState()
+        .project.layer.components.find((c) => c.id === id)!;
+      expect(added.effects).toHaveLength(1);
+      expect(added.effects[0].type).toBe("custom");
+      expect(added.effects[0].startTime).toBe(0);
+      expect(added.effects[0].duration).toBe(before.duration);
+      expect(added.effects[0].targets).toEqual({});
     });
   });
 

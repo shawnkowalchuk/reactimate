@@ -15,6 +15,20 @@ export interface DashboardStats {
   /** Signups per day for the last 30 days, oldest first. Length: 30. */
   signupTrend: number[];
 
+  // Time-in-app stats (profiles[].active_seconds, accumulated by useActiveTime)
+  /** Total foreground, non-idle editor seconds across every user. */
+  totalActiveSeconds: number;
+  /**
+   * Mean seconds among users who have ANY recorded time. Averaging over all
+   * profiles would drag toward zero as signups grow, hiding whether the
+   * people who do engage are engaging more.
+   */
+  avgActiveSecondsPerEngagedUser: number;
+  /** Users with any recorded editor time. */
+  engagedUsers: number;
+  /** Highest single-user total, for the dashboard's "most active" line. */
+  maxActiveSeconds: number;
+
   // Project stats
   totalProjects: number;
   activeEditors7d: number;
@@ -59,6 +73,16 @@ export function computeDashboardStats(
     now,
   );
 
+  // ---- Time in app ---------------------------------------------------------
+  const activeSeconds = profiles
+    .map((p) => (Number.isFinite(p.active_seconds) ? p.active_seconds : 0))
+    .filter((s) => s > 0);
+  const totalActiveSeconds = activeSeconds.reduce((s, n) => s + n, 0);
+  const engagedUsers = activeSeconds.length;
+  const avgActiveSecondsPerEngagedUser =
+    engagedUsers === 0 ? 0 : totalActiveSeconds / engagedUsers;
+  const maxActiveSeconds = engagedUsers === 0 ? 0 : Math.max(...activeSeconds);
+
   // ---- Project stats -------------------------------------------------------
   const activeEditors7d = countSince(
     projects.map((p) => p.updated_at),
@@ -85,6 +109,11 @@ export function computeDashboardStats(
     activeUsers7d,
     activeUsers30d,
     signupTrend,
+
+    totalActiveSeconds,
+    avgActiveSecondsPerEngagedUser,
+    engagedUsers,
+    maxActiveSeconds,
 
     totalProjects: projects.length,
     activeEditors7d,

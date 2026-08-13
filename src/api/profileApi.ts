@@ -3,6 +3,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  increment,
   orderBy,
   query,
   serverTimestamp,
@@ -18,6 +19,12 @@ export interface Profile {
   is_admin: boolean;
   created_at: string;
   last_seen_at: string | null;
+  /**
+   * Lifetime foreground, non-idle seconds spent in the editor. Accumulated
+   * client-side and flushed with `increment()` — see `useActiveTime`.
+   * Profiles created before this field existed report 0.
+   */
+  active_seconds: number;
 }
 
 function docToProfile(id: string, data: Record<string, unknown>): Profile {
@@ -27,6 +34,10 @@ function docToProfile(id: string, data: Record<string, unknown>): Profile {
     is_admin: data.is_admin === true,
     created_at: tsToIso(data.created_at) ?? "",
     last_seen_at: tsToIso(data.last_seen_at),
+    active_seconds:
+      typeof data.active_seconds === "number" && data.active_seconds > 0
+        ? data.active_seconds
+        : 0,
   };
 }
 
@@ -63,6 +74,7 @@ export function ensureMyProfile(
         is_admin: false,
         created_at: serverTimestamp(),
         last_seen_at: serverTimestamp(),
+        active_seconds: 0,
       });
     }
   })().catch((err) => {
@@ -86,6 +98,27 @@ export async function fetchMyProfile(): Promise<Profile | null> {
   } catch (err) {
     console.warn("fetchMyProfile:", err);
     return null;
+  }
+}
+
+/**
+ * Add `seconds` to the caller's lifetime active-time counter and refresh
+ * `last_seen_at`. Uses `increment()` so concurrent tabs can't clobber each
+ * other, and so a profile predating the field starts from 0 implicitly.
+ *
+ * Deliberately fire-and-forget at the call site: losing a usage stat must
+ * never surface an error to someone who is just editing.
+ */
+export async function addActiveSeconds(seconds: number): Promise<void> {
+  if (!db || !auth?.currentUser) return;
+  if (!Number.isFinite(seconds) || seconds <= 0) return;
+  try {
+    await updateDoc(doc(db, "profiles", auth.currentUser.uid), {
+      active_seconds: increment(Math.round(seconds)),
+      last_seen_at: serverTimestamp(),
+    });
+  } catch (err) {
+    console.warn("addActiveSeconds:", err);
   }
 }
 
