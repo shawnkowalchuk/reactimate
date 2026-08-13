@@ -32,10 +32,16 @@ jobs:
       - name: Build
         run: npm run build
 
-  # Deploys to Firebase Hosting on push to main, replacing Vercel's git
-  # integration. Needs two repo settings (see README → Deployment):
+  # Deploys Firestore rules AND Hosting on push to main, replacing Vercel's
+  # git integration. Needs two repo settings (see README → Deployment):
   #   - variable VITE_FIREBASE_CONFIG — the public web-app config JSON
   #   - secret FIREBASE_SERVICE_ACCOUNT_REACTIMATE_CLOUD — deploy credentials
+  #
+  # Rules go out BEFORE hosting, deliberately. Rule changes are additive
+  # (they grant the permissions new code needs), so old code under new rules
+  # is harmless — whereas new code under OLD rules fails at runtime with
+  # permission-denied errors that read like application bugs. Shipping the
+  # bundle first would open exactly that window.
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: verify
@@ -50,6 +56,25 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # The hosting action below is hosting-only by design — it never reads
+      # firebase.json's `firestore` block. Without this step a rules change
+      # silently never ships. Runs before the build so a credentials problem
+      # surfaces in seconds instead of after a full bundle.
+      #
+      # No --force: that flag lets index deletions through unprompted. Left
+      # off, a pending deletion is reported rather than silently applied.
+      - name: Deploy Firestore rules + indexes
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_REACTIMATE_CLOUD }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json"
+          npx --yes firebase-tools deploy \
+            --only firestore:rules,firestore:indexes \
+            --project reactimate-cloud \
+            --non-interactive
+          rm -f "$RUNNER_TEMP/firebase-sa.json"
 
       - name: Build
         run: npm run build

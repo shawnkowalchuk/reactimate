@@ -77,7 +77,7 @@ When you add or modify an example, mentally walk through:
 - **Routing:** `react-router-dom` v7. SPA — `firebase.json` rewrites `**` → `/index.html` so refreshes don't 404.
 - **Hosting:** Firebase Hosting (Spark tier), project `reactimate-cloud`, production at `https://reactimate.top` (the similarly-named reactimate.cloud domain is unused and lapses 2027-05). SEO meta in `index.html`, `public/sitemap.xml`, `public/robots.txt`, `public/og-image.svg` all reference that exact URL — keep them in sync if the domain ever changes. Deploys: CI on push to main, or `firebase deploy --only hosting`.
 - **Testing:** vitest, **139 tests passing across 14 files**. Run `npm test -- --run`. Don't merge a regression.
-- **Firestore rules are not live until deployed.** `firestore.rules` changes need `firebase deploy --only firestore:rules` — CI's deploy job only ships hosting. A client change that depends on a new rule will fail silently against the old rules until you do.
+- **Firestore rules deploy from CI.** The `deploy` job ships `firestore.rules` + indexes *before* hosting, so new code never runs against stale rules. Manual fallback: `firebase deploy --only firestore:rules`. (The `FirebaseExtended/action-hosting-deploy` action is hosting-only and ignores `firebase.json`'s `firestore` block — hence the separate step.)
 - **Commits:** conventional. After landing user-facing changes, commit + push to `origin/main` only when explicitly asked (the user often wants to test locally first).
 
 ## Particle / fireworks: `area` is canvas-design coords
