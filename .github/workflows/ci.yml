@@ -64,17 +64,42 @@ jobs:
       #
       # No --force: that flag lets index deletions through unprompted. Left
       # off, a pending deletion is reported rather than silently applied.
+      #
+      # firebase-tools is pinned: unpinned, every push executes whatever was
+      # published most recently, in a shell holding a production key, and a
+      # breaking major would take deploys down with no repo change. Bump this
+      # by hand — Dependabot can't see it, since firebase-tools is deliberately
+      # NOT a project dependency (it would slow `npm ci` in the verify job too,
+      # which has no use for it). Note this pin covers THIS step only: the
+      # hosting action below runs its own `firebase-tools@latest` internally.
+      #
+      # The key file is created by mktemp (mode 0600, unique name) and removed
+      # by an EXIT trap rather than a trailing rm — a trailing rm is skipped
+      # when the deploy fails, which is precisely when the key would be left
+      # behind. The empty-secret guard turns a missing/emptied secret into one
+      # readable line instead of a downstream firebase auth error; this repo
+      # has already lost a day to that exact failure reading like a bug.
       - name: Deploy Firestore rules + indexes
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_REACTIMATE_CLOUD }}
         run: |
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-sa.json"
-          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json"
-          npx --yes firebase-tools deploy \
+          set -euo pipefail
+
+          if [ -z "${FIREBASE_SERVICE_ACCOUNT:-}" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT_REACTIMATE_CLOUD is unset or empty — set it with: gh secret set FIREBASE_SERVICE_ACCOUNT_REACTIMATE_CLOUD < key.json"
+            exit 1
+          fi
+
+          SA_FILE="$(mktemp "$RUNNER_TEMP/firebase-sa.XXXXXX")"
+          trap 'rm -f "$SA_FILE"' EXIT
+
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$SA_FILE"
+          export GOOGLE_APPLICATION_CREDENTIALS="$SA_FILE"
+
+          npx --yes firebase-tools@15.27.0 deploy \
             --only firestore:rules,firestore:indexes \
             --project reactimate-cloud \
             --non-interactive
-          rm -f "$RUNNER_TEMP/firebase-sa.json"
 
       - name: Build
         run: npm run build
