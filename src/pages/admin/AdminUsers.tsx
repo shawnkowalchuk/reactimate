@@ -3,19 +3,31 @@ import { Loader2, Shield, Trash2, TriangleAlert } from "lucide-react";
 import { AdminLayout } from "./AdminLayout";
 import { listAllProfiles, type Profile } from "../../api/profileApi";
 import {
+  listAllProjectsAdmin,
+  type AdminProjectRow,
+} from "../../api/projectApi";
+import {
   purgeUserData,
   removalBlockedReason,
   type PurgeResult,
 } from "../../api/adminUserApi";
 import { auth } from "../../auth/firebase";
 import { formatDuration } from "./formatDuration";
+import { summarizeProject } from "./summarizeProject";
+import { UserProjectDialog } from "./UserProjectDialog";
 
 export function AdminUsers() {
   const [rows, setRows] = useState<Profile[]>([]);
+  /** Cloud projects keyed by owner uid — one row per user who has ever saved. */
+  const [projects, setProjects] = useState<Map<string, AdminProjectRow>>(
+    new Map(),
+  );
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   /** The profile awaiting delete confirmation, if any. */
   const [confirming, setConfirming] = useState<Profile | null>(null);
+  /** The user whose project is open in the read-only inspector, if any. */
+  const [inspecting, setInspecting] = useState<Profile | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,8 +35,12 @@ export function AdminUsers() {
   useEffect(() => {
     document.title = "Admin · Users · reactimate";
     (async () => {
-      const data = await listAllProfiles();
+      const [data, projectRows] = await Promise.all([
+        listAllProfiles(),
+        listAllProjectsAdmin(),
+      ]);
       setRows(data);
+      setProjects(new Map(projectRows.map((p) => [p.user_id, p])));
       setLoading(false);
     })();
   }, []);
@@ -104,6 +120,7 @@ export function AdminUsers() {
                 <th className="px-4 py-2 font-medium">Joined</th>
                 <th className="px-4 py-2 font-medium">Last seen</th>
                 <th className="px-4 py-2 font-medium">Time in app</th>
+                <th className="px-4 py-2 font-medium">Project</th>
                 <th className="px-4 py-2 font-medium">Admin</th>
                 <th className="px-4 py-2 font-medium sr-only">Actions</th>
               </tr>
@@ -111,6 +128,7 @@ export function AdminUsers() {
             <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-800 dark:bg-neutral-950">
               {filtered.map((u) => {
                 const blocked = removalBlockedReason(u, currentUid);
+                const project = projects.get(u.id);
                 return (
                   <tr key={u.id}>
                     <td className="px-4 py-2 font-mono text-xs">
@@ -128,6 +146,12 @@ export function AdminUsers() {
                       {u.active_seconds > 0
                         ? formatDuration(u.active_seconds)
                         : "—"}
+                    </td>
+                    <td className="px-4 py-2 text-xs">
+                      <ProjectCell
+                        row={project}
+                        onOpen={() => setInspecting(u)}
+                      />
                     </td>
                     <td className="px-4 py-2">
                       {u.is_admin ? (
@@ -162,6 +186,14 @@ export function AdminUsers() {
         </div>
       )}
 
+      {inspecting && projects.get(inspecting.id) && (
+        <UserProjectDialog
+          email={inspecting.email}
+          row={projects.get(inspecting.id)!}
+          onClose={() => setInspecting(null)}
+        />
+      )}
+
       {confirming && (
         <ConfirmRemoveDialog
           profile={confirming}
@@ -175,6 +207,45 @@ export function AdminUsers() {
         />
       )}
     </AdminLayout>
+  );
+}
+
+/**
+ * "Did this person build anything?" at a glance. Three states worth telling
+ * apart: never saved to the cloud at all, saved but still the untouched
+ * sample, and real work (shown as component/effect counts).
+ */
+function ProjectCell({
+  row,
+  onOpen,
+}: {
+  row: AdminProjectRow | undefined;
+  onOpen: () => void;
+}) {
+  if (!row) return <span className="text-neutral-500">—</span>;
+
+  const s = summarizeProject(row.data);
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      title="View this project (read-only)"
+      className="text-left underline decoration-dotted underline-offset-2 hover:text-sky-600 dark:hover:text-sky-400"
+    >
+      {s.looksUntouched ? (
+        <span className="text-neutral-500">sample, unedited</span>
+      ) : (
+        <>
+          {s.componentCount} component{s.componentCount === 1 ? "" : "s"}
+          {s.effectCount > 0 && (
+            <span className="text-neutral-500">
+              {" "}
+              · {s.effectCount} effect{s.effectCount === 1 ? "" : "s"}
+            </span>
+          )}
+        </>
+      )}
+    </button>
   );
 }
 
