@@ -98,9 +98,11 @@ export function AdminUsers() {
           placeholder="Search by email…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-64 rounded border border-neutral-300 bg-white px-3 py-1.5 text-sm focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900"
+          // text-base below sm stops iOS Safari zooming the page on focus
+          // (it zooms for any field under 16px); sm: restores the desktop size.
+          className="w-full min-w-0 rounded border border-neutral-300 bg-white px-3 py-2 text-base focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 sm:w-64 sm:py-1.5 sm:text-sm"
         />
-        <span className="text-xs text-neutral-500">
+        <span className="shrink-0 text-xs text-neutral-500">
           {filtered.length} of {rows.length}
         </span>
       </div>
@@ -112,78 +114,138 @@ export function AdminUsers() {
       ) : filtered.length === 0 ? (
         <p className="mt-6 text-sm text-neutral-500">No users match.</p>
       ) : (
-        <div className="mt-4 overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800">
-          <table className="w-full text-sm">
-            <thead className="bg-neutral-50 text-left text-[11px] uppercase tracking-wider text-neutral-500 dark:bg-neutral-900">
-              <tr>
-                <th className="px-4 py-2 font-medium">Email</th>
-                <th className="px-4 py-2 font-medium">Joined</th>
-                <th className="px-4 py-2 font-medium">Last seen</th>
-                <th className="px-4 py-2 font-medium">Time in app</th>
-                <th className="px-4 py-2 font-medium">Project</th>
-                <th className="px-4 py-2 font-medium">Admin</th>
-                <th className="px-4 py-2 font-medium sr-only">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-800 dark:bg-neutral-950">
-              {filtered.map((u) => {
-                const blocked = removalBlockedReason(u, currentUid);
-                const project = projects.get(u.id);
-                return (
-                  <tr key={u.id}>
-                    <td className="px-4 py-2 font-mono text-xs">
-                      {u.email ?? "—"}
-                    </td>
-                    <td className="px-4 py-2 text-xs text-neutral-500">
-                      {new Date(u.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-2 text-xs text-neutral-500">
-                      {u.last_seen_at
-                        ? new Date(u.last_seen_at).toLocaleString()
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-2 text-xs tabular-nums text-neutral-500">
-                      {u.active_seconds > 0
-                        ? formatDuration(u.active_seconds)
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-2 text-xs">
-                      <ProjectCell
-                        row={project}
-                        onOpen={() => setInspecting(u)}
-                      />
-                    </td>
-                    <td className="px-4 py-2">
-                      {u.is_admin ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-sky-800 dark:bg-sky-900/40 dark:text-sky-200">
-                          <Shield size={10} />
-                          admin
-                        </span>
-                      ) : (
-                        <span className="text-[11px] text-neutral-500">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <button
-                        type="button"
-                        disabled={blocked !== null}
-                        onClick={() => {
-                          setError(null);
-                          setConfirming(u);
-                        }}
-                        title={blocked ?? `Remove ${u.email ?? u.id}`}
-                        aria-label={`Remove ${u.email ?? u.id}`}
-                        className="rounded p-1 text-neutral-400 enabled:hover:bg-red-50 enabled:hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 dark:enabled:hover:bg-red-950/40 dark:enabled:hover:text-red-400"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* Phones: the seven-column table can't fit, so stack each user into
+              a card. The real table takes over from `md` up. */}
+          <ul className="mt-4 divide-y divide-neutral-200 rounded-lg border border-neutral-200 bg-white dark:divide-neutral-800 dark:border-neutral-800 dark:bg-neutral-950 md:hidden">
+            {filtered.map((u) => {
+              const blocked = removalBlockedReason(u, currentUid);
+              const project = projects.get(u.id);
+              return (
+                <li key={u.id} className="flex items-start gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate font-mono text-xs">
+                        {u.email ?? "—"}
+                      </span>
+                      {u.is_admin && <AdminPill />}
+                    </div>
+                    <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs text-neutral-500">
+                      <dt className="text-neutral-400 dark:text-neutral-500">
+                        Joined
+                      </dt>
+                      <dd>{new Date(u.created_at).toLocaleDateString()}</dd>
+                      <dt className="text-neutral-400 dark:text-neutral-500">
+                        Last seen
+                      </dt>
+                      <dd>
+                        {u.last_seen_at
+                          ? new Date(u.last_seen_at).toLocaleString()
+                          : "—"}
+                      </dd>
+                      <dt className="text-neutral-400 dark:text-neutral-500">
+                        Time in app
+                      </dt>
+                      <dd className="tabular-nums">
+                        {u.active_seconds > 0
+                          ? formatDuration(u.active_seconds)
+                          : "—"}
+                      </dd>
+                      <dt className="text-neutral-400 dark:text-neutral-500">
+                        Project
+                      </dt>
+                      <dd className="min-w-0">
+                        <ProjectCell
+                          row={project}
+                          onOpen={() => setInspecting(u)}
+                        />
+                      </dd>
+                    </dl>
+                  </div>
+                  <RemoveButton
+                    profile={u}
+                    blocked={blocked}
+                    onSelect={() => {
+                      setError(null);
+                      setConfirming(u);
+                    }}
+                    iconSize={16}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center"
+                  />
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="mt-4 hidden overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-800 md:block">
+            <table className="w-full text-sm">
+              <thead className="bg-neutral-50 text-left text-[11px] uppercase tracking-wider text-neutral-500 dark:bg-neutral-900">
+                <tr>
+                  <th className="px-4 py-2 font-medium">Email</th>
+                  <th className="px-4 py-2 font-medium">Joined</th>
+                  <th className="px-4 py-2 font-medium">Last seen</th>
+                  <th className="px-4 py-2 font-medium">Time in app</th>
+                  <th className="px-4 py-2 font-medium">Project</th>
+                  <th className="px-4 py-2 font-medium">Admin</th>
+                  <th className="px-4 py-2 font-medium sr-only">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-800 dark:bg-neutral-950">
+                {filtered.map((u) => {
+                  const blocked = removalBlockedReason(u, currentUid);
+                  const project = projects.get(u.id);
+                  return (
+                    <tr key={u.id}>
+                      <td className="px-4 py-2 font-mono text-xs">
+                        {u.email ?? "—"}
+                      </td>
+                      <td className="px-4 py-2 text-xs text-neutral-500">
+                        {new Date(u.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-2 text-xs text-neutral-500">
+                        {u.last_seen_at
+                          ? new Date(u.last_seen_at).toLocaleString()
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-2 text-xs tabular-nums text-neutral-500">
+                        {u.active_seconds > 0
+                          ? formatDuration(u.active_seconds)
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-2 text-xs">
+                        <ProjectCell
+                          row={project}
+                          onOpen={() => setInspecting(u)}
+                        />
+                      </td>
+                      <td className="px-4 py-2">
+                        {u.is_admin ? (
+                          <AdminPill />
+                        ) : (
+                          <span className="text-[11px] text-neutral-500">
+                            —
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <RemoveButton
+                          profile={u}
+                          blocked={blocked}
+                          onSelect={() => {
+                            setError(null);
+                            setConfirming(u);
+                          }}
+                          iconSize={13}
+                          className="p-1"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {inspecting && projects.get(inspecting.id) && (
@@ -261,6 +323,47 @@ function summarize(r: PurgeResult): string {
   return parts.length > 0 ? `deleted ${parts.join(", ")}` : "no data to delete";
 }
 
+/** Shared by the phone card list and the `md`+ table so they can't drift. */
+function AdminPill() {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-sky-800 dark:bg-sky-900/40 dark:text-sky-200">
+      <Shield size={10} />
+      admin
+    </span>
+  );
+}
+
+interface RemoveButtonProps {
+  profile: Profile;
+  /** `removalBlockedReason` result — non-null disables and explains. */
+  blocked: string | null;
+  onSelect: () => void;
+  iconSize: number;
+  /** Sizing only: `p-1` in the table, a 40px tap target in the card list. */
+  className: string;
+}
+
+function RemoveButton({
+  profile,
+  blocked,
+  onSelect,
+  iconSize,
+  className,
+}: RemoveButtonProps) {
+  return (
+    <button
+      type="button"
+      disabled={blocked !== null}
+      onClick={onSelect}
+      title={blocked ?? `Remove ${profile.email ?? profile.id}`}
+      aria-label={`Remove ${profile.email ?? profile.id}`}
+      className={`rounded text-neutral-400 enabled:hover:bg-red-50 enabled:hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 dark:enabled:hover:bg-red-950/40 dark:enabled:hover:text-red-400 ${className}`}
+    >
+      <Trash2 size={iconSize} />
+    </button>
+  );
+}
+
 interface ConfirmProps {
   profile: Profile;
   busy: boolean;
@@ -298,7 +401,7 @@ function ConfirmRemoveDialog({
       aria-label="Confirm user removal"
     >
       <div
-        className="w-full max-w-md overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-xl dark:border-neutral-800 dark:bg-neutral-950"
+        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg border border-neutral-200 bg-white shadow-xl dark:border-neutral-800 dark:bg-neutral-950"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3 px-5 py-4">
@@ -333,7 +436,7 @@ function ConfirmRemoveDialog({
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="rounded border border-neutral-300 px-3 py-1.5 text-xs hover:border-neutral-500 disabled:opacity-50 dark:border-neutral-700"
+            className="min-h-[40px] rounded border border-neutral-300 px-3 py-1.5 text-xs hover:border-neutral-500 disabled:opacity-50 dark:border-neutral-700 sm:min-h-0"
           >
             Cancel
           </button>
@@ -341,7 +444,7 @@ function ConfirmRemoveDialog({
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50 sm:min-h-0"
           >
             {busy && <Loader2 size={12} className="animate-spin" />}
             {busy ? "Removing…" : "Delete permanently"}

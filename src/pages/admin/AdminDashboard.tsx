@@ -101,7 +101,7 @@ export function AdminDashboard() {
 
           {/* Signups trend */}
           <section className="mt-8 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950">
-            <header className="mb-3 flex items-baseline justify-between">
+            <header className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
               <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight">
                 <UserPlus size={14} className="text-sky-500" />
                 Signups — last 30 days
@@ -139,19 +139,19 @@ export function AdminDashboard() {
             </section>
 
             <section className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950">
-              <header className="mb-3 flex items-baseline justify-between">
+              <header className="mb-3 flex items-baseline justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight">
                   <MessageSquare size={14} className="text-sky-500" />
                   Feedback
                 </h2>
                 <Link
                   to="/admin/feedback"
-                  className="text-xs text-sky-600 hover:underline dark:text-sky-400"
+                  className="inline-flex min-h-[40px] shrink-0 items-center text-xs text-sky-600 hover:underline dark:text-sky-400 sm:min-h-0"
                 >
                   View all →
                 </Link>
               </header>
-              <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="grid grid-cols-3 gap-2 text-center sm:gap-3">
                 <MiniStat
                   label="Open"
                   value={stats.feedbackOpen}
@@ -168,13 +168,13 @@ export function AdminDashboard() {
 
           {/* Recent feedback list */}
           <section className="mt-8">
-            <div className="mb-3 flex items-baseline justify-between">
+            <div className="mb-3 flex items-baseline justify-between gap-3">
               <h2 className="text-lg font-semibold tracking-tight">
                 Recent feedback
               </h2>
               <Link
                 to="/admin/feedback"
-                className="text-xs text-sky-600 hover:underline dark:text-sky-400"
+                className="inline-flex min-h-[40px] shrink-0 items-center text-xs text-sky-600 hover:underline dark:text-sky-400 sm:min-h-0"
               >
                 View all →
               </Link>
@@ -197,7 +197,7 @@ export function AdminDashboard() {
                           {new Date(f.created_at).toLocaleString()}
                         </time>
                       </div>
-                      <p className="mt-0.5 truncate text-xs text-neutral-500">
+                      <p className="mt-0.5 break-words text-xs text-neutral-500 sm:truncate">
                         {f.email ?? "anonymous"} · {f.status}
                         {f.reply_count > 0
                           ? ` · ${f.reply_count} repl${f.reply_count === 1 ? "y" : "ies"}`
@@ -259,7 +259,7 @@ function MiniStat({
       ? "text-amber-600 dark:text-amber-400"
       : "text-neutral-900 dark:text-neutral-100";
   return (
-    <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+    <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-2 dark:border-neutral-800 dark:bg-neutral-900 sm:p-3">
       <div className={`text-2xl font-semibold tabular-nums ${valueClass}`}>
         {value}
       </div>
@@ -282,7 +282,7 @@ function EffectBar({
   const pct = max > 0 ? (count / max) * 100 : 0;
   return (
     <li className="flex items-center gap-2 text-xs">
-      <span className="w-28 shrink-0 truncate text-neutral-700 dark:text-neutral-300">
+      <span className="w-20 shrink-0 truncate text-neutral-700 dark:text-neutral-300 sm:w-28">
         {EFFECT_LABELS[type]}
       </span>
       <div className="relative h-4 flex-1 overflow-hidden rounded bg-neutral-100 dark:bg-neutral-900">

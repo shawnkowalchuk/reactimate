@@ -238,20 +238,24 @@ export function Examples() {
           </p>
         </div>
 
-        <div className="mt-10 flex items-stretch">
+        {/* On phones the two 40px arrow gutters would squeeze the card to
+            ~260px, so the card takes a full row (basis-full) and the arrows
+            wrap onto a centered row beneath it. `sm:` restores the original
+            single-row layout untouched. */}
+        <div className="mt-10 flex flex-wrap items-stretch justify-center gap-4 sm:flex-nowrap sm:justify-normal sm:gap-0">
           {/* Left arrow */}
           <button
             type="button"
             onClick={() => go(-1)}
             disabled={page === 0}
-            className="flex w-10 shrink-0 items-center justify-center self-stretch text-neutral-400 transition-colors disabled:opacity-20 enabled:hover:text-neutral-900 dark:text-neutral-600 dark:enabled:hover:text-neutral-200"
+            className="order-1 flex w-10 shrink-0 items-center justify-center self-stretch py-2 text-neutral-400 transition-colors disabled:opacity-20 enabled:hover:text-neutral-900 sm:order-none sm:py-0 dark:text-neutral-600 dark:enabled:hover:text-neutral-200"
             aria-label="Previous page"
           >
             <ChevronLeft size={36} />
           </button>
 
           {/* Cards grid with slide animation */}
-          <div className="relative flex-1 overflow-hidden">
+          <div className="relative flex-1 basis-full overflow-hidden sm:basis-0">
             <AnimatePresence mode="wait" initial={false} custom={direction}>
               <motion.div
                 key={page}
@@ -265,7 +269,7 @@ export function Examples() {
                 {slice.map((ex, idx) => {
                   const globalIdx = page * PER_PAGE + idx;
                   return (
-                    <div key={globalIdx}>
+                    <div key={globalIdx} className="min-w-0">
                       <MotionExample
                         title={ex.title}
                         caption={ex.caption}
@@ -289,7 +293,7 @@ export function Examples() {
             type="button"
             onClick={() => go(1)}
             disabled={page >= maxPage}
-            className="flex w-10 shrink-0 items-center justify-center self-stretch text-neutral-400 transition-colors disabled:opacity-20 enabled:hover:text-neutral-900 dark:text-neutral-600 dark:enabled:hover:text-neutral-200"
+            className="order-2 flex w-10 shrink-0 items-center justify-center self-stretch py-2 text-neutral-400 transition-colors disabled:opacity-20 enabled:hover:text-neutral-900 sm:order-none sm:py-0 dark:text-neutral-600 dark:enabled:hover:text-neutral-200"
             aria-label="Next page"
           >
             <ChevronRight size={36} />

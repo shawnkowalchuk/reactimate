@@ -77,7 +77,7 @@ export function Integration() {
       id="integration"
       className="border-b border-neutral-200 dark:border-neutral-800"
     >
-      <div className="mx-auto max-w-5xl px-6 py-20">
+      <div className="mx-auto max-w-5xl px-6 py-14 sm:py-20">
         <div className="text-center">
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             Add it to your site in four steps
@@ -88,7 +88,7 @@ export function Integration() {
           </p>
         </div>
 
-        <ol className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <ol className="mt-10 grid gap-6 sm:mt-12 sm:grid-cols-2 lg:grid-cols-4">
           {STEPS.map((s, i) => (
             <li
               key={s.title}
@@ -115,7 +115,7 @@ export function Integration() {
               page.tsx
             </span>
           </div>
-          <pre className="m-0 overflow-auto px-4 py-3 text-[12px] leading-relaxed text-neutral-800 dark:text-neutral-200">
+          <pre className="m-0 overflow-auto whitespace-pre-wrap px-4 py-3 text-[12px] leading-relaxed text-neutral-800 sm:whitespace-pre dark:text-neutral-200">
             <code className="font-mono">{SNIPPET}</code>
           </pre>
         </div>

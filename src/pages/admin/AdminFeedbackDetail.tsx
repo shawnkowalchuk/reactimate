@@ -69,7 +69,7 @@ export function AdminFeedbackDetail() {
     <AdminLayout>
       <Link
         to="/admin/feedback"
-        className="mb-4 inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"
+        className="mb-4 inline-flex min-h-[40px] items-center gap-1 text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 sm:min-h-0"
       >
         <ArrowLeft size={12} />
         All feedback
@@ -81,26 +81,26 @@ export function AdminFeedbackDetail() {
         </div>
       ) : (
         <>
-          <header className="flex items-baseline justify-between gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight">
+          <header className="flex flex-col items-start gap-3 sm:flex-row sm:items-baseline sm:justify-between">
+            <h1 className="break-words text-2xl font-semibold tracking-tight">
               {thread.subject}
             </h1>
             <select
               value={thread.status}
               onChange={(e) => void onStatus(e.target.value as FeedbackStatus)}
-              className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs capitalize dark:border-neutral-700 dark:bg-neutral-900"
+              className="min-h-[40px] shrink-0 rounded border border-neutral-300 bg-white px-2 py-1 text-xs capitalize dark:border-neutral-700 dark:bg-neutral-900 sm:min-h-0"
             >
               <option value="open">open</option>
               <option value="replied">replied</option>
               <option value="closed">closed</option>
             </select>
           </header>
-          <p className="mt-1 text-xs text-neutral-500">
+          <p className="mt-1 break-words text-xs text-neutral-500">
             from {thread.email ?? "anonymous"} ·{" "}
             {new Date(thread.created_at).toLocaleString()}
           </p>
 
-          <article className="mt-6 whitespace-pre-wrap rounded-lg border border-neutral-200 bg-white p-4 text-sm dark:border-neutral-800 dark:bg-neutral-950">
+          <article className="mt-6 whitespace-pre-wrap break-words rounded-lg border border-neutral-200 bg-white p-4 text-sm dark:border-neutral-800 dark:bg-neutral-950">
             {thread.body}
           </article>
 
@@ -113,13 +113,13 @@ export function AdminFeedbackDetail() {
                   key={r.id}
                   className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm dark:border-sky-900/40 dark:bg-sky-950/40"
                 >
-                  <header className="mb-1 flex items-center gap-2 text-[11px] uppercase tracking-wider text-sky-700 dark:text-sky-300">
+                  <header className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] uppercase tracking-wider text-sky-700 dark:text-sky-300">
                     Admin reply
                     <time className="text-[11px] text-neutral-500">
                       {new Date(r.created_at).toLocaleString()}
                     </time>
                   </header>
-                  <p className="whitespace-pre-wrap text-neutral-800 dark:text-neutral-100">
+                  <p className="whitespace-pre-wrap break-words text-neutral-800 dark:text-neutral-100">
                     {r.body}
                   </p>
                 </article>
@@ -137,7 +137,7 @@ export function AdminFeedbackDetail() {
               value={reply}
               onChange={(e) => setReply(e.target.value)}
               placeholder="Write your reply…"
-              className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm leading-relaxed focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900"
+              className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-base leading-relaxed focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 sm:text-sm"
             />
             {error && (
               <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>
@@ -146,7 +146,7 @@ export function AdminFeedbackDetail() {
               <button
                 type="submit"
                 disabled={posting || !reply.trim()}
-                className="inline-flex items-center gap-1.5 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-60 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-60 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200 sm:w-auto sm:justify-start sm:py-2"
               >
                 {posting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                 Send reply

@@ -119,21 +119,21 @@ export function FAQ() {
       id="faq"
       className="border-b border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900/30"
     >
-      <div className="mx-auto max-w-3xl px-6 py-20">
+      <div className="mx-auto max-w-3xl px-5 py-14 sm:px-6 sm:py-20">
         <div className="text-center">
-          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-4xl">
             FAQ
           </h2>
-          <p className="mt-3 text-base text-neutral-600 dark:text-neutral-400">
+          <p className="mt-3 text-balance text-base text-neutral-600 sm:text-wrap dark:text-neutral-400">
             Quick answers to the questions that come up most often.
           </p>
         </div>
 
-        <div className="mt-12 divide-y divide-neutral-200 rounded-xl border border-neutral-200 bg-white shadow-sm dark:divide-neutral-800 dark:border-neutral-800 dark:bg-neutral-950">
+        <div className="mt-8 divide-y divide-neutral-200 rounded-xl border border-neutral-200 bg-white shadow-sm sm:mt-12 dark:divide-neutral-800 dark:border-neutral-800 dark:bg-neutral-950">
           {ITEMS.map((item, i) => (
             <details
               key={i}
-              className="group px-5 py-4"
+              className="group px-4 py-4 sm:px-5"
               // First item is open by default so the section reads as
               // populated even before the user clicks anything.
               open={i === 0}
@@ -145,7 +145,7 @@ export function FAQ() {
                   className="shrink-0 text-neutral-500 transition-transform group-open:rotate-180"
                 />
               </summary>
-              <div className="mt-3 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
+              <div className="mt-3 break-words text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
                 {item.a}
               </div>
             </details>

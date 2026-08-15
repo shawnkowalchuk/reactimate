@@ -33,13 +33,13 @@ export function AdminFeedback() {
         Every user submission. Click a row to reply.
       </p>
 
-      <div className="mt-6 flex items-center gap-1">
+      <div className="mt-6 flex flex-wrap items-center gap-1">
         {STATUSES.map((s) => (
           <button
             key={s}
             type="button"
             onClick={() => setFilter(s)}
-            className={`rounded-md px-2.5 py-1 text-xs font-medium capitalize ${
+            className={`rounded-md px-3 py-3 text-xs font-medium capitalize sm:px-2.5 sm:py-1 ${
               filter === s
                 ? "bg-neutral-200 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
                 : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 dark:hover:bg-neutral-900 dark:hover:text-neutral-200"
@@ -71,7 +71,7 @@ export function AdminFeedback() {
                   <h3 className="truncate text-sm font-medium">{f.subject}</h3>
                   <StatusPill status={f.status} />
                 </div>
-                <p className="mt-0.5 truncate text-xs text-neutral-500">
+                <p className="mt-0.5 break-words text-xs text-neutral-500 sm:truncate">
                   {f.email ?? "anonymous"} ·{" "}
                   {new Date(f.created_at).toLocaleString()}
                   {f.reply_count > 0
@@ -100,7 +100,7 @@ function StatusPill({ status }: { status: FeedbackStatus }) {
   } as const;
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${map[status]}`}
+      className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${map[status]}`}
     >
       {status}
     </span>

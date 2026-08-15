@@ -7,13 +7,13 @@ export function Hero() {
     <section className="relative overflow-hidden border-b border-neutral-200 dark:border-neutral-800">
       <div className="pointer-events-none absolute inset-0 -z-10 [background-image:radial-gradient(circle_at_15%_20%,_rgba(56,189,248,0.15),_transparent_45%),radial-gradient(circle_at_85%_30%,_rgba(244,114,182,0.12),_transparent_50%),radial-gradient(circle_at_50%_85%,_rgba(132,204,22,0.10),_transparent_55%)]" />
 
-      <div className="mx-auto max-w-5xl px-6 py-20 text-center sm:py-28">
+      <div className="mx-auto max-w-5xl px-5 py-14 text-center sm:px-6 sm:py-28">
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white/60 px-3 py-1 text-xs text-neutral-600 backdrop-blur dark:border-neutral-800 dark:bg-neutral-900/60 dark:text-neutral-400">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
           Open-source · MIT licensed
         </div>
 
-        <h1 className="mx-auto max-w-3xl text-4xl font-semibold tracking-tight sm:text-6xl">
+        <h1 className="mx-auto max-w-3xl text-balance text-3xl font-semibold tracking-tight sm:text-wrap sm:text-6xl">
           Design{" "}
           <motion.span
             initial={{ opacity: 0, y: 24 }}
@@ -39,7 +39,7 @@ export function Hero() {
           >
             text
           </motion.span>
-          <br className="hidden sm:block" />
+          <br className="block" />
           <span className="text-neutral-500">export clean React + Motion.</span>
         </h1>
 
@@ -50,10 +50,10 @@ export function Hero() {
           you can drop into any React project.
         </p>
 
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap">
           <Link
             to="/app"
-            className="inline-flex items-center gap-1.5 rounded-md bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-neutral-700 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-neutral-900 px-4 py-3 text-sm font-medium text-white shadow-sm hover:bg-neutral-700 sm:w-auto sm:py-2.5 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
           >
             Open the editor
             <ArrowRight size={14} />
@@ -62,7 +62,7 @@ export function Hero() {
             href="https://github.com/shawnkowalchuk/reactimate"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-800 hover:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-neutral-500"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-neutral-300 bg-white px-4 py-3 text-sm font-medium text-neutral-800 hover:border-neutral-500 sm:w-auto sm:py-2.5 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-neutral-500"
           >
             <Github size={14} />
             View on GitHub

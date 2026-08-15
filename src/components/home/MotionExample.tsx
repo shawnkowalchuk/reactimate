@@ -39,18 +39,18 @@ export function MotionExample({
 
   return (
     <article className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-      <header className="flex items-center justify-between border-b border-neutral-200 px-4 py-2 dark:border-neutral-800">
+      <header className="flex flex-col gap-1 border-b border-neutral-200 px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-0 dark:border-neutral-800">
         <div className="min-w-0">
           <h3 className="truncate text-sm font-semibold tracking-tight">{title}</h3>
           {caption && (
             <p className="truncate text-xs text-neutral-500">{caption}</p>
           )}
         </div>
-        <div className="flex items-center gap-1 text-[11px]">
+        <div className="flex flex-wrap items-center gap-1 text-[11px]">
           <button
             type="button"
             onClick={() => setTab("preview")}
-            className={`flex items-center gap-1 rounded px-2 py-1 ${
+            className={`flex min-h-[40px] items-center gap-1 rounded px-2 py-1 sm:min-h-0 ${
               tab === "preview"
                 ? "bg-neutral-200 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
                 : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 dark:hover:bg-neutral-900 dark:hover:text-neutral-200"
@@ -63,7 +63,7 @@ export function MotionExample({
           <button
             type="button"
             onClick={() => setTab("code")}
-            className={`flex items-center gap-1 rounded px-2 py-1 ${
+            className={`flex min-h-[40px] items-center gap-1 rounded px-2 py-1 sm:min-h-0 ${
               tab === "code"
                 ? "bg-neutral-200 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
                 : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 dark:hover:bg-neutral-900 dark:hover:text-neutral-200"
@@ -77,7 +77,7 @@ export function MotionExample({
             <button
               type="button"
               onClick={onOpenInEditor}
-              className="inline-flex items-center gap-1 rounded px-2 py-1 text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-950/40"
+              className="inline-flex min-h-[40px] items-center gap-1 rounded px-2 py-1 text-sky-600 hover:bg-sky-50 sm:min-h-0 dark:text-sky-400 dark:hover:bg-sky-950/40"
               title="Open this example in the editor"
             >
               <Edit3 size={11} />
@@ -91,20 +91,20 @@ export function MotionExample({
         <div className="relative">
           <div
             key={replayKey}
-            className="flex h-56 items-center justify-center px-6"
+            className="flex h-56 items-center justify-center px-4 sm:px-6"
             style={{
               background,
               color: textColor,
               fontFamily: 'Inter, system-ui, "Segoe UI", Roboto, sans-serif',
             }}
           >
-            <div className="text-center">{demo}</div>
+            <div className="min-w-0 text-center">{demo}</div>
           </div>
           <button
             type="button"
             onClick={onReplay}
             title="Replay animation"
-            className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-md bg-black/40 px-2 py-1 text-[11px] font-medium text-white backdrop-blur hover:bg-black/60"
+            className="absolute right-3 top-3 inline-flex min-h-[40px] items-center gap-1.5 rounded-md bg-black/40 px-2 py-1 text-[11px] font-medium text-white backdrop-blur hover:bg-black/60 sm:min-h-0"
           >
             <RotateCw size={11} />
             Replay
@@ -118,7 +118,7 @@ export function MotionExample({
           <button
             type="button"
             onClick={onCopy}
-            className="absolute right-3 top-2 inline-flex items-center gap-1.5 rounded border border-neutral-300 bg-white px-2 py-0.5 text-[11px] text-neutral-700 hover:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+            className="absolute right-3 top-2 inline-flex min-h-[40px] items-center gap-1.5 rounded border border-neutral-300 bg-white px-2 py-0.5 text-[11px] text-neutral-700 hover:border-neutral-500 sm:min-h-0 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
             title="Copy to clipboard"
           >
             {copied ? <Check size={11} /> : <Copy size={11} />}

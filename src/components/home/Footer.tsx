@@ -11,10 +11,10 @@ export function Footer() {
           </span>
           <span className="text-xs">· Hero Animator</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-center gap-4">
           <Link
             to="/feedback"
-            className="hover:text-neutral-800 dark:hover:text-neutral-200"
+            className="inline-flex min-h-[40px] items-center hover:text-neutral-800 sm:min-h-0 dark:hover:text-neutral-200"
           >
             Feedback
           </Link>
@@ -22,7 +22,7 @@ export function Footer() {
             href="https://github.com/shawnkowalchuk/reactimate"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 hover:text-neutral-800 dark:hover:text-neutral-200"
+            className="inline-flex min-h-[40px] items-center gap-1.5 hover:text-neutral-800 sm:min-h-0 dark:hover:text-neutral-200"
           >
             <Github size={14} />
             GitHub
@@ -31,7 +31,7 @@ export function Footer() {
             href="https://github.com/shawnkowalchuk/reactimate/blob/main/STATUS.md"
             target="_blank"
             rel="noreferrer"
-            className="hover:text-neutral-800 dark:hover:text-neutral-200"
+            className="inline-flex min-h-[40px] items-center hover:text-neutral-800 sm:min-h-0 dark:hover:text-neutral-200"
           >
             Status
           </a>
@@ -39,7 +39,7 @@ export function Footer() {
             href="https://github.com/shawnkowalchuk/reactimate/blob/main/LICENSE"
             target="_blank"
             rel="noreferrer"
-            className="hover:text-neutral-800 dark:hover:text-neutral-200"
+            className="inline-flex min-h-[40px] items-center hover:text-neutral-800 sm:min-h-0 dark:hover:text-neutral-200"
           >
             MIT
           </a>

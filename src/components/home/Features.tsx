@@ -55,7 +55,7 @@ const FEATURES = [
 export function Features() {
   return (
     <section className="border-b border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900/30">
-      <div className="mx-auto max-w-5xl px-6 py-20">
+      <div className="mx-auto max-w-5xl px-6 py-14 sm:py-20">
         <div className="text-center">
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             Built for shipping
@@ -65,7 +65,7 @@ export function Features() {
           </p>
         </div>
 
-        <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="mt-10 grid gap-4 sm:mt-12 sm:grid-cols-2 lg:grid-cols-4">
           {FEATURES.map((f) => (
             <li
               key={f.title}
