@@ -77,7 +77,11 @@ export function MotionExample({
             <button
               type="button"
               onClick={onOpenInEditor}
-              className="inline-flex min-h-[40px] items-center gap-1 rounded px-2 py-1 text-sky-600 hover:bg-sky-50 sm:min-h-0 dark:text-sky-400 dark:hover:bg-sky-950/40"
+              // Bordered/filled so "Editor" reads as the card's action rather
+              // than a third tab alongside Preview/Code. The left margin only
+              // applies from sm: up — on a phone the row already wraps, and the
+              // extra gap would just cost width the card doesn't have.
+              className="inline-flex min-h-[40px] items-center gap-1 rounded border border-sky-300 bg-sky-50 px-2 py-1 text-sky-700 hover:bg-sky-100 sm:ml-2 sm:min-h-0 dark:border-sky-700 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/60"
               title="Open this example in the editor"
             >
               <Edit3 size={11} />
