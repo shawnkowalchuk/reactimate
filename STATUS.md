@@ -2,7 +2,7 @@
 
 > Living doc. Updated whenever a feature ships. Pair with [README.md](./README.md) for usage and setup.
 
-**Last updated:** 2026-08-13 · adoption fixes (responsive export wrapper, visible-on-create components, preview empty-state hint) + admin user removal, unread-feedback badge, time-in-app tracking (see header commit)
+**Last updated:** 2026-08-15 · home page + admin are mobile-ready (197px of overflow → 0 at 390px); read-only project inspector on the Users page; CI now deploys Firestore rules and auto-deploys on push to a protected `main`
 
 ---
 
@@ -96,6 +96,17 @@
 - **CallToAction**: large "Open the editor" CTA
 - **Footer**: GitHub / Status / MIT links
 - Theme: same `themeStore` + `dark:` Tailwind variants — the home page respects the persisted theme
+
+### Mobile (home + admin only)
+The marketing page and `/admin/*` work on a phone; the editor stays desktop-only by design. Before this pass the home page measured **197px of horizontal overflow across 111 elements at a 390px viewport** — the fixes are validated against that same measurement, now 0 and 0.
+- **Navbar** — the desktop link row was 427px wide on its own and pushed the CTA off-screen. Below `md:` it collapses to a hamburger + panel (40px rows, closes on tap, route change, and Escape); at `md:` and up the markup is unchanged
+- **Hero headline** rendered as `textexport clean` on phones: the separating `<br>` carried `hidden sm:block`, and JSX strips the newline around it, so mobile had no separator at all. Now `block` at every width
+- **Examples card** measured 484px because its grid item defaulted to `min-width: auto`, flooring the column at content width rather than the space available; `min-w-0` plus a full-basis wrap fixes it. The `*Proj` / `buildExample` data was not touched
+- **AdminLayout** hardcoded `grid-cols-[220px_minmax(0,1fr)]`, leaving ~170px of content on a 390px screen. It is a flex column with a drawer below `md:`, the original two-column grid above
+- **AdminUsers** renders a stacked card list below `md:` and the real 7-column table (in an `overflow-x-auto` container) at `md:` and up. Long emails truncate rather than overflow
+- **Home shell** (`HomePage.tsx`): desktop keeps the app-shell frame (`h-screen`, only `<main>` scrolls, footer parked at the bottom). That footer cost a phone ~156px of an ~844px screen, so below `md:` the frame grows with its content and the document scrolls instead. The sticky navbar keeps nav reachable either way
+- Search inputs use `text-base` below `sm:` — iOS Safari zooms the page for any field under 16px
+- **Verify mobile with `document.documentElement.clientWidth`, not `window.innerWidth`** — the latter misreports in the preview pane (587 at a real 390px viewport) and will report a broken page as clean
 
 ### Editor shell
 - Four-row layout: **Toolbar** · **InspectorBar** (top, always shown) · **Editor / Preview** main grid · **Timeline** footer (`grid-rows-[auto_auto_40vh_minmax(0,1fr)]`)
@@ -254,7 +265,7 @@ The `Test-Project/` folder at the repo root is a bare Vite + React 19 + Motion s
 - **fireworks-js** by crashmax-dev (MIT) — canvas-based fireworks engine for the `"fireworks-js"` particle type
 - **firebase** — auth + Firestore, env-gated (see Optional auth). Firebase Analytics activates only if the config JSON carries a `measurementId` (i.e. the project gets linked to GA4); silent no-op otherwise. The Vercel analytics/speed-insights packages are gone with the Vercel exit
 - ESLint flat config + Prettier
-- **139 tests passing across 14 files** — all green through the Firebase migration with zero test edits (the env-gated null client keeps the cloud branch dead under vitest, same as before)
+- **146 tests passing across 15 files** — all green through the Firebase migration with zero test edits (the env-gated null client keeps the cloud branch dead under vitest, same as before)
 - GitHub Actions CI: `lint` → `typecheck` → `test` → `build`, then a `deploy` job (push to main only) that builds with the repo-variable config and deploys to Firebase Hosting
 - Conventional commits; commit log is the design record
 

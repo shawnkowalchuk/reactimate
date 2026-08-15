@@ -32,9 +32,15 @@ export function HomePage() {
   }, [location.hash]);
 
   return (
-    <div className="h-screen flex flex-col bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+    // Desktop keeps the app-shell feel: a fixed-height frame with only <main>
+    // scrolling, so the footer is always parked at the bottom. That costs a
+    // phone ~156px of an ~844px screen for links nobody scrolls to on purpose,
+    // so below md: the frame grows with its content and the whole document
+    // scrolls, handing those pixels back to the page. The sticky navbar keeps
+    // navigation reachable either way.
+    <div className="flex min-h-screen flex-col bg-white text-neutral-900 md:h-screen dark:bg-neutral-950 dark:text-neutral-100">
       <Navbar />
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 md:overflow-y-auto">
         <Hero />
         <HowItWorks />
         <Examples />
